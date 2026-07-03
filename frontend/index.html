@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CineTicket - Hệ Thống Bán Vé Rạp Chiếu Phim</title>
+  <link rel="stylesheet" href="assets/css/variables.css" />
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <link rel="stylesheet" href="assets/css/components.css" />
+  <link rel="stylesheet" href="assets/css/pages/home.css" />
+  <link rel="stylesheet" href="assets/css/pages/auth.css" />
+  <link rel="stylesheet" href="assets/css/pages/movies.css" />
+  <link rel="stylesheet" href="assets/css/pages/booking.css" />
+  <link rel="stylesheet" href="assets/css/pages/seats.css" />
+  <link rel="stylesheet" href="assets/css/pages/payment.css" />
+  <link rel="stylesheet" href="assets/css/pages/ticket.css" />
+  <link rel="stylesheet" href="assets/css/pages/admin.css" />
+  <link rel="stylesheet" href="assets/css/pages/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Navbar -->
+    <nav id="navbar"></nav>
+    <!-- Main Content -->
+    <main id="main-content"></main>
+    <!-- Footer -->
+    <footer id="footer"></footer>
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+  </div>
+
+  <!-- Utilities -->
+  <script src="assets/js/utils/helpers.js"></script>
+  <script src="assets/js/utils/state.js"></script>
+  <script src="assets/js/utils/api.js"></script>
+  <script src="assets/js/utils/router.js"></script>
+
+  <!-- Shared Components -->
+  <script src="assets/js/components/Toast.js"></script>
+  <script src="assets/js/components/Modal.js"></script>
+  <script src="assets/js/components/Navbar.js"></script>
+  <script src="assets/js/components/Footer.js"></script>
+
+  <!-- Auth Module -->
+  <script src="auth/models/AuthModel.js"></script>
+  <script src="auth/controllers/AuthController.js"></script>
+  <script src="auth/views/AuthView.js"></script>
+
+  <!-- Users Module -->
+  <script src="users/models/UserModel.js"></script>
+  <script src="users/controllers/UserController.js"></script>
+  <script src="users/views/UserView.js"></script>
+
+  <!-- Movies Module -->
+  <script src="movies/models/MovieModel.js"></script>
+  <script src="movies/controllers/MovieController.js"></script>
+  <script src="movies/views/MovieView.js"></script>
+
+  <!-- Cinemas Module -->
+  <script src="cinemas/models/CinemaModel.js"></script>
+  <script src="cinemas/controllers/CinemaController.js"></script>
+  <script src="cinemas/views/CinemaView.js"></script>
+
+  <!-- Rooms Module -->
+  <script src="rooms/models/RoomModel.js"></script>
+  <script src="rooms/controllers/RoomController.js"></script>
+  <script src="rooms/views/RoomView.js"></script>
+
+  <!-- Seats Module -->
+  <script src="seats/models/SeatModel.js"></script>
+  <script src="seats/controllers/SeatController.js"></script>
+  <script src="seats/views/SeatView.js"></script>
+
+  <!-- Showtimes Module -->
+  <script src="showtimes/models/ShowtimeModel.js"></script>
+  <script src="showtimes/controllers/ShowtimeController.js"></script>
+  <script src="showtimes/views/ShowtimeView.js"></script>
+
+  <!-- Bookings Module -->
+  <script src="bookings/models/BookingModel.js"></script>
+  <script src="bookings/controllers/BookingController.js"></script>
+  <script src="bookings/views/BookingView.js"></script>
+
+  <!-- Payments Module -->
+  <script src="payments/models/PaymentModel.js"></script>
+  <script src="payments/controllers/PaymentController.js"></script>
+  <script src="payments/views/PaymentView.js"></script>
+
+  <!-- Tickets Module -->
+  <script src="tickets/models/TicketModel.js"></script>
+  <script src="tickets/controllers/TicketController.js"></script>
+  <script src="tickets/views/TicketView.js"></script>
+
+  <!-- Promotions Module -->
+  <script src="promotions/models/PromotionModel.js"></script>
+  <script src="promotions/controllers/PromotionController.js"></script>
+  <script src="promotions/views/PromotionView.js"></script>
+
+  <!-- Reports Module -->
+  <script src="reports/models/ReportModel.js"></script>
+  <script src="reports/controllers/ReportController.js"></script>
+  <script src="reports/views/ReportView.js"></script>
+
+  <!-- App Entry -->
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

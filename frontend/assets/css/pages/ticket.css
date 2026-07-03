@@ -1,0 +1,209 @@
+/* CineTicket - Ticket Page */
+.ticket-page { padding: var(--spacing-8) 0 var(--spacing-16); }
+.ticket-page-center { max-width: 480px; margin: 0 auto; }
+
+/* Success State */
+.ticket-success-banner {
+  text-align: center;
+  padding: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
+}
+.ticket-success-icon {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: rgba(40,167,69,0.15);
+  color: var(--color-success);
+  font-size: 2.5rem;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto var(--spacing-4);
+}
+.ticket-success-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  margin-bottom: var(--spacing-2);
+}
+.ticket-success-sub { color: var(--color-text-muted); font-size: var(--font-size-sm); }
+
+/* Ticket Card */
+.ticket-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow-xl);
+}
+
+/* Ticket Header */
+.ticket-header {
+  position: relative;
+  height: 180px;
+  overflow: hidden;
+}
+.ticket-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(8px);
+  transform: scale(1.1);
+  opacity: 0.4;
+}
+.ticket-header-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  padding: var(--spacing-5) var(--spacing-6);
+}
+.ticket-poster {
+  width: 80px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  flex-shrink: 0;
+}
+.ticket-header-info { flex: 1; }
+.ticket-movie-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-extrabold);
+  color: #fff;
+  margin-bottom: var(--spacing-2);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.ticket-cinema-name {
+  font-size: var(--font-size-sm);
+  color: rgba(255,255,255,0.8);
+  margin-bottom: var(--spacing-1);
+}
+.ticket-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background: var(--color-primary);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  margin-top: var(--spacing-2);
+}
+
+/* Tear line */
+.ticket-tear {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-2);
+  position: relative;
+}
+.ticket-tear::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  z-index: 1;
+  margin-left: -12px;
+}
+.ticket-tear::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  z-index: 1;
+  margin-right: -12px;
+}
+.ticket-tear-line {
+  flex: 1;
+  border-top: 2px dashed var(--color-border);
+}
+
+/* Ticket Body */
+.ticket-body { padding: var(--spacing-5) var(--spacing-6); }
+.ticket-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-5);
+  margin-bottom: var(--spacing-5);
+}
+.ticket-info-item {}
+.ticket-info-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.ticket-info-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+.ticket-info-value.highlight { color: var(--color-primary); }
+.ticket-info-value.seats { display: flex; flex-wrap: wrap; gap: 4px; }
+.ticket-info-value.seats .seat-chip {
+  padding: 2px 8px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+/* Ticket Footer */
+.ticket-footer {
+  padding: var(--spacing-5) var(--spacing-6);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  background: rgba(255,255,255,0.02);
+}
+.ticket-qr {
+  width: 80px; height: 80px;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.ticket-qr img { width: 100%; height: 100%; }
+.ticket-qr-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.5rem;
+  color: #333;
+}
+.ticket-footer-info { flex: 1; }
+.ticket-booking-id {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+.ticket-booking-id span { color: var(--color-text); font-weight: var(--font-weight-semibold); font-family: monospace; }
+.ticket-footer-note { font-size: var(--font-size-xs); color: var(--color-text-dim); line-height: 1.5; }
+.ticket-total {
+  text-align: right;
+  flex-shrink: 0;
+}
+.ticket-total-label { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: 2px; }
+.ticket-total-amount { font-size: var(--font-size-xl); font-weight: var(--font-weight-extrabold); color: var(--color-primary); }
+
+/* Actions */
+.ticket-actions {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-6);
+  flex-wrap: wrap;
+}
+.ticket-actions .btn { flex: 1; min-width: 140px; }

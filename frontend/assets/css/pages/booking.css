@@ -1,0 +1,87 @@
+/* CineTicket - Booking & Payment Shared Styles */
+.booking-page { padding: var(--spacing-8) 0 var(--spacing-16); }
+.booking-container { max-width: 900px; margin: 0 auto; }
+
+/* Booking Card */
+.booking-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: var(--spacing-6);
+}
+.booking-card-header {
+  padding: var(--spacing-5) var(--spacing-6);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.booking-card-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.booking-card-title .step-badge {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.booking-card-body { padding: var(--spacing-6); }
+
+/* Promotion */
+.promo-input-row {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+}
+.promo-input-row .form-control { flex: 1; }
+.promo-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3) var(--spacing-4);
+  background: rgba(40,167,69,0.08);
+  border: 1px solid rgba(40,167,69,0.2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+.promo-result-success { color: var(--color-success); font-weight: var(--font-weight-semibold); }
+.promo-remove-btn {
+  color: var(--color-danger);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+}
+
+/* Order Summary */
+.order-summary { }
+.order-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--spacing-3) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+}
+.order-row:last-child { border-bottom: none; }
+.order-row-label { color: var(--color-text-muted); }
+.order-row-value { font-weight: var(--font-weight-semibold); text-align: right; max-width: 200px; }
+.order-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-5) 0 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-extrabold);
+  border-top: 2px solid var(--color-border);
+  margin-top: var(--spacing-2);
+}
+.order-total-amount { color: var(--color-primary); }
+.order-discount { color: var(--color-success); }

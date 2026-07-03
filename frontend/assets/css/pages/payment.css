@@ -1,0 +1,125 @@
+/* CineTicket - Payment Page */
+.payment-page { padding: var(--spacing-8) 0 var(--spacing-16); }
+.payment-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--spacing-8);
+  align-items: start;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Payment Methods */
+.payment-methods { display: flex; flex-direction: column; gap: var(--spacing-3); margin-bottom: var(--spacing-6); }
+.payment-method-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-5);
+  background: var(--color-bg-elevated);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.payment-method-option:hover { border-color: var(--color-border-light); }
+.payment-method-option.selected { border-color: var(--color-primary); background: rgba(229,9,20,0.06); }
+.payment-method-option input[type="radio"] { accent-color: var(--color-primary); width: 18px; height: 18px; flex-shrink: 0; }
+.payment-method-icon {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.payment-method-icon.cash { background: rgba(40,167,69,0.15); color: var(--color-success); }
+.payment-method-icon.card { background: rgba(23,162,184,0.15); color: var(--color-info); }
+.payment-method-icon.momo { background: rgba(168,12,92,0.15); color: #a80c5c; }
+.payment-method-icon.vnpay { background: rgba(0,99,184,0.15); color: #0063b8; }
+.payment-method-icon.zalopay { background: rgba(0,136,204,0.15); color: #0088cc; }
+.payment-method-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-text); }
+.payment-method-desc { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: 2px; }
+
+/* Card Form */
+.card-form { margin-top: var(--spacing-5); display: none; }
+.card-form.show { display: block; }
+.card-number-wrap { position: relative; }
+.card-number-wrap .form-control { padding-right: 80px; font-family: monospace; letter-spacing: 2px; }
+.card-brands {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  display: flex; gap: 4px;
+}
+.card-brand { width: 30px; height: 20px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+.card-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4); }
+
+/* Order Panel */
+.order-panel {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: sticky;
+  top: calc(var(--navbar-height) + 16px);
+}
+.order-panel-header {
+  padding: var(--spacing-5) var(--spacing-6);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+.order-panel-body { padding: var(--spacing-5) var(--spacing-6); }
+.order-movie-mini {
+  display: flex;
+  gap: var(--spacing-3);
+  padding-bottom: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.order-poster { width: 50px; height: 68px; object-fit: cover; border-radius: var(--radius-md); }
+.order-movie-name { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); margin-bottom: 4px; }
+.order-movie-details { font-size: var(--font-size-xs); color: var(--color-text-muted); line-height: 1.7; }
+.order-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-3);
+}
+.order-line-label { color: var(--color-text-muted); }
+.order-line-value { font-weight: var(--font-weight-semibold); }
+.order-final {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--spacing-4);
+  border-top: 2px solid var(--color-border);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-extrabold);
+  margin-top: var(--spacing-2);
+}
+.order-final-amount { color: var(--color-primary); }
+
+/* Processing overlay */
+.payment-processing {
+  text-align: center;
+  padding: var(--spacing-12);
+}
+.processing-icon {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: rgba(229,9,20,0.1);
+  color: var(--color-primary);
+  font-size: 2rem;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto var(--spacing-5);
+  animation: pulse 1.5s ease infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media (max-width: 768px) {
+  .payment-layout { grid-template-columns: 1fr; }
+  .order-panel { position: static; }
+}

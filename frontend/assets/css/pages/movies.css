@@ -1,0 +1,278 @@
+/* CineTicket - Movies Page Styles */
+.movies-page { padding: var(--spacing-8) 0 var(--spacing-12); }
+.movies-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-8);
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.movies-page-title { margin-bottom: 0; }
+
+/* Filter Bar */
+.movies-filter-bar {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-5) var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: 1;
+  min-width: 160px;
+}
+.filter-group .form-control { flex: 1; }
+.filter-group label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.filter-search { flex: 2; min-width: 240px; }
+.filter-search .form-control { width: 100%; }
+.filter-reset-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--transition-fast);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: transparent;
+}
+.filter-reset-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* Status Tabs */
+.movies-status-tabs {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-6);
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  width: fit-content;
+}
+.status-tab {
+  padding: var(--spacing-2) var(--spacing-5);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  background: transparent;
+}
+.status-tab.active { background: var(--color-primary); color: #fff; }
+.status-tab:hover:not(.active) { color: var(--color-text); }
+
+/* Result Info */
+.movies-result-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+.movies-result-count strong { color: var(--color-text); }
+
+/* Sort */
+.movies-sort { display: flex; align-items: center; gap: var(--spacing-2); }
+.movies-sort select.form-control { width: auto; padding-top: var(--spacing-2); padding-bottom: var(--spacing-2); }
+
+/* Genre Tag Pills */
+.genre-pills {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-6);
+}
+.genre-pill {
+  padding: var(--spacing-1) var(--spacing-4);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.genre-pill:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.genre-pill.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+/* ============ MOVIE DETAIL ============ */
+.movie-detail-hero {
+  position: relative;
+  min-height: 420px;
+  overflow: hidden;
+}
+.movie-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+  filter: blur(2px);
+  transform: scale(1.02);
+}
+.movie-detail-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--color-bg) 0%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0.6) 100%);
+}
+.movie-detail-content {
+  position: relative;
+  z-index: 2;
+  padding: var(--spacing-10) 0 var(--spacing-12);
+}
+.movie-detail-layout {
+  display: flex;
+  gap: var(--spacing-10);
+  align-items: flex-start;
+}
+.movie-detail-poster {
+  width: 260px;
+  flex-shrink: 0;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  position: relative;
+}
+.movie-detail-poster img { width: 100%; display: block; }
+.poster-age-badge {
+  position: absolute;
+  top: var(--spacing-3);
+  right: var(--spacing-3);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  background: var(--color-danger);
+  color: #fff;
+}
+.movie-detail-info { flex: 1; padding-top: var(--spacing-4); }
+.movie-detail-title {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  font-weight: var(--font-weight-extrabold);
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: var(--spacing-2);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.movie-detail-title-en {
+  font-size: var(--font-size-base);
+  color: rgba(255,255,255,0.6);
+  margin-bottom: var(--spacing-4);
+}
+.movie-detail-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-5);
+}
+.rating-score {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-accent);
+}
+.rating-stars { font-size: 1rem; }
+.rating-count { font-size: var(--font-size-sm); color: rgba(255,255,255,0.6); }
+.movie-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-5);
+}
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: rgba(255,255,255,0.8);
+}
+.meta-item i { color: var(--color-primary); width: 14px; }
+.meta-item strong { color: #fff; }
+.movie-detail-desc {
+  font-size: var(--font-size-sm);
+  color: rgba(255,255,255,0.8);
+  line-height: 1.8;
+  margin-bottom: var(--spacing-6);
+}
+.movie-detail-actions { display: flex; gap: var(--spacing-3); flex-wrap: wrap; }
+
+/* Booking Section */
+.movie-booking-section {
+  background: var(--color-bg);
+  padding: var(--spacing-10) 0;
+}
+.booking-cinema-selector {
+  margin-bottom: var(--spacing-6);
+}
+
+/* Cast */
+.cast-grid {
+  display: flex;
+  gap: var(--spacing-4);
+  overflow-x: auto;
+  padding-bottom: var(--spacing-3);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cast-grid::-webkit-scrollbar { display: none; }
+.cast-card {
+  flex-shrink: 0;
+  width: 110px;
+  text-align: center;
+}
+.cast-avatar {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto var(--spacing-2);
+  background: var(--color-bg-elevated);
+  border: 2px solid var(--color-border);
+}
+.cast-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cast-name { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-text); margin-bottom: 2px; }
+.cast-role { font-size: 0.7rem; color: var(--color-text-muted); }
+
+/* Trailer */
+.trailer-wrapper {
+  position: relative;
+  padding-top: 56.25%;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--color-bg-elevated);
+}
+.trailer-wrapper iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+@media (max-width: 768px) {
+  .movie-detail-layout { flex-direction: column; }
+  .movie-detail-poster { width: 180px; margin: 0 auto; }
+  .movies-filter-bar { flex-direction: column; }
+  .filter-group { width: 100%; }
+}

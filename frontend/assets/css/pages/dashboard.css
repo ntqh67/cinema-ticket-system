@@ -1,0 +1,149 @@
+/* CineTicket - Dashboard Styles */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-5);
+  margin-bottom: var(--spacing-6);
+}
+.dashboard-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.dashboard-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-4) var(--spacing-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.dashboard-card-title { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.dashboard-card-body { padding: var(--spacing-5); }
+.dashboard-card-body.no-padding { padding: 0; }
+
+/* Revenue Chart */
+.revenue-chart-wrap {
+  padding: var(--spacing-4) var(--spacing-5);
+  overflow-x: auto;
+}
+.revenue-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 160px;
+  min-width: max-content;
+}
+.rev-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 40px;
+}
+.rev-bar {
+  width: 32px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--color-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+.rev-bar:hover { opacity: 0.8; }
+.rev-bar::after {
+  content: attr(data-value);
+  position: absolute;
+  top: -24px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.rev-bar:hover::after { opacity: 1; }
+.rev-bar-month { font-size: 0.65rem; color: var(--color-text-dim); }
+.rev-bar-val { font-size: 0.65rem; color: var(--color-text-muted); }
+
+/* Quick Stats */
+.quick-stat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--transition-fast);
+}
+.quick-stat-row:last-child { border-bottom: none; }
+.quick-stat-row:hover { background: rgba(255,255,255,0.02); }
+.quick-stat-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.quick-stat-label { flex: 1; font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.quick-stat-value { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); color: var(--color-text); }
+.quick-stat-bar-wrap { width: 80px; }
+.quick-stat-bar { height: 4px; background: var(--color-border); border-radius: var(--radius-full); overflow: hidden; }
+.quick-stat-bar-fill { height: 100%; border-radius: var(--radius-full); }
+
+/* Recent Bookings in Dashboard */
+.recent-booking-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--transition-fast);
+}
+.recent-booking-item:last-child { border-bottom: none; }
+.recent-booking-item:hover { background: rgba(255,255,255,0.02); }
+.recent-booking-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+  flex-shrink: 0;
+}
+.recent-booking-info { flex: 1; min-width: 0; }
+.recent-booking-user { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-booking-movie { font-size: var(--font-size-xs); color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-booking-amount { font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); color: var(--color-accent); flex-shrink: 0; }
+
+/* Top Movies */
+.top-movie-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.top-movie-item:last-child { border-bottom: none; }
+.top-movie-rank {
+  width: 24px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text-dim);
+  flex-shrink: 0;
+  text-align: center;
+}
+.top-movie-rank.gold { color: var(--color-accent); }
+.top-movie-rank.silver { color: #aaa; }
+.top-movie-rank.bronze { color: #cd7f32; }
+.top-movie-img { width: 36px; height: 50px; object-fit: cover; border-radius: var(--radius-sm); flex-shrink: 0; }
+.top-movie-info { flex: 1; min-width: 0; }
+.top-movie-title { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-movie-count { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+.top-movie-revenue { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-accent); flex-shrink: 0; }
+
+@media (max-width: 1200px) {
+  .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
