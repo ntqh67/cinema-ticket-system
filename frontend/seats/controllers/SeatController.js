@@ -4,12 +4,14 @@ const SeatController = {
   currentShowtime: null,
   currentRoom: null,
   currentRows: null,
+  currentError: null,
 
   async init(showtimeId) {
     this.selectedSeats = [];
     this.currentShowtime = null;
     this.currentRoom = null;
     this.currentRows = null;
+    this.currentError = null;
 
     try {
       const data = await SeatModel.getByShowtime(showtimeId);
@@ -17,11 +19,7 @@ const SeatController = {
       this.currentRoom = data.room;
       this.currentRows = data.rows;
     } catch (error) {
-      console.warn('Falling back to mock seats:', error);
-      this.currentShowtime = API.mockData.showtimes.find((showtime) => showtime.id === showtimeId);
-      if (this.currentShowtime) {
-        this.currentRoom = RoomModel.getById(this.currentShowtime.roomId);
-      }
+      this.currentError = error.message || 'Khong the tai so do ghe';
     }
 
     State.set('selectedSeats', []);

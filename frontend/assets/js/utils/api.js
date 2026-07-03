@@ -1,7 +1,7 @@
 /* CineTicket - API Layer with Mock Data */
 const API = {
   baseUrl: '/api',
-  backendBaseUrl: localStorage.getItem('cineticket_api_base') || 'http://localhost:3000/api',
+  backendBaseUrl: localStorage.getItem('cineticket_api_base') || `${window.location.protocol}//${window.location.hostname}:3000/api`,
   devBackendUserId: localStorage.getItem('cineticket_backend_user_id') || 'cmr4ezer0000256u181u0ijfy',
   devBackendShowtimeId: localStorage.getItem('cineticket_backend_showtime_id') || 'cmr4ezeu9001d56u1zifzgbqx',
 
@@ -262,7 +262,7 @@ const API = {
   },
 
   // ========== INIT ==========
-  init() {
+  async init() {
     if (!localStorage.getItem('cineticket_seeded')) {
       this.mockData.showtimes = this._seedShowtimes();
       localStorage.setItem('cineticket_movies', JSON.stringify(this.mockData.movies));
@@ -285,6 +285,7 @@ const API = {
       this.mockData.promotions = JSON.parse(localStorage.getItem('cineticket_promotions') || '[]');
     }
     this._syncBackendDemoData();
+    await this.syncBackendCatalog();
   },
 
   _syncBackendDemoData() {
@@ -313,6 +314,102 @@ const API = {
     this._save('showtimes');
   },
 
+  async syncBackendCatalog() {
+    try {
+      const data = await this.getBackendMovies();
+      const movies = (data.movies || []).map((movie) => this._mapBackendMovie(movie));
+      if (movies.length === 0) return;
+
+      const showtimes = [];
+      const cinemasById = new Map();
+      const roomsById = new Map();
+
+      for (const movie of movies) {
+        const showtimeData = await this.getBackendMovieShowtimes(movie.id);
+        (showtimeData.showtimes || []).forEach((showtime) => {
+          showtimes.push(this._mapBackendShowtime(showtime));
+          if (showtime.cinema) cinemasById.set(showtime.cinema.id, this._mapBackendCinema(showtime.cinema));
+          if (showtime.room) roomsById.set(showtime.room.id, this._mapBackendRoom(showtime.room, showtime.cinema));
+        });
+      }
+
+      this.mockData.movies = movies;
+      this.mockData.showtimes = showtimes;
+      if (cinemasById.size > 0) this.mockData.cinemas = [...cinemasById.values()];
+      if (roomsById.size > 0) this.mockData.rooms = [...roomsById.values()];
+
+      this._save('movies');
+      this._save('showtimes');
+      this._save('cinemas');
+      this._save('rooms');
+    } catch (error) {
+      console.warn('Using mock catalog because backend catalog is unavailable:', error);
+    }
+  },
+
+  _mapBackendMovie(movie) {
+    return {
+      id: movie.id,
+      title: movie.title,
+      titleEn: movie.titleEn || movie.title,
+      poster: movie.poster || `https://picsum.photos/seed/${movie.id}/400/600`,
+      banner: movie.banner || movie.poster || `https://picsum.photos/seed/${movie.id}-banner/1280/720`,
+      genre: movie.genre || [],
+      duration: movie.duration || 0,
+      language: movie.language || 'Dang cap nhat',
+      rating: movie.rating || 8,
+      description: movie.description || '',
+      cast: [],
+      director: movie.director || 'Dang cap nhat',
+      releaseDate: movie.releaseDate || new Date().toISOString(),
+      status: movie.status || 'nowShowing',
+      trailer: movie.trailer || '',
+      ageRating: movie.ageRating || 'P',
+      backend: true,
+    };
+  },
+
+  _mapBackendShowtime(showtime) {
+    return {
+      id: showtime.id,
+      movieId: showtime.movieId,
+      cinemaId: showtime.cinemaId,
+      roomId: showtime.roomId,
+      date: showtime.date,
+      startTime: showtime.startTime,
+      endTime: showtime.endTime,
+      price: showtime.price || { normal: 0, vip: 0, couple: 0 },
+      totalSeats: showtime.totalSeats || 0,
+      bookedSeats: showtime.bookedSeats || 0,
+      backend: true,
+    };
+  },
+
+  _mapBackendCinema(cinema) {
+    return {
+      id: cinema.id,
+      name: cinema.name,
+      shortName: cinema.shortName || cinema.name,
+      address: cinema.address || '',
+      city: cinema.city || '',
+      phone: cinema.phone || '',
+      facilities: ['2D'],
+      image: `https://picsum.photos/seed/${cinema.id}/600/400`,
+    };
+  },
+
+  _mapBackendRoom(room, cinema) {
+    return {
+      id: room.id,
+      cinemaId: room.cinemaId || (cinema ? cinema.id : ''),
+      name: room.name,
+      type: room.type || '2D',
+      capacity: room.capacity || 0,
+      rows: 0,
+      cols: 0,
+    };
+  },
+
   getBackendUserId() {
     const user = State && State.get ? State.get('currentUser') : null;
     return (user && user.backendUserId) || this.devBackendUserId;
@@ -339,6 +436,32 @@ const API = {
 
   getShowtimeSeats(showtimeId) {
     return this.backendRequest(`/showtimes/${showtimeId}/seats`);
+  },
+
+  login(data) {
+    return this.backendRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  register(data) {
+    return this.backendRequest('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  getBackendMovies() {
+    return this.backendRequest('/movies');
+  },
+
+  getBackendMovie(movieId) {
+    return this.backendRequest(`/movies/${movieId}`);
+  },
+
+  getBackendMovieShowtimes(movieId) {
+    return this.backendRequest(`/movies/${movieId}/showtimes`);
   },
 
   createBooking(data) {

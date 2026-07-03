@@ -1,7 +1,7 @@
 /* CineTicket - App Entry */
 const App = {
-  init() {
-    API.init();
+  async init() {
+    await API.init();
     State.hydrate();
     Navbar.mount();
     Footer.mount();
@@ -129,4 +129,14 @@ const App = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => App.init());
+document.addEventListener('DOMContentLoaded', () => {
+  App.init().catch((error) => {
+    console.error('App init failed:', error);
+    API.init();
+    State.hydrate();
+    Navbar.mount();
+    Footer.mount();
+    App._registerRoutes();
+    Router.init();
+  });
+});

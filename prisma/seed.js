@@ -45,6 +45,7 @@ async function main() {
 
   const customerUser = await prisma.user.create({
     data: {
+      id: 'cmr4ezer0000256u181u0ijfy',
       email: 'customer@cinema.test',
       passwordHash: bcrypt.hashSync('DevCustomer123!', 10),
       firstName: 'Customer',
@@ -96,7 +97,17 @@ async function main() {
     data: {
       cinemaId: cinema.id,
       name: 'Screen 1',
-      capacity: 24,
+      capacity: 133,
+    },
+  });
+
+  const hungUser = await prisma.user.create({
+    data: {
+      email: 'hung@example.com',
+      passwordHash: bcrypt.hashSync('user123', 10),
+      firstName: 'Nguyen Van',
+      lastName: 'Hung',
+      role: 'CUSTOMER',
     },
   });
 
@@ -104,39 +115,53 @@ async function main() {
     data: {
       cinemaId: cinema.id,
       name: 'Screen 2',
-      capacity: 18,
+      capacity: 90,
     },
   });
 
-  const seatsForRoomOne = [];
-  for (const row of ['A', 'B', 'C']) {
-    for (const number of [1, 2, 3, 4]) {
-      const seat = await prisma.seat.create({
-        data: {
-          roomId: roomOne.id,
-          row,
-          number,
-          type: row === 'A' && number === 2 ? 'VIP' : 'STANDARD',
-        },
-      });
-      seatsForRoomOne.push(seat);
+  async function createSeatLayout({ roomId, rows, columns, vipRows, coupleRows }) {
+    const seats = [];
+
+    for (const row of rows) {
+      const isCoupleRow = coupleRows.includes(row);
+      const seatCount = isCoupleRow ? Math.floor(columns / 2) : columns;
+
+      for (let number = 1; number <= seatCount; number += 1) {
+        const type = isCoupleRow
+          ? 'COUPLE'
+          : vipRows.includes(row)
+            ? 'VIP'
+            : 'STANDARD';
+        const seat = await prisma.seat.create({
+          data: {
+            roomId,
+            row,
+            number,
+            type,
+          },
+        });
+        seats.push(seat);
+      }
     }
+
+    return seats;
   }
 
-  const seatsForRoomTwo = [];
-  for (const row of ['A', 'B']) {
-    for (const number of [1, 2, 3]) {
-      const seat = await prisma.seat.create({
-        data: {
-          roomId: roomTwo.id,
-          row,
-          number,
-          type: row === 'B' && number === 2 ? 'COUPLE' : 'STANDARD',
-        },
-      });
-      seatsForRoomTwo.push(seat);
-    }
-  }
+  const seatsForRoomOne = await createSeatLayout({
+    roomId: roomOne.id,
+    rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'],
+    columns: 14,
+    vipRows: ['D', 'E', 'F', 'G', 'H'],
+    coupleRows: ['J'],
+  });
+
+  const seatsForRoomTwo = await createSeatLayout({
+    roomId: roomTwo.id,
+    rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+    columns: 12,
+    vipRows: ['D', 'E', 'F', 'G'],
+    coupleRows: ['H'],
+  });
 
   const showtimes = [];
   showtimes.push(
@@ -180,7 +205,12 @@ async function main() {
         data: {
           showtimeId: showtime.id,
           seatId: seat.id,
-          price: seat.type === 'VIP' ? 22.5 : seat.type === 'COUPLE' ? 24.0 : Number(showtime.basePrice),
+          price:
+            seat.type === 'VIP'
+              ? Number(showtime.basePrice) * 1.3
+              : seat.type === 'COUPLE'
+                ? Number(showtime.basePrice) * 1.6
+                : Number(showtime.basePrice),
           status: 'AVAILABLE',
         },
       });
@@ -191,6 +221,7 @@ async function main() {
     adminUser: adminUser.email,
     staffUser: staffUser.email,
     customerUser: customerUser.email,
+    hungUser: hungUser.email,
     movieCount: 2,
     cinemaId: cinema.id,
     showtimeCount: showtimes.length,

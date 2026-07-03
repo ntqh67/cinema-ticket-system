@@ -16,6 +16,21 @@ const SeatView = {
 
     await SeatController.init(showtimeId);
 
+    if (SeatController.currentError) {
+      main.innerHTML = `
+        <div class="page-wrapper">
+          <div class="container">
+            <div class="empty-state">
+              <i class="fas fa-chair"></i>
+              <h3>Suat chieu chua co so do ghe</h3>
+              <p>${Helpers.escapeHtml(SeatController.currentError)}</p>
+              <button class="btn btn-outline" onclick="Router.navigate('/movies')">Quay lai danh sach phim</button>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+
     const showtime = SeatController.currentShowtime;
     if (!showtime) {
       Router.notFound();
@@ -34,6 +49,7 @@ const SeatView = {
 
     const bookedSeats = SeatModel.getBookedSeats(showtimeId);
     const rows = SeatController.currentRows || SeatModel.generateSeats(room, bookedSeats);
+    const numberHeader = this._seatNumberHeader(rows);
 
     main.innerHTML = `
     <div class="seats-page">
@@ -63,19 +79,23 @@ const SeatView = {
 
         <div class="seats-layout">
           <div>
-            <div class="screen-wrap">
-              <div class="screen"></div>
-              <div class="screen-label">Man Hinh</div>
-            </div>
-
             <div class="seat-grid-wrap">
-              <div class="seat-grid" id="seat-grid">
-                ${rows.map((row) => `
-                  <div class="seat-row">
-                    <span class="seat-row-label">${row.label}</span>
-                    ${row.seats.map((seat) => this._seatHtml(showtime, seat)).join('')}
-                    <span class="seat-row-label">${row.label}</span>
-                  </div>`).join('')}
+              <div class="seat-map-stage">
+                <div class="screen-wrap">
+                  <div class="screen"></div>
+                  <div class="screen-label">Man Hinh</div>
+                </div>
+
+                <div class="seat-grid" id="seat-grid">
+                  ${numberHeader}
+                  ${rows.map((row) => `
+                    <div class="seat-row">
+                      <span class="seat-row-label">${row.label}</span>
+                      ${row.seats.map((seat) => this._seatHtml(showtime, seat)).join('')}
+                      <span class="seat-row-label">${row.label}</span>
+                    </div>`).join('')}
+                  ${numberHeader}
+                </div>
               </div>
             </div>
 
@@ -140,7 +160,23 @@ const SeatView = {
       data-booked="${isUnavailable}"
       onclick="SeatView._handleSeatClick(this)"
       title="${seat.id} - ${label} - ${Helpers.formatCurrency(price)}"
-    >${seat.type === 'couple' ? seat.id : ''}</div>`;
+    >${Helpers.escapeHtml(seat.label || seat.id)}</div>`;
+  },
+
+  _seatNumberHeader(rows) {
+    const templateRow = rows.reduce((best, row) => {
+      if (!best) return row;
+      return row.seats.length > best.seats.length ? row : best;
+    }, null);
+    const maxCol = templateRow ? templateRow.seats.length : 0;
+
+    if (maxCol === 0) return '';
+
+    return `<div class="seat-number-row">
+      <span class="seat-row-label"></span>
+      ${templateRow.seats.map((seat, idx) => `<span class="seat-number-label ${seat.type === 'couple' ? 'couple' : ''}">${idx + 1}</span>`).join('')}
+      <span class="seat-row-label"></span>
+    </div>`;
   },
 
   _handleSeatClick(el) {

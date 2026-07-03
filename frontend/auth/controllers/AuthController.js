@@ -1,6 +1,6 @@
 /* CineTicket - Auth Controller */
 const AuthController = {
-  handleLogin(event) {
+  async handleLogin(event) {
     event.preventDefault();
     const form = event.target;
     const email = form.querySelector('#login-email').value.trim();
@@ -16,7 +16,7 @@ const AuthController = {
       return;
     }
 
-    const result = AuthModel.login(email, password);
+    const result = await AuthModel.login(email, password);
     if (!result.success) {
       Toast.error(result.error);
       const emailEl = form.querySelector('#login-email');
@@ -37,7 +37,7 @@ const AuthController = {
     }, 500);
   },
 
-  handleRegister(event) {
+  async handleRegister(event) {
     event.preventDefault();
     const form = event.target;
     const data = {
@@ -59,7 +59,7 @@ const AuthController = {
       return;
     }
 
-    const result = AuthModel.register(data);
+    const result = await AuthModel.register(data);
     if (!result.success) {
       Toast.error(result.error);
       return;

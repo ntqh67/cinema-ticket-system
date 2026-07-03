@@ -6,8 +6,10 @@ const SeatModel = {
 
     data.seats.forEach((item) => {
       if (!rowsByLabel[item.row]) rowsByLabel[item.row] = [];
+      const seatId = `${item.row}${item.number}`;
       rowsByLabel[item.row].push({
-        id: `${item.row}${item.number}`,
+        id: seatId,
+        label: seatId,
         showtimeSeatId: item.showtimeSeatId,
         row: item.row,
         col: item.number,
@@ -22,6 +24,10 @@ const SeatModel = {
       label,
       seats: rowsByLabel[label].sort((a, b) => a.col - b.col),
     }));
+
+    if (rows.length === 0) {
+      throw new Error('Suat chieu chua co so do ghe');
+    }
 
     return {
       showtime: this._mapShowtime(data.showtime),
@@ -41,9 +47,9 @@ const SeatModel = {
     const end = new Date(showtime.endAt);
     return {
       id: showtime.id,
-      movieId: 'mv001',
-      cinemaId: 'ci001',
-      roomId: 'rm003',
+      movieId: showtime.movie ? showtime.movie.id : '',
+      cinemaId: showtime.room && showtime.room.cinema ? showtime.room.cinema.id : '',
+      roomId: showtime.room ? showtime.room.id : '',
       date: Helpers.getDateString(start),
       startTime: start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       endTime: end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
@@ -58,7 +64,8 @@ const SeatModel = {
 
   _mapRoom(room, rows) {
     return {
-      id: 'rm003',
+      id: room.id,
+      cinemaId: room.cinema ? room.cinema.id : '',
       name: room.name,
       type: '2D',
       rows: rows.length,

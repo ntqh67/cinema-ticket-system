@@ -8,13 +8,26 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'null',
-    ],
+    origin: (origin, callback) => {
+      if (!origin || origin === 'null') {
+        callback(null, true);
+        return;
+      }
+
+      try {
+        const url = new URL(origin);
+        const isDevPort = ['3000', '5173'].includes(url.port);
+        const isLocalHost = ['localhost', '127.0.0.1'].includes(url.hostname);
+        const isLanHost =
+          url.hostname.startsWith('192.168.') ||
+          url.hostname.startsWith('10.') ||
+          /^172\.(1[6-9]|2\d|3[0-1])\./.test(url.hostname);
+
+        callback(null, isDevPort && (isLocalHost || isLanHost));
+      } catch {
+        callback(null, false);
+      }
+    },
   });
   app.useGlobalPipes(
     new ValidationPipe({
