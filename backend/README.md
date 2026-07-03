@@ -44,6 +44,22 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Health & Docs URLs
+
+After starting the backend, the health endpoint is available at:
+
+```
+http://localhost:6767/api/health
+```
+
+Swagger UI (API docs):
+
+```
+http://localhost:6767/api/docs
+```
+
+Frontend (future): `http://localhost:3000`
+
 ## Run tests
 
 ```bash

@@ -17,6 +17,11 @@ out/
 # Logs
 *.log
 logs/
+dist/
+coverage/
+*.log
+.DS_Store
+logs/
 
 # Coverage
 coverage/

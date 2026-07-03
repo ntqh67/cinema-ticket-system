@@ -30,7 +30,13 @@ npm run start:dev
 Then open the health API:
 
 ```bash
-curl http://localhost:3000/api/health
+curl http://localhost:6767/api/health
+
+# API docs (Swagger)
+You can view the Swagger UI at: http://localhost:6767/api/docs
+
+# Frontend (future)
+Frontend will run on: http://localhost:3000
 ```
 
 ## Seed accounts (development only)
