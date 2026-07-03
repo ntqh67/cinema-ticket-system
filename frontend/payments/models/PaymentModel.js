@@ -26,6 +26,23 @@ const PaymentModel = {
     if (existingIdx === -1) API.mockData.bookings.push(booking);
     else API.mockData.bookings[existingIdx] = booking;
     API._save('bookings');
+    API._cacheTickets(paid.tickets.map((ticket) => ({
+      ...ticket,
+      booking: {
+        id: booking.id,
+        status: 'PAID',
+        totalAmount: booking.totalAmount,
+        currency: 'USD',
+      },
+      movie: { id: booking.movieId, title: MovieModel.getById(booking.movieId)?.title || 'Midnight Circuit' },
+      showtime: {
+        id: booking.showtimeId,
+        startAt: new Date().toISOString(),
+        endAt: new Date().toISOString(),
+      },
+      cinema: { id: booking.cinemaId, name: CinemaModel.getById(booking.cinemaId)?.name || 'Aurora Cineplex' },
+      room: { id: booking.roomId, name: RoomModel.getById(booking.roomId)?.name || 'Screen 1' },
+    })));
 
     return { success: true, booking, payment: paid.payment, tickets: paid.tickets };
   },

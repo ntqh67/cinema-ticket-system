@@ -9,9 +9,9 @@ const UserView = {
     <div class="page-wrapper">
       <div class="container">
         <div style="max-width:800px;margin:0 auto;">
-          <h2 class="section-title" style="margin-bottom:32px;">Tài Khoản Của Tôi</h2>
+          <h2 class="section-title" style="margin-bottom:32px;">Tai Khoan Cua Toi</h2>
           <div class="card mb-6">
-            <div class="card-header"><i class="fas fa-user"></i> Thông Tin Cá Nhân</div>
+            <div class="card-header"><i class="fas fa-user"></i> Thong Tin Ca Nhan</div>
             <div class="card-body">
               <div style="display:flex;align-items:center;gap:24px;margin-bottom:32px;">
                 <div style="width:80px;height:80px;border-radius:50%;background:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:#fff;flex-shrink:0;">
@@ -20,13 +20,13 @@ const UserView = {
                 <div>
                   <div style="font-size:1.25rem;font-weight:700;">${Helpers.escapeHtml(user.name)}</div>
                   <div style="color:var(--color-text-muted);font-size:0.875rem;">${Helpers.escapeHtml(user.email)}</div>
-                  <span class="badge ${user.role === 'admin' ? 'badge-danger' : 'badge-info'}" style="margin-top:8px;">${user.role === 'admin' ? 'Quản Trị Viên' : 'Thành Viên'}</span>
+                  <span class="badge ${user.role === 'admin' ? 'badge-danger' : 'badge-info'}" style="margin-top:8px;">${user.role === 'admin' ? 'Admin' : 'Thanh Vien'}</span>
                 </div>
               </div>
               <form onsubmit="UserController.handleUpdateProfile(event)">
                 <div class="admin-form-grid">
                   <div class="form-group">
-                    <label class="form-label">Họ và Tên</label>
+                    <label class="form-label">Ho va Ten</label>
                     <input type="text" class="form-control" id="profile-name" value="${Helpers.escapeHtml(user.name)}" />
                   </div>
                   <div class="form-group">
@@ -34,35 +34,15 @@ const UserView = {
                     <input type="email" class="form-control" value="${Helpers.escapeHtml(user.email)}" disabled />
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Số Điện Thoại</label>
+                    <label class="form-label">So Dien Thoai</label>
                     <input type="tel" class="form-control" id="profile-phone" value="${Helpers.escapeHtml(user.phone || '')}" placeholder="0901234567" />
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Ngày Tham Gia</label>
+                    <label class="form-label">Ngay Tham Gia</label>
                     <input type="text" class="form-control" value="${Helpers.formatDate(user.createdAt)}" disabled />
                   </div>
                 </div>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu Thay Đổi</button>
-              </form>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-header"><i class="fas fa-lock"></i> Đổi Mật Khẩu</div>
-            <div class="card-body">
-              <form onsubmit="UserController.handleChangePassword(event)" style="max-width:400px;">
-                <div class="form-group">
-                  <label class="form-label">Mật Khẩu Hiện Tại</label>
-                  <input type="password" class="form-control" id="pwd-current" placeholder="Nhập mật khẩu hiện tại" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Mật Khẩu Mới</label>
-                  <input type="password" class="form-control" id="pwd-new" placeholder="Ít nhất 6 ký tự" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Xác Nhận Mật Khẩu Mới</label>
-                  <input type="password" class="form-control" id="pwd-confirm" placeholder="Nhập lại mật khẩu mới" />
-                </div>
-                <button type="submit" class="btn btn-outline"><i class="fas fa-key"></i> Đổi Mật Khẩu</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Luu Thay Doi</button>
               </form>
             </div>
           </div>
@@ -72,50 +52,51 @@ const UserView = {
     document.getElementById('footer').style.display = '';
   },
 
-  renderHistory() {
+  async renderHistory() {
     if (!AuthController.checkAuth()) return;
-    const user = State.get('currentUser');
-    const bookings = UserController.loadBookingHistory();
     const main = document.getElementById('main-content');
     if (!main) return;
-    const rowsHtml = bookings.length === 0
-      ? `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--color-text-muted);">Bạn chưa có lịch sử đặt vé nào</td></tr>`
-      : bookings.map(b => {
-          const movie = API.mockData.movies.find(m => m.id === b.movieId);
-          const showtime = API.mockData.showtimes.find(s => s.id === b.showtimeId);
-          const cinema = showtime ? API.mockData.cinemas.find(c => c.id === showtime.cinemaId) : null;
-          const statusMap = { confirmed: { label: 'Đã xác nhận', cls: 'badge-success' }, pending: { label: 'Chờ xử lý', cls: 'badge-warning' }, cancelled: { label: 'Đã hủy', cls: 'badge-danger' }, used: { label: 'Đã sử dụng', cls: 'badge-secondary' } };
-          const statusInfo = statusMap[b.status] || { label: b.status, cls: 'badge-secondary' };
-          return `<tr>
-            <td>
-              <div class="history-movie-cell">
-                <img class="history-poster" src="${movie ? movie.poster : ''}" alt="" onerror="this.src='https://picsum.photos/40/60?grayscale'">
-                <div>
-                  <div class="history-movie-title">${movie ? Helpers.escapeHtml(movie.title) : 'N/A'}</div>
-                  <div class="history-movie-cinema">${cinema ? cinema.shortName : ''}</div>
-                </div>
-              </div>
-            </td>
-            <td>${showtime ? showtime.date + ' ' + showtime.startTime : ''}</td>
-            <td>${b.seats ? b.seats.join(', ') : ''}</td>
-            <td style="font-weight:700;color:var(--color-accent);">${Helpers.formatCurrency(b.totalAmount)}</td>
-            <td><span class="badge ${statusInfo.cls}">${statusInfo.label}</span></td>
-            <td>
-              ${b.status === 'confirmed' ? `<button class="btn btn-sm btn-outline" onclick="Router.navigate('/ticket/${b.id}')"><i class="fas fa-ticket-alt"></i> Xem Vé</button>` : ''}
-            </td>
-          </tr>`;
-        }).join('');
+    document.getElementById('footer').style.display = '';
 
     main.innerHTML = `
     <div class="page-wrapper">
       <div class="container">
-        <h2 class="section-title">Lịch Sử Đặt Vé</h2>
+        <h2 class="section-title">Ve Cua Toi</h2>
+        <div class="card">
+          <div class="card-body">
+            <div class="empty-state">Dang tai danh sach ve...</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    let tickets = [];
+    try {
+      tickets = await UserController.loadBookingHistory();
+    } catch (error) {
+      Toast.error(error.message || 'Khong the tai ve');
+    }
+
+    const rowsHtml = tickets.length === 0
+      ? `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--color-text-muted);">Ban chua co ve nao</td></tr>`
+      : tickets.map((ticket) => this._ticketHistoryRow(ticket)).join('');
+
+    main.innerHTML = `
+    <div class="page-wrapper">
+      <div class="container">
+        <h2 class="section-title">Ve Cua Toi</h2>
         <div class="card">
           <div class="table-wrapper">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Phim</th><th>Ngày Chiếu</th><th>Ghế</th><th>Tổng Tiền</th><th>Trạng Thái</th><th>Hành Động</th>
+                  <th>Phim</th>
+                  <th>Suat Chieu</th>
+                  <th>Rap / Phong</th>
+                  <th>Ghe</th>
+                  <th>Trang Thai</th>
+                  <th>Ma QR</th>
+                  <th>Hanh Dong</th>
                 </tr>
               </thead>
               <tbody>${rowsHtml}</tbody>
@@ -124,7 +105,36 @@ const UserView = {
         </div>
       </div>
     </div>`;
-    document.getElementById('footer').style.display = '';
+  },
+
+  _ticketHistoryRow(ticket) {
+    const seat = ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '';
+    const movieTitle = ticket.movie ? ticket.movie.title : 'N/A';
+    const showtime = ticket.showtime
+      ? `${Helpers.formatDate(ticket.showtime.startAt)} ${new Date(ticket.showtime.startAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+      : '';
+    const roomText = `${ticket.cinema ? ticket.cinema.name : ''}<br><span style="color:var(--color-text-muted);font-size:0.8rem;">${ticket.room ? ticket.room.name : ''}</span>`;
+    return `<tr>
+      <td>
+        <div class="history-movie-cell">
+          <img class="history-poster" src="https://picsum.photos/seed/ticket-${ticket.id}/40/60" alt="" onerror="this.src='https://picsum.photos/40/60?grayscale'">
+          <div>
+            <div class="history-movie-title">${Helpers.escapeHtml(movieTitle)}</div>
+            <div class="history-movie-cinema">${ticket.booking ? ticket.booking.id.slice(0, 10).toUpperCase() : ''}</div>
+          </div>
+        </div>
+      </td>
+      <td>${showtime}</td>
+      <td>${roomText}</td>
+      <td><span class="badge badge-secondary">${seat}</span></td>
+      <td><span class="badge badge-success">${ticket.status}</span></td>
+      <td><code style="font-size:0.75rem;">${ticket.qrToken ? ticket.qrToken.slice(0, 12) : ''}</code></td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="TicketView.renderBackendTicket('${ticket.id}')">
+          <i class="fas fa-ticket-alt"></i> Xem Ve
+        </button>
+      </td>
+    </tr>`;
   },
 
   renderAdmin() {
@@ -137,69 +147,17 @@ const UserView = {
     <div class="admin-layout-wrap">
       ${this._renderAdminSidebar('users')}
       <div class="admin-main">
-        ${this._renderAdminTopbar('Quản Lý Người Dùng', 'admin/users')}
+        ${this._renderAdminTopbar('Quan Ly Nguoi Dung', 'admin/users')}
         <div class="admin-content">
           <div class="admin-page-header">
             <div>
-              <h1 class="admin-page-title">Người Dùng</h1>
-              <p class="admin-page-subtitle">${users.length} người dùng trong hệ thống</p>
-            </div>
-          </div>
-          <div class="admin-table-card">
-            <div class="admin-table-header">
-              <span class="admin-table-title">Danh Sách Người Dùng</span>
-              <div class="admin-table-actions">
-                <input type="text" class="form-control" placeholder="Tìm kiếm..." style="width:200px;" oninput="UserView._filterUsers(this.value)" />
-              </div>
-            </div>
-            <div class="table-wrapper">
-              <table class="admin-table" id="users-table">
-                <thead><tr>
-                  <th>Người Dùng</th><th>Email</th><th>SĐT</th><th>Vai Trò</th><th>Trạng Thái</th><th>Ngày Tham Gia</th><th>Hành Động</th>
-                </tr></thead>
-                <tbody id="users-tbody">
-                  ${users.map(u => `<tr>
-                    <td><div style="display:flex;align-items:center;gap:12px;">
-                      <div style="width:36px;height:36px;border-radius:50%;background:var(--color-primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.875rem;color:#fff;">${u.name.charAt(0)}</div>
-                      <span style="font-weight:600;">${Helpers.escapeHtml(u.name)}</span>
-                    </div></td>
-                    <td>${Helpers.escapeHtml(u.email)}</td>
-                    <td>${u.phone || '-'}</td>
-                    <td><span class="badge ${u.role === 'admin' ? 'badge-danger' : 'badge-info'}">${u.role === 'admin' ? 'Admin' : 'User'}</span></td>
-                    <td><span class="badge ${u.isActive ? 'badge-success' : 'badge-secondary'}">${u.isActive ? 'Hoạt động' : 'Vô hiệu'}</span></td>
-                    <td>${Helpers.formatDate(u.createdAt)}</td>
-                    <td><div class="table-actions">
-                      <button class="action-btn edit" onclick="Toast.info('Tính năng chỉnh sửa')" title="Chỉnh sửa"><i class="fas fa-edit"></i></button>
-                      <button class="action-btn delete" onclick="UserView._deleteUser('${u.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
-                    </div></td>
-                  </tr>`).join('')}
-                </tbody>
-              </table>
+              <h1 class="admin-page-title">Nguoi Dung</h1>
+              <p class="admin-page-subtitle">${users.length} nguoi dung trong he thong</p>
             </div>
           </div>
         </div>
       </div>
     </div>`;
-  },
-
-  _filterUsers(query) {
-    const tbody = document.getElementById('users-tbody');
-    if (!tbody) return;
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach(row => {
-      const text = row.textContent.toLowerCase();
-      row.style.display = text.includes(query.toLowerCase()) ? '' : 'none';
-    });
-  },
-
-  _deleteUser(id) {
-    Modal.confirm('Bạn có chắc muốn xóa người dùng này?', 'Xác Nhận Xóa', 'danger').then(confirmed => {
-      if (confirmed) {
-        UserModel.deleteUser(id);
-        UserView.renderAdmin();
-        Toast.success('Đã xóa người dùng');
-      }
-    });
   },
 
   _renderAdminSidebar(active) {
@@ -212,37 +170,37 @@ const UserView = {
       </div>
       <nav class="admin-nav">
         <div class="admin-nav-section">
-          <div class="admin-nav-section-title">Tổng Quan</div>
-          <a class="admin-nav-item ${active==='dashboard'?'active':''}" onclick="Router.navigate('/admin')"><i class="fas fa-chart-line"></i> Dashboard</a>
-          <a class="admin-nav-item ${active==='reports'?'active':''}" onclick="Router.navigate('/admin/reports')"><i class="fas fa-chart-bar"></i> Báo Cáo</a>
+          <div class="admin-nav-section-title">Tong Quan</div>
+          <a class="admin-nav-item ${active === 'dashboard' ? 'active' : ''}" onclick="Router.navigate('/admin')"><i class="fas fa-chart-line"></i> Dashboard</a>
+          <a class="admin-nav-item ${active === 'reports' ? 'active' : ''}" onclick="Router.navigate('/admin/reports')"><i class="fas fa-chart-bar"></i> Bao Cao</a>
         </div>
         <div class="admin-nav-section">
-          <div class="admin-nav-section-title">Quản Lý</div>
-          <a class="admin-nav-item ${active==='movies'?'active':''}" onclick="Router.navigate('/admin/movies')"><i class="fas fa-film"></i> Phim</a>
-          <a class="admin-nav-item ${active==='cinemas'?'active':''}" onclick="Router.navigate('/admin/cinemas')"><i class="fas fa-building"></i> Rạp Chiếu</a>
-          <a class="admin-nav-item ${active==='rooms'?'active':''}" onclick="Router.navigate('/admin/rooms')"><i class="fas fa-door-open"></i> Phòng Chiếu</a>
-          <a class="admin-nav-item ${active==='showtimes'?'active':''}" onclick="Router.navigate('/admin/showtimes')"><i class="fas fa-calendar-alt"></i> Lịch Chiếu</a>
-          <a class="admin-nav-item ${active==='bookings'?'active':''}" onclick="Router.navigate('/admin/bookings')"><i class="fas fa-ticket-alt"></i> Đặt Vé</a>
-          <a class="admin-nav-item ${active==='users'?'active':''}" onclick="Router.navigate('/admin/users')"><i class="fas fa-users"></i> Người Dùng</a>
-          <a class="admin-nav-item ${active==='promotions'?'active':''}" onclick="Router.navigate('/admin/promotions')"><i class="fas fa-tags"></i> Khuyến Mãi</a>
+          <div class="admin-nav-section-title">Quan Ly</div>
+          <a class="admin-nav-item ${active === 'movies' ? 'active' : ''}" onclick="Router.navigate('/admin/movies')"><i class="fas fa-film"></i> Phim</a>
+          <a class="admin-nav-item ${active === 'cinemas' ? 'active' : ''}" onclick="Router.navigate('/admin/cinemas')"><i class="fas fa-building"></i> Rap Chieu</a>
+          <a class="admin-nav-item ${active === 'rooms' ? 'active' : ''}" onclick="Router.navigate('/admin/rooms')"><i class="fas fa-door-open"></i> Phong Chieu</a>
+          <a class="admin-nav-item ${active === 'showtimes' ? 'active' : ''}" onclick="Router.navigate('/admin/showtimes')"><i class="fas fa-calendar-alt"></i> Lich Chieu</a>
+          <a class="admin-nav-item ${active === 'bookings' ? 'active' : ''}" onclick="Router.navigate('/admin/bookings')"><i class="fas fa-ticket-alt"></i> Dat Ve</a>
+          <a class="admin-nav-item ${active === 'users' ? 'active' : ''}" onclick="Router.navigate('/admin/users')"><i class="fas fa-users"></i> Nguoi Dung</a>
+          <a class="admin-nav-item ${active === 'promotions' ? 'active' : ''}" onclick="Router.navigate('/admin/promotions')"><i class="fas fa-tags"></i> Khuyen Mai</a>
         </div>
       </nav>
       <div class="admin-sidebar-footer">
         <div class="admin-user-mini">
-          <div class="admin-user-avatar">${(State.get('currentUser')||{name:'A'}).name.charAt(0)}</div>
+          <div class="admin-user-avatar">${(State.get('currentUser') || { name: 'A' }).name.charAt(0)}</div>
           <div>
-            <div class="admin-user-name">${Helpers.escapeHtml((State.get('currentUser')||{name:'Admin'}).name)}</div>
-            <div class="admin-user-role">Quản Trị Viên</div>
+            <div class="admin-user-name">${Helpers.escapeHtml((State.get('currentUser') || { name: 'Admin' }).name)}</div>
+            <div class="admin-user-role">Quan Tri Vien</div>
           </div>
         </div>
         <button class="admin-logout-btn" onclick="AuthController.handleLogout()">
-          <i class="fas fa-sign-out-alt"></i> Đăng Xuất
+          <i class="fas fa-sign-out-alt"></i> Dang Xuat
         </button>
       </div>
     </aside>`;
   },
 
-  _renderAdminTopbar(title, path) {
+  _renderAdminTopbar(title) {
     return `
     <div class="admin-topbar">
       <div class="admin-breadcrumb">
@@ -251,8 +209,8 @@ const UserView = {
         <span class="breadcrumb-current">${title}</span>
       </div>
       <div class="admin-topbar-actions">
-        <button class="home-link-btn" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chủ</button>
+        <button class="home-link-btn" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chu</button>
       </div>
     </div>`;
-  }
+  },
 };

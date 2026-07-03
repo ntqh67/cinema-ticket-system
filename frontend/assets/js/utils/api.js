@@ -358,6 +358,22 @@ const API = {
     return this.backendRequest(`/users/${userId}/tickets`);
   },
 
+  _cacheTickets(tickets) {
+    if (!Array.isArray(tickets)) return;
+    const existing = JSON.parse(localStorage.getItem('cineticket_backend_tickets') || '[]');
+    tickets.forEach((ticket) => {
+      const idx = existing.findIndex((item) => item.id === ticket.id);
+      if (idx === -1) existing.unshift(ticket);
+      else existing[idx] = ticket;
+    });
+    localStorage.setItem('cineticket_backend_tickets', JSON.stringify(existing));
+  },
+
+  getCachedTicket(ticketId) {
+    const tickets = JSON.parse(localStorage.getItem('cineticket_backend_tickets') || '[]');
+    return tickets.find((ticket) => ticket.id === ticketId) || null;
+  },
+
   _save(key) {
     localStorage.setItem('cineticket_' + key, JSON.stringify(this.mockData[key]));
   },
