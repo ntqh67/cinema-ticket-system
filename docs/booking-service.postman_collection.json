@@ -1,0 +1,132 @@
+{
+  "info": {
+    "_postman_id": "7a8d05b3-1c64-4c2e-b2dd-5c064c6a6f0a",
+    "name": "Cinema Booking Service",
+    "description": "Demo collection for Quang Huy's Booking Service workflow.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "userId",
+      "value": "PASTE_USER_ID"
+    },
+    {
+      "key": "showtimeId",
+      "value": "PASTE_SHOWTIME_ID"
+    },
+    {
+      "key": "showtimeSeatId",
+      "value": "PASTE_AVAILABLE_SHOWTIME_SEAT_ID"
+    },
+    {
+      "key": "bookingId",
+      "value": "PASTE_BOOKING_ID_AFTER_CREATE"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "1. Get Showtime Seats",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/showtimes/{{showtimeId}}/seats",
+          "host": ["{{baseUrl}}"],
+          "path": ["showtimes", "{{showtimeId}}", "seats"]
+        },
+        "description": "Returns seat status and price for one showtime."
+      }
+    },
+    {
+      "name": "2. Create Booking",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.id) {",
+              "  pm.collectionVariables.set('bookingId', json.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"showtimeId\": \"{{showtimeId}}\",\n  \"showtimeSeatIds\": [\"{{showtimeSeatId}}\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bookings",
+          "host": ["{{baseUrl}}"],
+          "path": ["bookings"]
+        },
+        "description": "Creates a PENDING booking and changes the selected seat to HELD. The response id is saved to the collection variable bookingId."
+      }
+    },
+    {
+      "name": "3. Pay Booking",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/bookings/{{bookingId}}/pay",
+          "host": ["{{baseUrl}}"],
+          "path": ["bookings", "{{bookingId}}", "pay"]
+        },
+        "description": "Pays a PENDING booking, creates a SUCCESS payment, changes seats to BOOKED, and creates tickets."
+      }
+    },
+    {
+      "name": "4. View User Tickets",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/tickets",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{userId}}", "tickets"]
+        },
+        "description": "Returns paid tickets for the selected user."
+      }
+    },
+    {
+      "name": "5. Expire Pending Bookings",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/bookings/expire",
+          "host": ["{{baseUrl}}"],
+          "path": ["bookings", "expire"]
+        },
+        "description": "Expires old PENDING bookings and releases their HELD seats."
+      }
+    }
+  ]
+}
