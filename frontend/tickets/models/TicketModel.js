@@ -1,9 +1,15 @@
 /* CineTicket - Ticket Model */
 const TicketModel = {
   getByBookingId(bookingId) {
-    return API.mockData.bookings.find(b => b.id === bookingId) || null;
+    return API.mockData.bookings.find((booking) => booking.id === bookingId) || null;
   },
+
+  async getByUser(userId) {
+    const data = await API.getUserTickets(userId || API.getBackendUserId());
+    return data.tickets;
+  },
+
   generateQRData(booking) {
-    return `CINETICKET:${booking.id}:${booking.userId}`;
-  }
+    return booking.qrToken || `CINETICKET:${booking.id}:${booking.userId}`;
+  },
 };

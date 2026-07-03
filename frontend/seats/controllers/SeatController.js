@@ -3,49 +3,92 @@ const SeatController = {
   selectedSeats: [],
   currentShowtime: null,
   currentRoom: null,
+  currentRows: null,
 
-  init(showtimeId) {
+  async init(showtimeId) {
     this.selectedSeats = [];
-    this.currentShowtime = API.mockData.showtimes.find(s => s.id === showtimeId);
-    if (this.currentShowtime) {
-      this.currentRoom = RoomModel.getById(this.currentShowtime.roomId);
+    this.currentShowtime = null;
+    this.currentRoom = null;
+    this.currentRows = null;
+
+    try {
+      const data = await SeatModel.getByShowtime(showtimeId);
+      this.currentShowtime = data.showtime;
+      this.currentRoom = data.room;
+      this.currentRows = data.rows;
+    } catch (error) {
+      console.warn('Falling back to mock seats:', error);
+      this.currentShowtime = API.mockData.showtimes.find((showtime) => showtime.id === showtimeId);
+      if (this.currentShowtime) {
+        this.currentRoom = RoomModel.getById(this.currentShowtime.roomId);
+      }
     }
+
     State.set('selectedSeats', []);
   },
 
-  toggleSeat(seatId, type, isBooked) {
-    if (isBooked) { Toast.warning('Ghế này đã được đặt'); return false; }
-    const idx = this.selectedSeats.findIndex(s => s.id === seatId);
+  toggleSeat(seatId, type, isBooked, showtimeSeatId, price) {
+    if (isBooked) {
+      Toast.warning('Ghe nay khong con trong');
+      return false;
+    }
+
+    const idx = this.selectedSeats.findIndex((seat) => seat.id === seatId);
     if (idx !== -1) {
       this.selectedSeats.splice(idx, 1);
     } else {
-      if (this.selectedSeats.length >= 8) { Toast.warning('Tối đa 8 ghế mỗi lần đặt'); return false; }
-      const price = SeatModel.getPriceForType(this.currentShowtime, type);
-      this.selectedSeats.push({ id: seatId, type, price });
+      if (this.selectedSeats.length >= 8) {
+        Toast.warning('Toi da 8 ghe moi lan dat');
+        return false;
+      }
+      this.selectedSeats.push({
+        id: seatId,
+        showtimeSeatId: showtimeSeatId || seatId,
+        type,
+        price: Number(price || SeatModel.getPriceForType(this.currentShowtime, type)),
+      });
     }
+
     State.set('selectedSeats', [...this.selectedSeats]);
     return true;
   },
 
   getTotalPrice() {
-    return this.selectedSeats.reduce((sum, s) => sum + s.price, 0);
+    return this.selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
   },
 
   isSelected(seatId) {
-    return this.selectedSeats.some(s => s.id === seatId);
+    return this.selectedSeats.some((seat) => seat.id === seatId);
   },
 
-  proceedToPayment() {
+  async proceedToPayment() {
     if (!AuthController.checkAuth()) return;
-    if (this.selectedSeats.length === 0) { Toast.warning('Vui lòng chọn ít nhất 1 ghế'); return; }
-    State.set('currentBooking', {
-      showtimeId: this.currentShowtime.id,
-      movieId: this.currentShowtime.movieId,
-      cinemaId: this.currentShowtime.cinemaId,
-      roomId: this.currentShowtime.roomId,
-      seats: this.selectedSeats,
-      totalPrice: this.getTotalPrice()
-    });
-    Router.navigate('/payment');
-  }
+    if (this.selectedSeats.length === 0) {
+      Toast.warning('Vui long chon it nhat 1 ghe');
+      return;
+    }
+
+    try {
+      const booking = await BookingModel.create({
+        userId: API.getBackendUserId(),
+        showtimeId: this.currentShowtime.id,
+        showtimeSeatIds: this.selectedSeats.map((seat) => seat.showtimeSeatId),
+      });
+
+      State.set('currentBooking', {
+        backendBookingId: booking.id,
+        showtimeId: this.currentShowtime.id,
+        movieId: this.currentShowtime.movieId,
+        cinemaId: this.currentShowtime.cinemaId,
+        roomId: this.currentShowtime.roomId,
+        seats: this.selectedSeats,
+        totalPrice: booking.totalAmount || this.getTotalPrice(),
+        expiresAt: booking.expiresAt,
+      });
+
+      Router.navigate('/payment');
+    } catch (error) {
+      Toast.error(error.message || 'Khong the tao booking');
+    }
+  },
 };

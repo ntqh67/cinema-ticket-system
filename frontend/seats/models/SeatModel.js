@@ -1,5 +1,71 @@
 /* CineTicket - Seat Model */
 const SeatModel = {
+  async getByShowtime(showtimeId) {
+    const data = await API.getShowtimeSeats(showtimeId);
+    const rowsByLabel = {};
+
+    data.seats.forEach((item) => {
+      if (!rowsByLabel[item.row]) rowsByLabel[item.row] = [];
+      rowsByLabel[item.row].push({
+        id: `${item.row}${item.number}`,
+        showtimeSeatId: item.showtimeSeatId,
+        row: item.row,
+        col: item.number,
+        type: this._mapSeatType(item.type),
+        price: Number(item.price),
+        status: item.status,
+        isBooked: item.status !== 'AVAILABLE',
+      });
+    });
+
+    const rows = Object.keys(rowsByLabel).sort().map((label) => ({
+      label,
+      seats: rowsByLabel[label].sort((a, b) => a.col - b.col),
+    }));
+
+    return {
+      showtime: this._mapShowtime(data.showtime),
+      room: this._mapRoom(data.showtime.room, rows),
+      rows,
+    };
+  },
+
+  _mapSeatType(type) {
+    if (type === 'VIP') return 'vip';
+    if (type === 'COUPLE') return 'couple';
+    return 'normal';
+  },
+
+  _mapShowtime(showtime) {
+    const start = new Date(showtime.startAt);
+    const end = new Date(showtime.endAt);
+    return {
+      id: showtime.id,
+      movieId: 'mv001',
+      cinemaId: 'ci001',
+      roomId: 'rm003',
+      date: Helpers.getDateString(start),
+      startTime: start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      endTime: end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      price: {
+        normal: Number(showtime.basePrice || 15),
+        vip: 22.5,
+        couple: 24,
+      },
+      backend: true,
+    };
+  },
+
+  _mapRoom(room, rows) {
+    return {
+      id: 'rm003',
+      name: room.name,
+      type: '2D',
+      rows: rows.length,
+      cols: Math.max(...rows.map((row) => row.seats.length), 0),
+    };
+  },
+
   generateSeats(room, bookedSeats = []) {
     const rows = [];
     const rowLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -15,8 +81,11 @@ const SeatModel = {
         else if (isCoupleRow && c % 2 !== 0) continue;
         else if (isVipRow) type = 'vip';
         cols.push({
-          id: seatId, row: rowLabel, col: c + 1, type,
-          isBooked: bookedSeats.includes(seatId)
+          id: seatId,
+          row: rowLabel,
+          col: c + 1,
+          type,
+          isBooked: bookedSeats.includes(seatId),
         });
       }
       rows.push({ label: rowLabel, seats: cols });
@@ -25,11 +94,13 @@ const SeatModel = {
   },
 
   getBookedSeats(showtimeId) {
-    const bookings = API.mockData.bookings.filter(b =>
-      b.showtimeId === showtimeId && b.status !== 'cancelled'
+    const bookings = API.mockData.bookings.filter((booking) =>
+      booking.showtimeId === showtimeId && booking.status !== 'cancelled'
     );
     const booked = [];
-    bookings.forEach(b => { if (b.seats) booked.push(...b.seats); });
+    bookings.forEach((booking) => {
+      if (booking.seats) booked.push(...booking.seats);
+    });
     return booked;
   },
 
@@ -38,5 +109,5 @@ const SeatModel = {
     if (seatType === 'vip') return showtime.price.vip || 130000;
     if (seatType === 'couple') return showtime.price.couple || 240000;
     return showtime.price.normal || 90000;
-  }
+  },
 };

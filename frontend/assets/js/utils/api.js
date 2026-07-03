@@ -1,6 +1,9 @@
 /* CineTicket - API Layer with Mock Data */
 const API = {
   baseUrl: '/api',
+  backendBaseUrl: localStorage.getItem('cineticket_api_base') || 'http://localhost:3000/api',
+  devBackendUserId: localStorage.getItem('cineticket_backend_user_id') || 'cmr4ezer0000256u181u0ijfy',
+  devBackendShowtimeId: localStorage.getItem('cineticket_backend_showtime_id') || 'cmr4ezeu9001d56u1zifzgbqx',
 
   // ========== MOCK DATA ==========
   mockData: {
@@ -281,6 +284,78 @@ const API = {
       this.mockData.tickets = JSON.parse(localStorage.getItem('cineticket_tickets') || '[]');
       this.mockData.promotions = JSON.parse(localStorage.getItem('cineticket_promotions') || '[]');
     }
+    this._syncBackendDemoData();
+  },
+
+  _syncBackendDemoData() {
+    const demoUser = this.mockData.users.find(u => u.email === 'hung@example.com') || this.mockData.users.find(u => u.role === 'user');
+    if (demoUser && !demoUser.backendUserId) {
+      demoUser.backendUserId = this.devBackendUserId;
+      this._save('users');
+    }
+
+    const demoShowtime = {
+      id: this.devBackendShowtimeId,
+      movieId: 'mv001',
+      cinemaId: 'ci001',
+      roomId: 'rm003',
+      date: '2026-06-29',
+      startTime: '19:00',
+      endTime: '21:12',
+      price: { normal: 15, vip: 22.5, couple: 24 },
+      totalSeats: 12,
+      bookedSeats: 0,
+      backend: true
+    };
+    const idx = this.mockData.showtimes.findIndex(s => s.id === demoShowtime.id);
+    if (idx === -1) this.mockData.showtimes.unshift(demoShowtime);
+    else this.mockData.showtimes[idx] = { ...this.mockData.showtimes[idx], ...demoShowtime };
+    this._save('showtimes');
+  },
+
+  getBackendUserId() {
+    const user = State && State.get ? State.get('currentUser') : null;
+    return (user && user.backendUserId) || this.devBackendUserId;
+  },
+
+  async backendRequest(path, options = {}) {
+    const response = await fetch(`${this.backendBaseUrl}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options
+    });
+    const text = await response.text();
+    const payload = text ? JSON.parse(text) : null;
+    if (!response.ok) {
+      const message = payload && payload.message
+        ? Array.isArray(payload.message) ? payload.message.join(', ') : payload.message
+        : 'Backend request failed';
+      throw new Error(message);
+    }
+    return payload;
+  },
+
+  getShowtimeSeats(showtimeId) {
+    return this.backendRequest(`/showtimes/${showtimeId}/seats`);
+  },
+
+  createBooking(data) {
+    return this.backendRequest('/bookings', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  payBooking(bookingId) {
+    return this.backendRequest(`/bookings/${bookingId}/pay`, {
+      method: 'POST'
+    });
+  },
+
+  getUserTickets(userId) {
+    return this.backendRequest(`/users/${userId}/tickets`);
   },
 
   _save(key) {
