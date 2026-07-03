@@ -1,0 +1,309 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+  STAFF
+}
+
+enum MovieStatus {
+  DRAFT
+  NOW_SHOWING
+  COMING_SOON
+  ENDED
+}
+
+enum SeatType {
+  STANDARD
+  VIP
+  COUPLE
+}
+
+enum ShowtimeSeatStatus {
+  AVAILABLE
+  HELD
+  BOOKED
+  BLOCKED
+}
+
+enum BookingStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum TicketStatus {
+  VALID
+  USED
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  firstName     String?
+  lastName      String?
+  role          Role           @default(CUSTOMER)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  bookings      Booking[]
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Movie {
+  id          String       @id @default(cuid())
+  title       String
+  description String?      @db.Text
+  posterUrl   String?
+  trailerUrl  String?
+  durationMin Int
+  releaseDate DateTime?
+  status      MovieStatus  @default(DRAFT)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  genres      MovieGenre[]
+  showtimes   Showtime[]
+
+  @@index([status])
+  @@index([releaseDate])
+  @@index([title])
+  @@map("movies")
+}
+
+model Genre {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  movies    MovieGenre[]
+
+  @@map("genres")
+}
+
+model MovieGenre {
+  movieId String
+  genreId String
+  movie   Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre   Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, genreId])
+  @@index([genreId])
+  @@map("movie_genres")
+}
+
+model Cinema {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  city      String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rooms     Room[]
+
+  @@index([city])
+  @@index([name])
+  @@map("cinemas")
+}
+
+model Room {
+  id        String     @id @default(cuid())
+  cinemaId  String
+  cinema    Cinema     @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  name      String
+  capacity  Int
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  seats     Seat[]
+  showtimes Showtime[]
+
+  @@unique([cinemaId, name])
+  @@index([cinemaId])
+  @@map("rooms")
+}
+
+model Seat {
+  id            String         @id @default(cuid())
+  roomId        String
+  room          Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  row           String
+  number        Int
+  type          SeatType       @default(STANDARD)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  showtimeSeats ShowtimeSeat[]
+
+  @@unique([roomId, row, number])
+  @@index([roomId])
+  @@index([type])
+  @@map("seats")
+}
+
+model Showtime {
+  id            String         @id @default(cuid())
+  movieId       String
+  movie         Movie          @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  roomId        String
+  room          Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  startAt       DateTime
+  endAt         DateTime
+  basePrice     Decimal        @db.Decimal(10, 2)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  showtimeSeats ShowtimeSeat[]
+  bookings      Booking[]
+
+  @@index([movieId, startAt])
+  @@index([roomId, startAt])
+  @@index([startAt])
+  @@map("showtimes")
+}
+
+model ShowtimeSeat {
+  id           String             @id @default(cuid())
+  showtimeId   String
+  showtime     Showtime           @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  seatId       String
+  seat         Seat               @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  status       ShowtimeSeatStatus @default(AVAILABLE)
+  price        Decimal            @db.Decimal(10, 2)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  bookingItems BookingItem[]
+
+  @@unique([showtimeId, seatId])
+  @@index([showtimeId, status])
+  @@index([seatId, status])
+  @@index([status])
+  @@map("showtime_seats")
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  showtimeId   String
+  showtime     Showtime      @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  status       BookingStatus @default(PENDING)
+  totalAmount  Decimal       @db.Decimal(10, 2)
+  currency     String        @default("USD")
+  expiresAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  bookingItems BookingItem[]
+  payments     Payment[]
+  tickets      Ticket[]
+
+  @@index([userId, createdAt])
+  @@index([showtimeId, status])
+  @@index([status, createdAt])
+  @@map("bookings")
+}
+
+model BookingItem {
+  id             String       @id @default(cuid())
+  bookingId      String
+  booking        Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  showtimeSeatId String
+  showtimeSeat   ShowtimeSeat @relation(fields: [showtimeSeatId], references: [id], onDelete: Cascade)
+  unitPrice      Decimal      @db.Decimal(10, 2)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  tickets        Ticket[]
+
+  @@unique([bookingId, showtimeSeatId])
+  @@index([bookingId])
+  @@index([showtimeSeatId])
+  @@map("booking_items")
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  bookingId   String
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  provider    String?
+  providerRef String?
+  amount      Decimal       @db.Decimal(10, 2)
+  currency    String        @default("USD")
+  status      PaymentStatus @default(PENDING)
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([bookingId, status])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+model Ticket {
+  id            String         @id @default(cuid())
+  bookingId     String
+  booking       Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingItemId String
+  bookingItem   BookingItem    @relation(fields: [bookingItemId], references: [id], onDelete: Cascade)
+  qrToken       String         @unique
+  status        TicketStatus   @default(VALID)
+  issuedAt      DateTime       @default(now())
+  expiresAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  checkIn       TicketCheckIn?
+
+  @@index([bookingId])
+  @@index([bookingItemId])
+  @@index([status, expiresAt])
+  @@map("tickets")
+}
+
+model TicketCheckIn {
+  id          String   @id @default(cuid())
+  ticketId    String   @unique
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  checkedInAt DateTime @default(now())
+  checkedInBy String?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([checkedInAt])
+  @@map("ticket_check_ins")
+}

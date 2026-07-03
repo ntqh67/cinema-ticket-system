@@ -1,0 +1,22 @@
+{
+  "name": "cinema-ticket-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prisma:format": "prisma format",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.4.2",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.4.2"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}
