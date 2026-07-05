@@ -1,37 +1,53 @@
 /* CineTicket - Booking Model */
 const BookingModel = {
-  getAll() {
-    return [...API.mockData.bookings];
+  async getAll() {
+    const data = await API.getAdminBookings();
+    return (data.bookings || []).map((booking) => this._mapBackendBooking(booking));
   },
 
   getById(id) {
-    return API.mockData.bookings.find((booking) => booking.id === id) || null;
+    return null;
   },
 
   getByUser(userId) {
-    const backendUserId = API.getBackendUserId();
-    return API.mockData.bookings.filter((booking) =>
-      booking.userId === userId || booking.userId === backendUserId
-    );
+    return [];
   },
 
   async create(data) {
     return API.createBooking(data);
   },
 
-  cancel(id) {
-    const idx = API.mockData.bookings.findIndex((booking) => booking.id === id);
-    if (idx === -1) return { success: false };
-    API.mockData.bookings[idx].status = 'cancelled';
-    API._save('bookings');
-    return { success: true };
+  async cancel(id) {
+    return API.cancelBooking(id);
   },
 
   updateStatus(id, status) {
-    const idx = API.mockData.bookings.findIndex((booking) => booking.id === id);
-    if (idx === -1) return { success: false };
-    API.mockData.bookings[idx].status = status;
-    API._save('bookings');
-    return { success: true };
+    return { success: false, error: 'Booking status is managed by backend' };
+  },
+
+  _mapBackendBooking(booking) {
+    const status = String(booking.status || '').toLowerCase();
+    return {
+      id: booking.id,
+      userId: booking.user && booking.user.id,
+      userName: booking.user && booking.user.name,
+      userEmail: booking.user && booking.user.email,
+      movieId: booking.movie && booking.movie.id,
+      movieTitle: booking.movie && booking.movie.title,
+      showtimeId: booking.showtime && booking.showtime.id,
+      cinemaName: booking.cinema && booking.cinema.name,
+      roomName: booking.room && booking.room.name,
+      seats: (booking.seats || []).map((seat) => ({
+        id: `${seat.row}${seat.number}`,
+        type: String(seat.type || '').toLowerCase(),
+      })),
+      totalAmount: booking.totalAmount,
+      currency: booking.currency,
+      status,
+      expiresAt: booking.expiresAt,
+      createdAt: booking.createdAt,
+      ticketCount: booking.ticketCount || 0,
+      backend: true,
+    };
   },
 };

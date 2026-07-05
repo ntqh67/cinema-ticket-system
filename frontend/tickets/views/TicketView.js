@@ -3,23 +3,17 @@ const TicketView = {
   render(params) {
     const booking = TicketController.getTicket(params.id);
     if (!booking) {
-      const cachedTicket = API.getCachedTicket(params.id);
-      if (cachedTicket) {
-        this.renderBackendTicket(params.id, cachedTicket);
-        return;
-      }
-      Router.notFound();
+      this.renderBackendBooking(params.id);
       return;
     }
     this._renderBookingTicket(booking);
   },
 
   async renderBackendTicket(ticketId, providedTicket = null) {
-    let ticket = providedTicket || API.getCachedTicket(ticketId);
+    let ticket = providedTicket || null;
     if (!ticket) {
       try {
         const tickets = await TicketModel.getByUser(API.getBackendUserId());
-        API._cacheTickets(tickets);
         ticket = tickets.find((item) => item.id === ticketId);
       } catch (error) {
         Toast.error(error.message || 'Khong the tai ve');
@@ -38,9 +32,9 @@ const TicketView = {
     let tickets = providedTickets;
     if (!tickets) {
       try {
-        const allTickets = await TicketModel.getByUser(API.getBackendUserId());
-        API._cacheTickets(allTickets);
-        tickets = allTickets.filter((ticket) => ticket.booking && ticket.booking.id === bookingId);
+        const data = await API.getBookingTickets(bookingId);
+        tickets = data.tickets || [];
+        tickets.bookingQrToken = data.bookingQrToken;
       } catch (error) {
         Toast.error(error.message || 'Khong the tai chi tiet ve');
       }
@@ -61,12 +55,17 @@ const TicketView = {
 
     const visual = this._movieVisual(ticket.movie);
     const seatText = ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '';
-    const startAt = ticket.showtime ? new Date(ticket.showtime.startAt) : null;
-    const endAt = ticket.showtime ? new Date(ticket.showtime.endAt) : null;
-    const dateText = startAt ? Helpers.formatDate(ticket.showtime.startAt) : '';
-    const timeText = startAt && endAt
-      ? `${startAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${endAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-      : '';
+    const bookingQrToken = ticket.booking && ticket.booking.qrToken
+      ? ticket.booking.qrToken
+      : `CINETICKET:BOOKING:${ticket.booking ? ticket.booking.id : ticket.id}`;
+    const qrCode = this._qrCode(bookingQrToken, 'large');
+    const details = this._ticketSummaryDetails({
+      showtime: ticket.showtime,
+      room: ticket.room,
+      seats: [seatText],
+      qrCode,
+      totalAmount: ticket.booking ? ticket.booking.totalAmount : 0,
+    });
 
     main.innerHTML = `
     <div class="ticket-page">
@@ -94,58 +93,11 @@ const TicketView = {
 
             <div class="ticket-tear"><div class="ticket-tear-line"></div></div>
 
-            <div class="ticket-body">
-              <div class="ticket-info-grid">
-                <div class="ticket-info-item">
-                  <div class="ticket-info-label">Ngay Chieu</div>
-                  <div class="ticket-info-value">${dateText}</div>
-                </div>
-                <div class="ticket-info-item">
-                  <div class="ticket-info-label">Gio Chieu</div>
-                  <div class="ticket-info-value highlight">${timeText}</div>
-                </div>
-                <div class="ticket-info-item">
-                  <div class="ticket-info-label">Phong</div>
-                  <div class="ticket-info-value">${ticket.room ? Helpers.escapeHtml(ticket.room.name) : ''}</div>
-                </div>
-                <div class="ticket-info-item">
-                  <div class="ticket-info-label">Loai Ve</div>
-                  <div class="ticket-info-value">${ticket.seat ? ticket.seat.type : 'STANDARD'}</div>
-                </div>
-                <div class="ticket-info-item" style="grid-column:1/-1;">
-                  <div class="ticket-info-label">So Ghe</div>
-                  <div class="ticket-info-value seats"><span class="seat-chip">${seatText}</span></div>
-                </div>
-                <div class="ticket-info-item">
-                  <div class="ticket-info-label">Trang Thai</div>
-                  <div class="ticket-info-value">${ticket.status}</div>
-                </div>
-                <div class="ticket-info-item">
-                  <div class="ticket-info-label">Thanh Toan</div>
-                  <div class="ticket-info-value">${ticket.booking ? ticket.booking.status : 'PAID'}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="ticket-tear"><div class="ticket-tear-line"></div></div>
-
-            <div class="ticket-footer">
-              <div class="ticket-qr">
-                <div class="ticket-qr-placeholder"><i class="fas fa-qrcode" style="font-size:3rem;color:#222;"></i></div>
-              </div>
-              <div class="ticket-footer-info">
-                <div class="ticket-booking-id">Ma QR: <span>${Helpers.escapeHtml(ticket.qrToken || '')}</span></div>
-                <div class="ticket-footer-note">Xuat trinh ma QR nay tai quay soat ve.</div>
-              </div>
-              <div class="ticket-total">
-                <div class="ticket-total-label">Tong Tien</div>
-                <div class="ticket-total-amount">${Helpers.formatCurrency(ticket.booking ? ticket.booking.totalAmount : 0)}</div>
-              </div>
-            </div>
+            ${details}
           </div>
 
           <div class="ticket-actions">
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> In Ve</button>
+            <button class="btn btn-primary" onclick="TicketView.printCurrentTicket()"><i class="fas fa-print"></i> In Ve</button>
             <button class="btn btn-outline" onclick="Router.navigate('/history')"><i class="fas fa-ticket-alt"></i> Ve Cua Toi</button>
             <button class="btn btn-outline" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chu</button>
           </div>
@@ -161,6 +113,8 @@ const TicketView = {
 
     const firstTicket = tickets[0];
     const booking = firstTicket.booking || {};
+    const bookingQrToken = tickets.bookingQrToken || booking.qrToken || `CINETICKET:BOOKING:${booking.id}`;
+    const bookingQrCode = this._qrCode(bookingQrToken, 'large');
     const visual = this._movieVisual(firstTicket.movie);
     const sortedTickets = [...tickets].sort((a, b) => {
       const rowA = a.seat ? a.seat.row : '';
@@ -168,24 +122,16 @@ const TicketView = {
       if (rowA !== rowB) return rowA.localeCompare(rowB);
       return (a.seat ? a.seat.number : 0) - (b.seat ? b.seat.number : 0);
     });
-    const startAt = firstTicket.showtime ? new Date(firstTicket.showtime.startAt) : null;
-    const endAt = firstTicket.showtime ? new Date(firstTicket.showtime.endAt) : null;
-    const dateText = startAt ? Helpers.formatDate(firstTicket.showtime.startAt) : '';
-    const timeText = startAt && endAt
-      ? `${startAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${endAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
-      : '';
-    const seatChips = sortedTickets
-      .map((ticket) => ticket.seat ? `<span class="seat-chip">${ticket.seat.row}${ticket.seat.number}</span>` : '')
-      .join('');
-    const ticketRows = sortedTickets.map((ticket) => {
-      const seatText = ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '';
-      return `<tr>
-        <td><span class="seat-chip">${seatText}</span></td>
-        <td>${ticket.seat ? ticket.seat.type : 'STANDARD'}</td>
-        <td><span class="badge badge-success">${ticket.status}</span></td>
-        <td><code style="font-size:0.75rem;">${Helpers.escapeHtml(ticket.qrToken || '')}</code></td>
-      </tr>`;
-    }).join('');
+    const seatList = sortedTickets
+      .map((ticket) => ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '')
+      .filter(Boolean);
+    const details = this._ticketSummaryDetails({
+      showtime: firstTicket.showtime,
+      room: firstTicket.room,
+      seats: seatList,
+      qrCode: bookingQrCode,
+      totalAmount: booking.totalAmount || 0,
+    });
 
     main.innerHTML = `
     <div class="ticket-page">
@@ -194,7 +140,7 @@ const TicketView = {
           <div class="ticket-success-banner">
             <div class="ticket-success-icon"><i class="fas fa-ticket-alt"></i></div>
             <h2 class="ticket-success-title">Chi Tiet Dat Ve</h2>
-            <p class="ticket-success-sub">Tat ca ve trong cung mot booking duoc gom tai day.</p>
+            <p class="ticket-success-sub">Ma QR nay dung cho toan bo ghe trong booking.</p>
           </div>
 
           <div class="ticket-card">
@@ -211,42 +157,62 @@ const TicketView = {
               </div>
             </div>
 
-            <div class="ticket-body">
-              <div class="ticket-info-grid">
-                <div class="ticket-info-item"><div class="ticket-info-label">Ngay Chieu</div><div class="ticket-info-value">${dateText}</div></div>
-                <div class="ticket-info-item"><div class="ticket-info-label">Gio Chieu</div><div class="ticket-info-value highlight">${timeText}</div></div>
-                <div class="ticket-info-item"><div class="ticket-info-label">Phong</div><div class="ticket-info-value">${firstTicket.room ? Helpers.escapeHtml(firstTicket.room.name) : ''}</div></div>
-                <div class="ticket-info-item"><div class="ticket-info-label">So Ve</div><div class="ticket-info-value">${sortedTickets.length}</div></div>
-                <div class="ticket-info-item" style="grid-column:1/-1;"><div class="ticket-info-label">So Ghe</div><div class="ticket-info-value seats">${seatChips}</div></div>
-              </div>
-              <div class="table-wrapper" style="margin-top:24px;">
-                <table class="data-table">
-                  <thead><tr><th>Ghe</th><th>Loai Ghe</th><th>Trang Thai</th><th>Ma QR</th></tr></thead>
-                  <tbody>${ticketRows}</tbody>
-                </table>
-              </div>
-            </div>
+            <div class="ticket-tear"><div class="ticket-tear-line"></div></div>
 
-            <div class="ticket-footer">
-              <div class="ticket-footer-info">
-                <div class="ticket-booking-id">Ma Dat Ve: <span>${booking.id ? booking.id.toUpperCase().slice(0, 12) : ''}</span></div>
-                <div class="ticket-footer-note">Xuat trinh QR tuong ung voi tung ghe tai quay soat ve.</div>
-              </div>
-              <div class="ticket-total">
-                <div class="ticket-total-label">Tong Tien</div>
-                <div class="ticket-total-amount">${Helpers.formatCurrency(booking.totalAmount || 0)}</div>
-              </div>
-            </div>
+            ${details}
           </div>
 
           <div class="ticket-actions">
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> In Ve</button>
+            <button class="btn btn-primary" onclick="TicketView.printCurrentTicket()"><i class="fas fa-print"></i> In Ve</button>
             <button class="btn btn-outline" onclick="Router.navigate('/history')"><i class="fas fa-ticket-alt"></i> Ve Cua Toi</button>
             <button class="btn btn-outline" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chu</button>
           </div>
         </div>
       </div>
     </div>`;
+  },
+
+  _ticketSummaryDetails({ showtime, room, seats, qrCode, totalAmount }) {
+    const startAt = showtime ? new Date(showtime.startAt) : null;
+    const endAt = showtime ? new Date(showtime.endAt) : null;
+    const dateText = startAt ? Helpers.formatDate(showtime.startAt) : '';
+    const timeText = startAt && endAt
+      ? `${startAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${endAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+      : '';
+    const seatText = (seats || []).filter(Boolean).join(', ');
+
+    return `
+      <div class="ticket-body">
+        <div class="ticket-info-grid ticket-info-grid-compact">
+          <div class="ticket-info-item">
+            <div class="ticket-info-label">Ngay Chieu</div>
+            <div class="ticket-info-value">${dateText}</div>
+          </div>
+          <div class="ticket-info-item">
+            <div class="ticket-info-label">Gio Chieu</div>
+            <div class="ticket-info-value highlight">${timeText}</div>
+          </div>
+          <div class="ticket-info-item">
+            <div class="ticket-info-label">Phong</div>
+            <div class="ticket-info-value">${room ? Helpers.escapeHtml(room.name) : ''}</div>
+          </div>
+          <div class="ticket-info-item">
+            <div class="ticket-info-label">So Ghe</div>
+            <div class="ticket-info-value">${Helpers.escapeHtml(seatText)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket-tear"><div class="ticket-tear-line"></div></div>
+
+      <div class="ticket-footer ticket-footer-summary">
+        <div class="ticket-qr ticket-qr-large">${qrCode}</div>
+        <div class="ticket-total">
+          <div class="ticket-total-label">Tong Tien Da Thanh Toan</div>
+          <div class="ticket-total-amount">${Helpers.formatCurrency(totalAmount || 0)}</div>
+          <div class="ticket-footer-note">Dua ma QR cho nhan vien soat ve de nhan ve vao rap</div>
+        </div>
+      </div>`;
   },
 
   _movieVisual(movie) {
@@ -256,6 +222,31 @@ const TicketView = {
       poster: localMovie && localMovie.poster ? localMovie.poster : `https://picsum.photos/seed/movie-${movieId}/400/600`,
       banner: localMovie && localMovie.banner ? localMovie.banner : `https://picsum.photos/seed/movie-${movieId}-banner/1280/720`,
     };
+  },
+
+  _qrCode(qrToken, size = 'small') {
+    if (!qrToken) {
+      return '<div class="ticket-qr-placeholder"><i class="fas fa-qrcode"></i></div>';
+    }
+    try {
+      return QR.toSvg(qrToken, { scale: size === 'large' ? 7 : 3 });
+    } catch (error) {
+      console.warn('Could not render QR:', error);
+      return '<div class="ticket-qr-placeholder"><i class="fas fa-qrcode"></i></div>';
+    }
+  },
+
+  printCurrentTicket() {
+    const ticketCard = document.querySelector('.ticket-card');
+    if (!ticketCard) return;
+
+    document.body.classList.add('print-ticket-only');
+    const cleanup = () => document.body.classList.remove('print-ticket-only');
+    window.addEventListener('afterprint', cleanup, { once: true });
+    setTimeout(() => {
+      window.print();
+      setTimeout(cleanup, 500);
+    }, 50);
   },
 
   _renderBookingTicket(booking) {
@@ -300,12 +291,11 @@ const TicketView = {
             </div>
             <div class="ticket-footer">
               <div class="ticket-qr"><div class="ticket-qr-placeholder"><i class="fas fa-qrcode" style="font-size:3rem;color:#222;"></i></div></div>
-              <div class="ticket-footer-info"><div class="ticket-booking-id">Ma Dat Ve: <span>${booking.id.toUpperCase().slice(0, 12)}</span></div></div>
               <div class="ticket-total"><div class="ticket-total-label">Tong Tien</div><div class="ticket-total-amount">${Helpers.formatCurrency(booking.totalAmount || booking.totalPrice)}</div></div>
             </div>
           </div>
           <div class="ticket-actions">
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> In Ve</button>
+            <button class="btn btn-primary" onclick="TicketView.printCurrentTicket()"><i class="fas fa-print"></i> In Ve</button>
             <button class="btn btn-outline" onclick="Router.navigate('/history')"><i class="fas fa-ticket-alt"></i> Ve Cua Toi</button>
           </div>
         </div>

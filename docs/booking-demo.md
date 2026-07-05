@@ -45,6 +45,15 @@ ShowtimeSeat.id with status AVAILABLE
 
 ## Step 1 - Load Seats
 
+Before selecting seats in the UI, register or login with a database-backed account:
+
+```text
+admin@cinema.test / admin123
+hung@example.com / user123
+```
+
+Newly registered accounts must appear in Prisma Studio table `User`.
+
 ```powershell
 $showtimeId = "PASTE_SHOWTIME_ID"
 Invoke-RestMethod -Uri "http://localhost:3000/api/showtimes/$showtimeId/seats" | ConvertTo-Json -Depth 8
@@ -86,24 +95,29 @@ Selected ShowtimeSeat status changes from AVAILABLE to HELD.
 Response includes expiresAt and totalAmount.
 ```
 
-## Step 3 - Pay Booking
+## Step 3 - Create VNPay Payment
+
+If you do not have real VNPay Sandbox credentials yet, keep this in `.env`:
+
+```env
+VNPAY_DEMO_MODE="true"
+```
 
 ```powershell
-$paidBooking = Invoke-RestMethod `
+$vnpay = Invoke-RestMethod `
   -Method Post `
-  -Uri "http://localhost:3000/api/bookings/$($booking.id)/pay"
+  -Uri "http://localhost:3000/api/bookings/$($booking.id)/vnpay"
 
-$paidBooking | ConvertTo-Json -Depth 8
+$vnpay | ConvertTo-Json -Depth 8
 ```
 
 Expected:
 
 ```text
-Booking status changes to PAID.
-Payment status is SUCCESS.
-Selected ShowtimeSeat status changes to BOOKED.
-One VALID ticket is created for each booking item.
-Response includes qrToken.
+A VNPay paymentUrl is returned.
+If VNPAY_DEMO_MODE=true, open paymentUrl and the backend simulates a successful VNPay return.
+If real VNPay Sandbox credentials are configured, open paymentUrl and complete the sandbox payment.
+On success, the frontend opens #/ticket/{bookingId}?payment=success.
 ```
 
 ## Step 4 - View User Tickets
@@ -116,7 +130,8 @@ Expected:
 
 ```text
 The paid ticket appears in the tickets array.
-The ticket includes movie, showtime, cinema, room, seat, booking, and qrToken.
+The ticket includes movie, showtime, cinema, room, seat, booking, and booking QR data.
+The customer UI shows one large QR for the whole booking.
 ```
 
 ## Step 5 - Expire Old Pending Bookings
@@ -133,14 +148,59 @@ Their HELD seats are released back to AVAILABLE.
 Calling the endpoint again should return zero counts if no expired bookings remain.
 ```
 
+## Step 6 - Admin Booking List
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:3000/api/bookings | ConvertTo-Json -Depth 10
+```
+
+Expected:
+
+```text
+Admin booking data is loaded from PostgreSQL, not localStorage/mock data.
+```
+
+## Step 7 - Booking QR Lookup And Check-in
+
+Use the `bookingQrToken` from `GET /api/bookings/:bookingId/tickets`. This is a staff/cinema operation; the customer UI only displays the QR.
+
+```powershell
+$bookingQrToken = "CINETICKET:BOOKING:PASTE_BOOKING_ID"
+$encodedQr = [System.Uri]::EscapeDataString($bookingQrToken)
+Invoke-RestMethod -Uri "http://localhost:3000/api/bookings/qr/$encodedQr" | ConvertTo-Json -Depth 10
+
+$body = @{ checkedInBy = "staff@cinema.test"; notes = "Demo check-in" } | ConvertTo-Json
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:3000/api/bookings/qr/$encodedQr/check-in" `
+  -ContentType "application/json" `
+  -Body $body | ConvertTo-Json -Depth 10
+```
+
+Expected:
+
+```text
+All VALID tickets in the booking change to USED.
+TicketCheckIn rows are created.
+```
+
 ## Postman URLs
 
 ```text
 GET  http://localhost:3000/api/showtimes/:showtimeId/seats
 POST http://localhost:3000/api/bookings
-POST http://localhost:3000/api/bookings/:bookingId/pay
+POST http://localhost:3000/api/bookings/:bookingId/vnpay
+POST http://localhost:3000/api/bookings/:bookingId/online-demo-pay
+GET  http://localhost:3000/api/bookings/vnpay-return
 GET  http://localhost:3000/api/users/:userId/tickets
 POST http://localhost:3000/api/bookings/expire
+GET  http://localhost:3000/api/bookings
+GET  http://localhost:3000/api/bookings/:bookingId/tickets
+DELETE http://localhost:3000/api/bookings/:bookingId
+GET  http://localhost:3000/api/bookings/qr/:bookingQrToken
+POST http://localhost:3000/api/bookings/qr/:bookingQrToken/check-in
+GET  http://localhost:3000/api/tickets/qr/:qrToken
+POST http://localhost:3000/api/tickets/qr/:qrToken/check-in
 ```
 
 ## Booking Request Body
@@ -159,10 +219,14 @@ POST http://localhost:3000/api/bookings/expire
 [ ] Seats endpoint returns AVAILABLE seats.
 [ ] Create booking returns PENDING booking.
 [ ] Selected seat changes to HELD.
-[ ] Pay booking returns PAID booking.
-[ ] Payment is SUCCESS.
+[ ] VNPay paymentUrl is returned.
+[ ] VNPay success return marks booking PAID.
+[ ] Frontend payment page only shows online methods, not cash.
 [ ] Selected seat changes to BOOKED.
-[ ] Ticket is VALID and has qrToken.
+[ ] Booking has one large scannable QR image.
 [ ] User tickets endpoint returns the paid ticket.
 [ ] Expire endpoint can release old pending bookings.
+[ ] Admin booking list comes from PostgreSQL.
+[ ] Frontend shows a backend/database error if API is offline instead of using mock booking data.
+[ ] Booking QR check-in changes all tickets from VALID to USED.
 ```

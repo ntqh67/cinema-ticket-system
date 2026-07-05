@@ -1,10 +1,12 @@
 /* CineTicket - Payment View */
 const PaymentView = {
-  _selectedMethod: 'cash',
+  _selectedMethod: 'vnpay',
   _processing: false,
+  _holdTimer: null,
 
   render() {
     if (!AuthController.checkAuth()) return;
+    this._clearHoldCountdown();
     const booking = State.get('currentBooking');
     if (!booking) { Toast.warning('Không có thông tin đặt vé'); Router.navigate('/'); return; }
     const movie = MovieModel.getById(booking.movieId);
@@ -16,6 +18,9 @@ const PaymentView = {
     if (!main) return;
 
     const seatNames = booking.seats.map(s => typeof s === 'object' ? s.id : s).join(', ');
+    const bookingCode = booking.backendBookingId
+      ? booking.backendBookingId.toUpperCase().slice(0, 12)
+      : 'DANG TAO';
     const seatDetails = booking.seats.map(s => {
       const type = typeof s === 'object' ? s.type : 'normal';
       const price = typeof s === 'object' ? s.price : booking.totalPrice / booking.seats.length;
@@ -41,18 +46,16 @@ const PaymentView = {
             <!-- Payment Methods -->
             <div class="booking-card">
               <div class="booking-card-header">
-                <div class="booking-card-title"><span class="step-badge">1</span> Phương Thức Thanh Toán</div>
+                <div class="booking-card-title"><span class="step-badge">1</span> Thanh Toán Online</div>
               </div>
               <div class="booking-card-body">
                 <form id="payment-form" onsubmit="PaymentController.handleSubmit(event, PaymentView._selectedMethod)">
                   <div class="payment-methods">
-                    ${this._methodOption('cash', 'fas fa-money-bill-wave', 'cash', 'Tiền Mặt', 'Thanh toán tại quầy hoặc nhân viên giao vé')}
-                    ${this._methodOption('card', 'fas fa-credit-card', 'card', 'Thẻ Tín Dụng / Ghi Nợ', 'Visa, MasterCard, JCB, Amex')}
-                    ${this._methodOption('momo', 'fas fa-mobile-alt', 'momo', 'Ví MoMo', 'Thanh toán qua ví điện tử MoMo')}
+                    ${this._methodOption('card', 'fas fa-credit-card', 'card', 'The Tin Dung / Ghi No', 'Visa, MasterCard, JCB')}
+                    ${this._methodOption('momo', 'fas fa-mobile-alt', 'momo', 'MoMo', 'Thanh toan qua vi MoMo')}
                     ${this._methodOption('vnpay', 'fas fa-qrcode', 'vnpay', 'VNPay', 'Thanh toán qua VNPay QR')}
-                    ${this._methodOption('zalopay', 'fas fa-wallet', 'zalopay', 'ZaloPay', 'Thanh toán qua ví ZaloPay')}
+                    ${this._methodOption('zalopay', 'fas fa-wallet', 'zalopay', 'ZaloPay', 'Thanh toan qua vi ZaloPay')}
                   </div>
-
                   <!-- Card Form (hidden) -->
                   <div class="card-form" id="card-form">
                     <div class="form-group">
@@ -79,7 +82,7 @@ const PaymentView = {
                   </div>
 
                   <!-- Promo Code -->
-                  <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--color-border);">
+                  <div style="display:none;margin-top:24px;padding-top:24px;border-top:1px solid var(--color-border);">
                     <h5 style="margin-bottom:12px;"><i class="fas fa-tags" style="color:var(--color-primary);"></i> Mã Khuyến Mãi</h5>
                     <div class="promo-input-row">
                       <input type="text" class="form-control" id="promo-code-input" placeholder="Nhập mã (VD: SUMMER25)" style="text-transform:uppercase;" />
@@ -121,13 +124,25 @@ const PaymentView = {
                 </div>
               </div>
               <div class="order-line">
+                <span class="order-line-label">Ma Dat Ve</span>
+                <span class="order-line-value">${Helpers.escapeHtml(bookingCode)}</span>
+              </div>
+              <div class="order-line">
+                <span class="order-line-label">Rap Chieu</span>
+                <span class="order-line-value">${cinema ? Helpers.escapeHtml(cinema.name || cinema.shortName) : ''}</span>
+              </div>
+              <div class="order-line">
                 <span class="order-line-label">Ghế</span>
                 <span class="order-line-value" style="font-size:0.85rem;">${Helpers.escapeHtml(seatNames)}</span>
+              </div>
+              <div class="order-line">
+                <span class="order-line-label">Giu ghe con lai</span>
+                <span class="order-line-value" id="booking-hold-countdown">--:--</span>
               </div>
               ${seatDetails}
               <div class="order-line" id="discount-line" style="display:none;">
                 <span class="order-line-label" style="color:var(--color-success);">Giảm Giá</span>
-                <span class="order-line-value" style="color:var(--color-success);" id="discount-value">- 0 ₫</span>
+                <span class="order-line-value" style="color:var(--color-success);" id="discount-value">- $0.00</span>
               </div>
               <div class="order-final">
                 <span>Tổng Cộng</span>
@@ -159,6 +174,48 @@ const PaymentView = {
         if (cardForm) cardForm.classList.toggle('show', this._selectedMethod === 'card');
       });
     });
+    this._startHoldCountdown(booking.expiresAt, booking.showtimeId);
+  },
+
+  _startHoldCountdown(expiresAt, showtimeId) {
+    const el = document.getElementById('booking-hold-countdown');
+    if (!el) return;
+    if (!expiresAt) {
+      el.textContent = 'Khong gioi han';
+      return;
+    }
+
+    const update = async () => {
+      const remaining = new Date(expiresAt).getTime() - Date.now();
+      if (remaining <= 0) {
+        this._clearHoldCountdown();
+        el.textContent = 'Da het han';
+        try {
+          await API.expireBookings();
+        } catch (error) {
+          console.warn('Could not expire pending bookings:', error);
+        }
+        State.set('currentBooking', null);
+        Toast.error('Phien giu ghe da het han. Vui long chon ghe lai.');
+        Router.navigate(showtimeId ? `/seats/${showtimeId}` : '/movies');
+        return;
+      }
+
+      const totalSeconds = Math.ceil(remaining / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      el.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    update();
+    this._holdTimer = setInterval(update, 1000);
+  },
+
+  _clearHoldCountdown() {
+    if (this._holdTimer) {
+      clearInterval(this._holdTimer);
+      this._holdTimer = null;
+    }
   },
 
   _methodOption(method, iconClass, iconType, label, desc) {

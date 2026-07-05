@@ -141,10 +141,7 @@ const Navbar = {
     const resultsEl = document.getElementById('navbar-search-results');
     if (!resultsEl) return;
     if (!query || query.length < 2) { resultsEl.innerHTML = ''; return; }
-    const movies = API.mockData.movies.filter(m =>
-      m.title.toLowerCase().includes(query.toLowerCase()) ||
-      (m.titleEn && m.titleEn.toLowerCase().includes(query.toLowerCase()))
-    ).slice(0, 5);
+    const movies = MovieModel.search(query).slice(0, 5);
     if (movies.length === 0) {
       resultsEl.innerHTML = '<p style="padding:12px;color:var(--color-text-muted);font-size:0.85rem;text-align:center;">Không tìm thấy phim</p>';
       return;

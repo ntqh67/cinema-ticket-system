@@ -5,12 +5,7 @@ const AuthModel = {
       const data = await API.login({ email, password });
       return { success: true, user: this._mapBackendUser(data.user) };
     } catch (error) {
-      const users = API.mockData.users;
-      const user = users.find(u => u.email === email && u.password === password);
-      if (!user) return { success: false, error: error.message || 'Email hoac mat khau khong dung' };
-      if (!user.isActive) return { success: false, error: 'Tai khoan da bi vo hieu hoa' };
-      const { password: _p, ...safeUser } = user;
-      return { success: true, user: safeUser };
+      return { success: false, error: error.message || 'Email hoac mat khau khong dung' };
     }
   },
 
@@ -18,11 +13,6 @@ const AuthModel = {
     try {
       const data = await API.register(userData);
       const backendUser = this._mapBackendUser(data.user);
-      this._upsertLocalUser({
-        ...backendUser,
-        password: userData.password,
-        phone: userData.phone || '',
-      });
       return { success: true, user: backendUser };
     } catch (error) {
       return {
@@ -44,20 +34,6 @@ const AuthModel = {
       createdAt: user.createdAt || new Date().toISOString(),
       isActive: user.isActive !== false,
     };
-  },
-
-  _upsertLocalUser(user) {
-    const users = API.mockData.users;
-    const idx = users.findIndex(item => item.email === user.email);
-    const localUser = {
-      ...user,
-      role: user.role || 'user',
-      avatar: user.avatar || null,
-      isActive: user.isActive !== false,
-    };
-    if (idx === -1) users.push(localUser);
-    else users[idx] = { ...users[idx], ...localUser };
-    API._save('users');
   },
 
   logout() {

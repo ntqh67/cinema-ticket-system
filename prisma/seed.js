@@ -5,6 +5,12 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const prisma = new PrismaClient();
+const CLEANUP_MINUTES = 30;
+const PRICE_BY_SEAT_TYPE = {
+  STANDARD: 8,
+  VIP: 12,
+  COUPLE: 18,
+};
 
 async function main() {
   await prisma.ticketCheckIn.deleteMany();
@@ -115,21 +121,56 @@ async function main() {
     data: {
       cinemaId: cinema.id,
       name: 'Screen 2',
+      capacity: 102,
+    },
+  });
+
+  const roomThree = await prisma.room.create({
+    data: {
+      cinemaId: cinema.id,
+      name: 'Screen 3',
+      capacity: 85,
+    },
+  });
+
+  const roomFour = await prisma.room.create({
+    data: {
+      cinemaId: cinema.id,
+      name: 'Screen 4',
       capacity: 90,
     },
   });
 
-  async function createSeatLayout({ roomId, rows, columns, vipRows, coupleRows }) {
+  function getVipZone(rows, columns) {
+    const zoneRowCount = Math.min(3, rows.length);
+    const zoneColCount = Math.min(5, columns);
+    const rowStart = Math.max(0, Math.round((rows.length - zoneRowCount) / 2));
+    const colStart = Math.max(1, Math.round((columns - zoneColCount) / 2) + 1);
+
+    return {
+      rows: new Set(rows.slice(rowStart, rowStart + zoneRowCount)),
+      colStart,
+      colEnd: colStart + zoneColCount - 1,
+    };
+  }
+
+  async function createSeatLayout({ roomId, rows, columns, coupleRows }) {
     const seats = [];
+    const resolvedVipZone = getVipZone(rows, columns);
 
     for (const row of rows) {
       const isCoupleRow = coupleRows.includes(row);
       const seatCount = isCoupleRow ? Math.floor(columns / 2) : columns;
 
       for (let number = 1; number <= seatCount; number += 1) {
+        const isVipSeat =
+          !isCoupleRow &&
+          resolvedVipZone.rows.has(row) &&
+          number >= resolvedVipZone.colStart &&
+          number <= resolvedVipZone.colEnd;
         const type = isCoupleRow
           ? 'COUPLE'
-          : vipRows.includes(row)
+          : isVipSeat
             ? 'VIP'
             : 'STANDARD';
         const seat = await prisma.seat.create({
@@ -151,66 +192,149 @@ async function main() {
     roomId: roomOne.id,
     rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'],
     columns: 14,
-    vipRows: ['D', 'E', 'F', 'G', 'H'],
     coupleRows: ['J'],
   });
 
   const seatsForRoomTwo = await createSeatLayout({
     roomId: roomTwo.id,
+    rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+    columns: 12,
+    coupleRows: ['I'],
+  });
+
+  const seatsForRoomThree = await createSeatLayout({
+    roomId: roomThree.id,
+    rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
+    columns: 10,
+    coupleRows: ['I'],
+  });
+
+  const seatsForRoomFour = await createSeatLayout({
+    roomId: roomFour.id,
     rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
     columns: 12,
-    vipRows: ['D', 'E', 'F', 'G'],
     coupleRows: ['H'],
   });
 
+  function addMinutes(date, minutes) {
+    return new Date(date.getTime() + minutes * 60 * 1000);
+  }
+
+  async function createShowtime({ movieId, roomId, startAt, endAt }) {
+    const start = new Date(startAt);
+    const end = new Date(endAt);
+    const conflict = await prisma.showtime.findFirst({
+      where: {
+        roomId,
+        startAt: { lt: addMinutes(end, CLEANUP_MINUTES) },
+        endAt: { gt: addMinutes(start, -CLEANUP_MINUTES) },
+      },
+    });
+
+    if (conflict) {
+      throw new Error(
+        `Showtime conflict in room ${roomId}: ${start.toISOString()} - ${end.toISOString()}`,
+      );
+    }
+
+    return prisma.showtime.create({
+      data: {
+        movieId,
+        roomId,
+        startAt: start,
+        endAt: end,
+        basePrice: PRICE_BY_SEAT_TYPE.STANDARD,
+      },
+    });
+  }
+
+  function showtimeAt(date, startTime, endTime) {
+    return {
+      startAt: `${date}T${startTime}:00.000+07:00`,
+      endAt: `${date}T${endTime}:00.000+07:00`,
+    };
+  }
+
+  const roomSchedules = [
+    {
+      roomId: roomOne.id,
+      slots: [
+        ['09:00', '11:12'],
+        ['11:45', '13:57'],
+        ['14:30', '16:42'],
+        ['19:00', '21:12'],
+      ],
+    },
+    {
+      roomId: roomTwo.id,
+      slots: [
+        ['09:30', '11:28'],
+        ['12:00', '13:58'],
+        ['14:30', '16:28'],
+        ['19:30', '21:28'],
+      ],
+    },
+    {
+      roomId: roomThree.id,
+      slots: [
+        ['10:00', '11:58'],
+        ['12:30', '14:28'],
+        ['15:00', '16:58'],
+        ['20:00', '21:58'],
+      ],
+    },
+    {
+      roomId: roomFour.id,
+      slots: [
+        ['10:30', '12:28'],
+        ['13:00', '14:58'],
+        ['15:30', '17:28'],
+        ['20:30', '22:28'],
+      ],
+    },
+  ];
+
+  const showtimeConfigs = [];
+  const seedStartDate = new Date('2026-06-30T00:00:00.000+07:00');
+  for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+    const date = new Date(seedStartDate);
+    date.setDate(seedStartDate.getDate() + dayOffset);
+    const dateText = date.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+
+    roomSchedules.forEach((schedule, roomIndex) => {
+      schedule.slots.forEach(([startTime, endTime], slotIndex) => {
+        const movieId =
+          (dayOffset + roomIndex + slotIndex) % 2 === 0
+            ? movieOne.id
+            : movieTwo.id;
+        showtimeConfigs.push({
+          movieId,
+          roomId: schedule.roomId,
+          ...showtimeAt(dateText, startTime, endTime),
+        });
+      });
+    });
+  }
+
   const showtimes = [];
-  showtimes.push(
-    await prisma.showtime.create({
-      data: {
-        movieId: movieOne.id,
-        roomId: roomOne.id,
-        startAt: new Date('2026-06-29T19:00:00.000Z'),
-        endAt: new Date('2026-06-29T21:12:00.000Z'),
-        basePrice: 15.0,
-      },
-    }),
-  );
-  showtimes.push(
-    await prisma.showtime.create({
-      data: {
-        movieId: movieOne.id,
-        roomId: roomTwo.id,
-        startAt: new Date('2026-06-30T18:30:00.000Z'),
-        endAt: new Date('2026-06-30T20:28:00.000Z'),
-        basePrice: 14.5,
-      },
-    }),
-  );
-  showtimes.push(
-    await prisma.showtime.create({
-      data: {
-        movieId: movieTwo.id,
-        roomId: roomOne.id,
-        startAt: new Date('2026-07-02T20:00:00.000Z'),
-        endAt: new Date('2026-07-02T21:58:00.000Z'),
-        basePrice: 16.0,
-      },
-    }),
-  );
+  for (const config of showtimeConfigs) {
+    showtimes.push(await createShowtime(config));
+  }
 
   for (const showtime of showtimes) {
-    const seats = showtime.roomId === roomOne.id ? seatsForRoomOne : seatsForRoomTwo;
+    const seatsByRoomId = {
+      [roomOne.id]: seatsForRoomOne,
+      [roomTwo.id]: seatsForRoomTwo,
+      [roomThree.id]: seatsForRoomThree,
+      [roomFour.id]: seatsForRoomFour,
+    };
+    const seats = seatsByRoomId[showtime.roomId] || [];
     for (const seat of seats) {
       await prisma.showtimeSeat.create({
         data: {
           showtimeId: showtime.id,
           seatId: seat.id,
-          price:
-            seat.type === 'VIP'
-              ? Number(showtime.basePrice) * 1.3
-              : seat.type === 'COUPLE'
-                ? Number(showtime.basePrice) * 1.6
-                : Number(showtime.basePrice),
+          price: PRICE_BY_SEAT_TYPE[seat.type],
           status: 'AVAILABLE',
         },
       });

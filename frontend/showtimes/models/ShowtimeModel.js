@@ -1,13 +1,15 @@
 /* CineTicket - Showtime Model */
 const ShowtimeModel = {
-  getAll() { return [...API.mockData.showtimes]; },
-  getById(id) { return API.mockData.showtimes.find(s => s.id === id) || null; },
-  getByMovie(movieId) { return API.mockData.showtimes.filter(s => s.movieId === movieId); },
-  getByCinema(cinemaId) { return API.mockData.showtimes.filter(s => s.cinemaId === cinemaId); },
+  getAll() { return API.catalogLoadedFromBackend ? [...API.mockData.showtimes] : []; },
+  getById(id) { return API.catalogLoadedFromBackend ? API.mockData.showtimes.find(s => s.id === id) || null : null; },
+  getByMovie(movieId) { return API.catalogLoadedFromBackend ? API.mockData.showtimes.filter(s => s.movieId === movieId) : []; },
+  getByCinema(cinemaId) { return API.catalogLoadedFromBackend ? API.mockData.showtimes.filter(s => s.cinemaId === cinemaId) : []; },
   getByMovieAndDate(movieId, date) {
+    if (!API.catalogLoadedFromBackend) return [];
     return API.mockData.showtimes.filter(s => s.movieId === movieId && s.date === date);
   },
   getByFilters({ movieId, cinemaId, date }) {
+    if (!API.catalogLoadedFromBackend) return [];
     let items = API.mockData.showtimes;
     if (movieId) items = items.filter(s => s.movieId === movieId);
     if (cinemaId) items = items.filter(s => s.cinemaId === cinemaId);
@@ -15,6 +17,7 @@ const ShowtimeModel = {
     return items;
   },
   getAvailableDates(movieId) {
+    if (!API.catalogLoadedFromBackend) return [];
     const dates = [...new Set(
       API.mockData.showtimes.filter(s => s.movieId === movieId).map(s => s.date)
     )].sort();

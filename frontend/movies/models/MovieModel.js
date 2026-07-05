@@ -1,6 +1,7 @@
 /* CineTicket - Movie Model */
 const MovieModel = {
   getAll(filters = {}) {
+    if (!API.catalogLoadedFromBackend) return [];
     let movies = [...API.mockData.movies];
     if (filters.status) movies = movies.filter(m => m.status === filters.status);
     if (filters.genre) movies = movies.filter(m => m.genre.includes(filters.genre));
@@ -14,10 +15,12 @@ const MovieModel = {
   },
 
   getById(id) {
+    if (!API.catalogLoadedFromBackend) return null;
     return API.mockData.movies.find(m => m.id === id) || null;
   },
 
   getByStatus(status) {
+    if (!API.catalogLoadedFromBackend) return [];
     return API.mockData.movies.filter(m => m.status === status);
   },
 
@@ -25,7 +28,7 @@ const MovieModel = {
   getComingSoon() { return this.getByStatus('comingSoon'); },
 
   search(query) {
-    if (!query) return [];
+    if (!query || !API.catalogLoadedFromBackend) return [];
     const q = query.toLowerCase();
     return API.mockData.movies.filter(m =>
       m.title.toLowerCase().includes(q) || (m.titleEn && m.titleEn.toLowerCase().includes(q))
@@ -33,6 +36,7 @@ const MovieModel = {
   },
 
   getGenres() {
+    if (!API.catalogLoadedFromBackend) return [];
     const genres = new Set();
     API.mockData.movies.forEach(m => m.genre.forEach(g => genres.add(g)));
     return [...genres].sort();

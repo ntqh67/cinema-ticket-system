@@ -1,4 +1,15 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
@@ -16,8 +27,71 @@ export class BookingsController {
     return this.bookingsService.expirePendingBookings();
   }
 
+  @Get('vnpay-return')
+  async handleVnpayReturn(
+    @Query() query: Record<string, string>,
+    @Res() response: Response,
+  ) {
+    const redirectUrl = await this.bookingsService.handleVnpayReturn(query);
+    return response.redirect(redirectUrl);
+  }
+
+  @Get('vnpay-demo-return')
+  async handleVnpayDemoReturn(
+    @Query('ref') providerRef: string,
+    @Res() response: Response,
+  ) {
+    const redirectUrl =
+      await this.bookingsService.handleVnpayDemoReturn(providerRef);
+    return response.redirect(redirectUrl);
+  }
+
+  @Get('qr/:bookingQrToken')
+  findBookingByQr(@Param('bookingQrToken') bookingQrToken: string) {
+    return this.bookingsService.findBookingByQr(bookingQrToken);
+  }
+
+  @Post('qr/:bookingQrToken/check-in')
+  checkInBookingByQr(
+    @Param('bookingQrToken') bookingQrToken: string,
+    @Body() body: { checkedInBy?: string; notes?: string },
+  ) {
+    return this.bookingsService.checkInBookingByQr(bookingQrToken, body);
+  }
+
+  @Get()
+  findAll() {
+    return this.bookingsService.findAll();
+  }
+
+  @Get(':bookingId/tickets')
+  findBookingTickets(@Param('bookingId') bookingId: string) {
+    return this.bookingsService.findBookingTickets(bookingId);
+  }
+
   @Post(':bookingId/pay')
   pay(@Param('bookingId') bookingId: string) {
     return this.bookingsService.pay(bookingId);
+  }
+
+  @Post(':bookingId/vnpay')
+  createVnpayPayment(
+    @Param('bookingId') bookingId: string,
+    @Req() request: Request,
+  ) {
+    return this.bookingsService.createVnpayPayment(bookingId, request);
+  }
+
+  @Post(':bookingId/online-demo-pay')
+  onlineDemoPay(
+    @Param('bookingId') bookingId: string,
+    @Body() body: { provider?: string },
+  ) {
+    return this.bookingsService.onlineDemoPay(bookingId, body?.provider);
+  }
+
+  @Delete(':bookingId')
+  cancel(@Param('bookingId') bookingId: string) {
+    return this.bookingsService.cancel(bookingId);
   }
 }

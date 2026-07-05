@@ -102,6 +102,12 @@ const AuthController = {
       Router.navigate('/login');
       return false;
     }
+    const user = State.get('currentUser');
+    if (!user.backendUserId) {
+      Toast.error('Tai khoan nay chua co ID trong database. Vui long dang xuat va dang nhap lai.');
+      Router.navigate('/login');
+      return false;
+    }
     return true;
   },
 

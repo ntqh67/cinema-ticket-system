@@ -93,11 +93,7 @@ const AuthView = {
         <i class="fab fa-facebook-f"></i> Facebook
       </button>
     </div>
-    <div class="demo-hint">
-      <strong><i class="fas fa-info-circle"></i> Tài khoản demo:</strong>
-      Admin: <code>admin@cineticket.vn</code> / <code>admin123</code><br>
-      User: <code>hung@example.com</code> / <code>user123</code>
-    </div>`;
+    `;
   },
 
   _renderRegisterForm() {

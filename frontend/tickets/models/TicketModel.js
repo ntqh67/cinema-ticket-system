@@ -1,7 +1,7 @@
 /* CineTicket - Ticket Model */
 const TicketModel = {
   getByBookingId(bookingId) {
-    return API.mockData.bookings.find((booking) => booking.id === bookingId) || null;
+    return null;
   },
 
   async getByUser(userId) {

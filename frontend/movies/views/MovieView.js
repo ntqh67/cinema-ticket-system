@@ -162,12 +162,13 @@ const MovieView = {
     if (!grid) return;
 
     if (movies.length === 0) {
+      const isBackendIssue = !API.catalogLoadedFromBackend;
       grid.innerHTML = `
         <div class="empty-state" style="grid-column:1/-1;padding:60px 0;">
-          <i class="fas fa-film"></i>
-          <h3>Không tìm thấy phim</h3>
-          <p>Thử điều chỉnh bộ lọc để xem thêm kết quả.</p>
-          <button class="btn btn-outline" onclick="MovieView._resetFilters()">Xóa Bộ Lọc</button>
+          <i class="fas ${isBackendIssue ? 'fa-database' : 'fa-film'}"></i>
+          <h3>${isBackendIssue ? 'Khong ket noi duoc backend/database' : 'Không tìm thấy phim'}</h3>
+          <p>${isBackendIssue ? 'Booking flow hien chi dung du lieu that tu PostgreSQL. Hay chay backend va refresh lai trang.' : 'Thử điều chỉnh bộ lọc để xem thêm kết quả.'}</p>
+          ${isBackendIssue ? `<button class="btn btn-primary" onclick="location.reload()">Tai lai</button>` : `<button class="btn btn-outline" onclick="MovieView._resetFilters()">Xóa Bộ Lọc</button>`}
         </div>`;
       return;
     }

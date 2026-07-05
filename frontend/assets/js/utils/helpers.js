@@ -1,8 +1,11 @@
 /* CineTicket - Helper Utilities */
 const Helpers = {
   formatCurrency(amount) {
-    if (amount === null || amount === undefined) return '0 ₫';
-    return new Intl.NumberFormat('vi-VN').format(amount) + ' ₫';
+    if (amount === null || amount === undefined) return '$0.00';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(Number(amount) || 0);
   },
 
   formatDate(dateStr) {

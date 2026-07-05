@@ -36,15 +36,11 @@ const UserModel = {
   },
 
   getUserBookings(userId) {
-    return API.mockData.bookings.filter(b => b.userId === userId)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return [];
   },
 
   getUserTickets(userId) {
-    return API.mockData.tickets.filter(t => {
-      const booking = API.mockData.bookings.find(b => b.id === t.bookingId);
-      return booking && booking.userId === userId;
-    });
+    return [];
   },
 
   deleteUser(id) {

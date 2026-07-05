@@ -39,9 +39,24 @@ const App = {
     document.getElementById('footer').style.display = '';
 
     const featured = MovieModel.getNowShowing().slice(0, 5);
-    const firstMovie = featured[0] || API.mockData.movies[0];
+    const firstMovie = featured[0];
     const comingSoon = MovieModel.getComingSoon().slice(0, 4);
     const cinemas = CinemaModel.getAll().slice(0, 3);
+
+    if (!firstMovie) {
+      main.innerHTML = `
+        <div class="page-wrapper">
+          <div class="container">
+            <div class="empty-state">
+              <i class="fas fa-database"></i>
+              <h3>Khong ket noi duoc backend/database</h3>
+              <p>Booking flow hien chi dung du lieu that tu PostgreSQL. Hay chay backend va refresh lai trang.</p>
+              <button class="btn btn-primary" onclick="location.reload()">Tai lai</button>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
 
     main.innerHTML = `
       <section class="hero">

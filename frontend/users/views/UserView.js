@@ -73,7 +73,6 @@ const UserView = {
     let tickets = [];
     try {
       tickets = await UserController.loadBookingHistory();
-      API._cacheTickets(tickets);
     } catch (error) {
       Toast.error(error.message || "Khong the tai ve");
     }
@@ -175,7 +174,7 @@ const UserView = {
       <td><span class="badge badge-success">${status}</span></td>
       <td>${Helpers.formatCurrency(totalAmount)}</td>
       <td>
-        <button class="btn btn-sm btn-outline" onclick="TicketView.renderBackendBooking('${group.bookingId}')">
+        <button class="btn btn-sm btn-outline" onclick="Router.navigate('/ticket/${group.bookingId}')">
           <i class="fas fa-ticket-alt"></i> Xem Chi Tiet
         </button>
       </td>

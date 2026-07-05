@@ -47,9 +47,23 @@ const SeatView = {
 
     document.getElementById('footer').style.display = '';
 
-    const bookedSeats = SeatModel.getBookedSeats(showtimeId);
-    const rows = SeatController.currentRows || SeatModel.generateSeats(room, bookedSeats);
+    const rows = SeatController.currentRows || [];
+    if (rows.length === 0) {
+      main.innerHTML = `
+        <div class="page-wrapper">
+          <div class="container">
+            <div class="empty-state">
+              <i class="fas fa-chair"></i>
+              <h3>Suat chieu chua co so do ghe</h3>
+              <p>Database chua co ShowtimeSeat cho suat chieu nay.</p>
+              <button class="btn btn-outline" onclick="Router.navigate('/movies')">Quay lai danh sach phim</button>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
     const numberHeader = this._seatNumberHeader(rows);
+    const bestSeatZone = this._bestSeatZone(rows);
 
     main.innerHTML = `
     <div class="seats-page">
@@ -87,6 +101,7 @@ const SeatView = {
                 </div>
 
                 <div class="seat-grid" id="seat-grid">
+                  ${this._bestSeatZoneOverlay(bestSeatZone)}
                   ${numberHeader}
                   ${rows.map((row) => `
                     <div class="seat-row">
@@ -161,6 +176,45 @@ const SeatView = {
       onclick="SeatView._handleSeatClick(this)"
       title="${seat.id} - ${label} - ${Helpers.formatCurrency(price)}"
     >${Helpers.escapeHtml(seat.label || seat.id)}</div>`;
+  },
+
+  _bestSeatZone(rows) {
+    const usableRows = rows.filter((row) => row.seats.length > 0);
+    if (usableRows.length === 0) return null;
+
+    const zoneRowCount = Math.min(3, usableRows.length);
+    const maxCols = Math.max(...usableRows.map((row) => row.seats.length));
+    const zoneColCount = Math.min(5, maxCols);
+    const rowStart = Math.max(0, Math.round((usableRows.length - zoneRowCount) / 2));
+    const rowEnd = rowStart + zoneRowCount - 1;
+    const colStart = Math.max(1, Math.round((maxCols - zoneColCount) / 2) + 1);
+    const colEnd = colStart + zoneColCount - 1;
+
+    const seatSize = 34;
+    const seatGap = 8;
+    const rowLabelWidth = 24;
+    const numberHeaderHeight = 16;
+    const zonePad = 8;
+
+    return {
+      rowStart,
+      rowEnd,
+      colStart,
+      colEnd,
+      left: rowLabelWidth + seatGap + ((colStart - 1) * (seatSize + seatGap)) - zonePad,
+      top: numberHeaderHeight + seatGap + (rowStart * (seatSize + seatGap)) - zonePad,
+      width: (zoneColCount * seatSize) + ((zoneColCount - 1) * seatGap) + (zonePad * 2),
+      height: (zoneRowCount * seatSize) + ((zoneRowCount - 1) * seatGap) + (zonePad * 2),
+    };
+  },
+
+  _bestSeatZoneOverlay(zone) {
+    if (!zone) return '';
+
+    return `<div class="best-seat-zone"
+      aria-hidden="true"
+      style="--zone-left:${zone.left}px;--zone-top:${zone.top}px;--zone-width:${zone.width}px;--zone-height:${zone.height}px;"
+    ></div>`;
   },
 
   _seatNumberHeader(rows) {

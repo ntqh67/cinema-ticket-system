@@ -29,15 +29,32 @@ const PaymentController = {
   async handleSubmit(event, method) {
     event.preventDefault();
     if (!AuthController.checkAuth()) return;
+    const onlineMethods = ['vnpay', 'card', 'momo', 'zalopay'];
+    if (!onlineMethods.includes(method)) {
+      Toast.error('Phuong thuc thanh toan khong hop le');
+      return;
+    }
+
     const booking = State.get('currentBooking');
     if (!booking) {
       Toast.error('Phien dat ve da het han');
       Router.navigate('/');
       return;
     }
+    if (booking.expiresAt && new Date(booking.expiresAt).getTime() <= Date.now()) {
+      try {
+        await API.expireBookings();
+      } catch (error) {
+        console.warn('Could not expire pending bookings:', error);
+      }
+      State.set('currentBooking', null);
+      Toast.error('Phien giu ghe da het han. Vui long chon ghe lai.');
+      Router.navigate(`/seats/${booking.showtimeId}`);
+      return;
+    }
 
     const user = State.get('currentUser');
-    const finalAmount = booking.totalPrice - this._discount;
+    const finalAmount = booking.totalPrice;
     const paymentData = {
       userId: user.id,
       backendBookingId: booking.backendBookingId,
@@ -47,8 +64,8 @@ const PaymentController = {
       roomId: booking.roomId,
       seats: booking.seats.map((seat) => typeof seat === 'object' ? seat.id : seat),
       totalAmount: finalAmount,
-      discount: this._discount,
-      promoCode: this._appliedPromo ? this._appliedPromo.code : null,
+      discount: 0,
+      promoCode: null,
       paymentMethod: method,
       status: 'confirmed',
     };
@@ -56,7 +73,11 @@ const PaymentController = {
     PaymentView.showProcessing();
     try {
       const result = await PaymentModel.process(paymentData);
-      if (result.success) {
+      if (result.success && result.redirect && result.paymentUrl) {
+        PaymentView._clearHoldCountdown();
+        window.location.href = result.paymentUrl;
+      } else if (result.success) {
+        PaymentView._clearHoldCountdown();
         State.set('currentBooking', null);
         SeatController.selectedSeats = [];
         Router.navigate(`/ticket/${result.booking.id}`);

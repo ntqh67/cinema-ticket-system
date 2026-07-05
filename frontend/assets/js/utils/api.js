@@ -2,8 +2,7 @@
 const API = {
   baseUrl: '/api',
   backendBaseUrl: localStorage.getItem('cineticket_api_base') || `${window.location.protocol}//${window.location.hostname}:3000/api`,
-  devBackendUserId: localStorage.getItem('cineticket_backend_user_id') || 'cmr4ezer0000256u181u0ijfy',
-  devBackendShowtimeId: localStorage.getItem('cineticket_backend_showtime_id') || 'cmr4ezeu9001d56u1zifzgbqx',
+  catalogLoadedFromBackend: false,
 
   // ========== MOCK DATA ==========
   mockData: {
@@ -182,8 +181,8 @@ const API = {
     promotions: [
       {
         id: 'promo001', code: 'SUMMER25', title: 'Ưu Đãi Mùa Hè 2025',
-        description: 'Giảm 25% cho tất cả các suất chiếu trong tháng 6. Áp dụng cho đơn hàng từ 100.000₫.',
-        discount: 0.25, discountType: 'percent', maxDiscount: 50000, minOrder: 100000,
+        description: 'Giảm 25% cho tất cả các suất chiếu trong tháng 6. Áp dụng cho đơn hàng từ $20.',
+        discount: 0.25, discountType: 'percent', maxDiscount: 10, minOrder: 20,
         startDate: '2025-06-01', endDate: '2025-06-30',
         usageLimit: 1000, usedCount: 342, isActive: true,
         color: 'linear-gradient(135deg, #e50914, #ff6b35)',
@@ -191,8 +190,8 @@ const API = {
       },
       {
         id: 'promo002', code: 'NEWUSER', title: 'Chào Khách Hàng Mới',
-        description: 'Giảm 50.000₫ cho lần đặt vé đầu tiên. Không giới hạn đơn hàng tối thiểu.',
-        discount: 50000, discountType: 'fixed', maxDiscount: 50000, minOrder: 0,
+        description: 'Giảm $5 cho lần đặt vé đầu tiên. Không giới hạn đơn hàng tối thiểu.',
+        discount: 5, discountType: 'fixed', maxDiscount: 5, minOrder: 0,
         startDate: '2025-01-01', endDate: '2025-12-31',
         usageLimit: 500, usedCount: 128, isActive: true,
         color: 'linear-gradient(135deg, #0068ff, #00d2ff)',
@@ -200,8 +199,8 @@ const API = {
       },
       {
         id: 'promo003', code: 'WEEKEND30', title: 'Cuối Tuần Vui Vẻ',
-        description: 'Giảm 30.000₫ cho các suất chiếu vào thứ 7, CN. Áp dụng từ 2 vé trở lên.',
-        discount: 30000, discountType: 'fixed', maxDiscount: 30000, minOrder: 150000,
+        description: 'Giảm $3 cho các suất chiếu vào thứ 7, CN. Áp dụng từ 2 vé trở lên.',
+        discount: 3, discountType: 'fixed', maxDiscount: 3, minOrder: 16,
         startDate: '2025-05-01', endDate: '2025-08-31',
         usageLimit: 2000, usedCount: 567, isActive: true,
         color: 'linear-gradient(135deg, #7c3aed, #db2777)',
@@ -221,7 +220,7 @@ const API = {
       { cinemaId: 'ci003', rooms: ['rm008', 'rm009'] }
     ];
     const times = ['09:00', '11:30', '14:00', '16:30', '19:00', '21:30'];
-    const prices = { 'IMAX': { normal: 170000, vip: 220000, couple: 400000 }, '4DX': { normal: 160000, vip: 200000, couple: 380000 }, 'Dolby': { normal: 155000, vip: 195000, couple: 360000 }, '2D': { normal: 90000, vip: 130000, couple: 240000 }, '3D': { normal: 110000, vip: 150000, couple: 280000 }, 'VIP': { normal: 150000, vip: 190000, couple: 350000 } };
+    const prices = { 'IMAX': { normal: 8, vip: 12, couple: 18 }, '4DX': { normal: 8, vip: 12, couple: 18 }, 'Dolby': { normal: 8, vip: 12, couple: 18 }, '2D': { normal: 8, vip: 12, couple: 18 }, '3D': { normal: 8, vip: 12, couple: 18 }, 'VIP': { normal: 8, vip: 12, couple: 18 } };
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const date = new Date(today);
@@ -284,34 +283,7 @@ const API = {
       this.mockData.tickets = JSON.parse(localStorage.getItem('cineticket_tickets') || '[]');
       this.mockData.promotions = JSON.parse(localStorage.getItem('cineticket_promotions') || '[]');
     }
-    this._syncBackendDemoData();
     await this.syncBackendCatalog();
-  },
-
-  _syncBackendDemoData() {
-    const demoUser = this.mockData.users.find(u => u.email === 'hung@example.com') || this.mockData.users.find(u => u.role === 'user');
-    if (demoUser && !demoUser.backendUserId) {
-      demoUser.backendUserId = this.devBackendUserId;
-      this._save('users');
-    }
-
-    const demoShowtime = {
-      id: this.devBackendShowtimeId,
-      movieId: 'mv001',
-      cinemaId: 'ci001',
-      roomId: 'rm003',
-      date: '2026-06-29',
-      startTime: '19:00',
-      endTime: '21:12',
-      price: { normal: 15, vip: 22.5, couple: 24 },
-      totalSeats: 12,
-      bookedSeats: 0,
-      backend: true
-    };
-    const idx = this.mockData.showtimes.findIndex(s => s.id === demoShowtime.id);
-    if (idx === -1) this.mockData.showtimes.unshift(demoShowtime);
-    else this.mockData.showtimes[idx] = { ...this.mockData.showtimes[idx], ...demoShowtime };
-    this._save('showtimes');
   },
 
   async syncBackendCatalog() {
@@ -337,13 +309,15 @@ const API = {
       this.mockData.showtimes = showtimes;
       if (cinemasById.size > 0) this.mockData.cinemas = [...cinemasById.values()];
       if (roomsById.size > 0) this.mockData.rooms = [...roomsById.values()];
+      this.catalogLoadedFromBackend = true;
 
       this._save('movies');
       this._save('showtimes');
       this._save('cinemas');
       this._save('rooms');
     } catch (error) {
-      console.warn('Using mock catalog because backend catalog is unavailable:', error);
+      this.catalogLoadedFromBackend = false;
+      console.error('Backend catalog is unavailable:', error);
     }
   },
 
@@ -412,7 +386,10 @@ const API = {
 
   getBackendUserId() {
     const user = State && State.get ? State.get('currentUser') : null;
-    return (user && user.backendUserId) || this.devBackendUserId;
+    if (!user || !user.backendUserId) {
+      throw new Error('Tai khoan hien tai chua lien ket database. Vui long dang xuat va dang nhap lai.');
+    }
+    return user.backendUserId;
   },
 
   async backendRequest(path, options = {}) {
@@ -477,24 +454,63 @@ const API = {
     });
   },
 
+  createVnpayPayment(bookingId) {
+    return this.backendRequest(`/bookings/${bookingId}/vnpay`, {
+      method: 'POST'
+    });
+  },
+
+  onlineDemoPay(bookingId, provider) {
+    return this.backendRequest(`/bookings/${bookingId}/online-demo-pay`, {
+      method: 'POST',
+      body: JSON.stringify({ provider })
+    });
+  },
+
+  cancelBooking(bookingId) {
+    return this.backendRequest(`/bookings/${bookingId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  expireBookings() {
+    return this.backendRequest('/bookings/expire', {
+      method: 'POST'
+    });
+  },
+
+  getAdminBookings() {
+    return this.backendRequest('/bookings');
+  },
+
+  getBookingTickets(bookingId) {
+    return this.backendRequest(`/bookings/${bookingId}/tickets`);
+  },
+
+  getBookingByQr(bookingQrToken) {
+    return this.backendRequest(`/bookings/qr/${encodeURIComponent(bookingQrToken)}`);
+  },
+
+  checkInBookingByQr(bookingQrToken, data = {}) {
+    return this.backendRequest(`/bookings/qr/${encodeURIComponent(bookingQrToken)}/check-in`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  getTicketByQr(qrToken) {
+    return this.backendRequest(`/tickets/qr/${encodeURIComponent(qrToken)}`);
+  },
+
+  checkInTicket(qrToken, data = {}) {
+    return this.backendRequest(`/tickets/qr/${encodeURIComponent(qrToken)}/check-in`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
   getUserTickets(userId) {
     return this.backendRequest(`/users/${userId}/tickets`);
-  },
-
-  _cacheTickets(tickets) {
-    if (!Array.isArray(tickets)) return;
-    const existing = JSON.parse(localStorage.getItem('cineticket_backend_tickets') || '[]');
-    tickets.forEach((ticket) => {
-      const idx = existing.findIndex((item) => item.id === ticket.id);
-      if (idx === -1) existing.unshift(ticket);
-      else existing[idx] = ticket;
-    });
-    localStorage.setItem('cineticket_backend_tickets', JSON.stringify(existing));
-  },
-
-  getCachedTicket(ticketId) {
-    const tickets = JSON.parse(localStorage.getItem('cineticket_backend_tickets') || '[]');
-    return tickets.find((ticket) => ticket.id === ticketId) || null;
   },
 
   _save(key) {
