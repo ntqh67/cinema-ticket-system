@@ -25,7 +25,7 @@ const SeatController = {
     State.set('selectedSeats', []);
   },
 
-  toggleSeat(seatId, type, isBooked, showtimeSeatId, price) {
+  async toggleSeat(seatId, type, isBooked, showtimeSeatId, price) {
     if (isBooked) {
       Toast.warning('Ghe nay khong con trong');
       return false;
@@ -33,12 +33,17 @@ const SeatController = {
 
     const idx = this.selectedSeats.findIndex((seat) => seat.id === seatId);
     if (idx !== -1) {
+      await API.releaseSeat(this.selectedSeats[idx].showtimeSeatId);
       this.selectedSeats.splice(idx, 1);
     } else {
       if (this.selectedSeats.length >= 8) {
         Toast.warning('Toi da 8 ghe moi lan dat');
         return false;
       }
+      await API.holdSeat({
+        showtimeId: this.currentShowtime.id,
+        showtimeSeatId: showtimeSeatId || seatId,
+      });
       this.selectedSeats.push({
         id: seatId,
         showtimeSeatId: showtimeSeatId || seatId,
@@ -60,17 +65,18 @@ const SeatController = {
   },
 
   async proceedToPayment() {
-    if (!AuthController.checkAuth()) return;
     if (this.selectedSeats.length === 0) {
       Toast.warning('Vui long chon it nhat 1 ghe');
       return;
     }
+    if (!AuthController.checkAuth()) return;
 
     try {
       const booking = await BookingModel.create({
         userId: API.getBackendUserId(),
         showtimeId: this.currentShowtime.id,
         showtimeSeatIds: this.selectedSeats.map((seat) => seat.showtimeSeatId),
+        sessionId: API.getSeatHoldSessionId(),
       });
 
       State.set('currentBooking', {

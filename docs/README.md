@@ -1,5 +1,7 @@
 # Docs
 
-Thư mục này lưu tài liệu thiết kế và hướng dẫn triển khai.
+Thu muc nay luu tai lieu thiet ke va huong dan trien khai.
 
-Hiện tại chỉ tạo thư mục nền tảng. Chưa có tài liệu chi tiết.
+- [Da Nang demo setup](./danang-demo.md)
+- [Booking service API](./booking-service.md)
+- [Booking demo workflow](./booking-demo.md)

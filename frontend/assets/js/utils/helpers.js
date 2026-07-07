@@ -1,10 +1,10 @@
 /* CineTicket - Helper Utilities */
 const Helpers = {
   formatCurrency(amount) {
-    if (amount === null || amount === undefined) return '$0.00';
-    return new Intl.NumberFormat('en-US', {
+    if (amount === null || amount === undefined) return '0 ₫';
+    return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'VND',
     }).format(Number(amount) || 0);
   },
 

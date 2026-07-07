@@ -1,8 +1,6 @@
 /* CineTicket - Seat Selection View */
 const SeatView = {
   async render(params) {
-    if (!AuthController.checkAuth()) return;
-
     const showtimeId = params.id;
     const main = document.getElementById('main-content');
     if (!main) return;
@@ -164,10 +162,10 @@ const SeatView = {
   },
 
   _seatHtml(showtime, seat) {
-    const isUnavailable = seat.isBooked || ['HELD', 'BOOKED', 'BLOCKED'].includes(seat.status);
+    const isUnavailable = (seat.isBooked || ['HELD', 'BOOKED', 'BLOCKED'].includes(seat.status)) && !seat.heldByMe;
     const price = seat.price || SeatModel.getPriceForType(showtime, seat.type);
     const label = seat.type === 'vip' ? 'VIP' : seat.type === 'couple' ? 'Doi' : 'Thuong';
-    return `<div class="seat ${seat.type} ${isUnavailable ? 'booked' : ''}"
+    return `<div class="seat ${seat.type} ${isUnavailable ? 'booked' : ''} ${seat.heldByMe ? 'selected' : ''}"
       data-id="${seat.id}"
       data-showtime-seat-id="${seat.showtimeSeatId || seat.id}"
       data-type="${seat.type}"
@@ -233,17 +231,20 @@ const SeatView = {
     </div>`;
   },
 
-  _handleSeatClick(el) {
-    const toggled = SeatController.toggleSeat(
-      el.dataset.id,
-      el.dataset.type,
-      el.dataset.booked === 'true',
-      el.dataset.showtimeSeatId,
-      el.dataset.price
-    );
-    if (toggled) {
+  async _handleSeatClick(el) {
+    try {
+      const toggled = await SeatController.toggleSeat(
+        el.dataset.id,
+        el.dataset.type,
+        el.dataset.booked === 'true',
+        el.dataset.showtimeSeatId,
+        el.dataset.price
+      );
+      if (!toggled) return;
       el.classList.toggle('selected', SeatController.isSelected(el.dataset.id));
       this._updateSummary();
+    } catch (error) {
+      Toast.error(error.message || 'Khong the giu ghe');
     }
   },
 

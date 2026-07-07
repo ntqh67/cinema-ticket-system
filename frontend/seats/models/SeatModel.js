@@ -16,7 +16,8 @@ const SeatModel = {
         type: this._mapSeatType(item.type),
         price: Number(item.price),
         status: item.status,
-        isBooked: item.status !== 'AVAILABLE',
+        heldByMe: !!item.heldByMe,
+        isBooked: item.status !== 'AVAILABLE' && !item.heldByMe,
       });
     });
 
@@ -60,9 +61,9 @@ const SeatModel = {
       startTime: start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       endTime: end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       price: {
-        normal: Number(showtime.basePrice || 8),
-        vip: 12,
-        couple: 18,
+        normal: Number(showtime.basePrice || 80000),
+        vip: 120000,
+        couple: 180000,
       },
       backend: true,
     };
@@ -133,9 +134,9 @@ const SeatModel = {
   },
 
   getPriceForType(showtime, seatType) {
-    if (!showtime || !showtime.price) return 8;
-    if (seatType === 'vip') return showtime.price.vip || 12;
-    if (seatType === 'couple') return showtime.price.couple || 18;
-    return showtime.price.normal || 8;
+    if (!showtime || !showtime.price) return 80000;
+    if (seatType === 'vip') return showtime.price.vip || 120000;
+    if (seatType === 'couple') return showtime.price.couple || 180000;
+    return showtime.price.normal || 80000;
   },
 };

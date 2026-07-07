@@ -7,16 +7,20 @@ import {
 import { createHmac, randomUUID } from 'crypto';
 import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { SeatHoldsService } from '../seat-holds/seat-holds.service';
 import { CheckInTicketDto } from './dto/check-in-ticket.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
-const BOOKING_HOLD_MINUTES = 10;
+const BOOKING_HOLD_MINUTES = 5;
 const BOOKING_QR_PREFIX = 'CINETICKET:BOOKING:';
 const ONLINE_DEMO_PROVIDERS = ['vnpay', 'card', 'momo', 'zalopay'] as const;
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly seatHoldsService: SeatHoldsService,
+  ) {}
 
   async create(createBookingDto: CreateBookingDto) {
     const { userId, showtimeId } = createBookingDto;
@@ -86,30 +90,21 @@ export class BookingsService {
       Date.now() + BOOKING_HOLD_MINUTES * 60 * 1000,
     );
 
-    const booking = await this.prisma.$transaction(async (tx) => {
-      const updatedSeats = await tx.showtimeSeat.updateMany({
-        where: {
-          id: {
-            in: showtimeSeatIds,
-          },
-          showtimeId,
-          status: 'AVAILABLE',
-        },
-        data: {
-          status: 'HELD',
-        },
-      });
+    await this.seatHoldsService.bindHoldsToUser({
+      showtimeId,
+      showtimeSeatIds,
+      sessionId: createBookingDto.sessionId,
+      userId,
+    });
 
-      if (updatedSeats.count !== showtimeSeatIds.length) {
-        throw new ConflictException('One or more seats are not available');
-      }
-
-      return tx.booking.create({
+    const booking = await this.prisma.$transaction(async (tx) =>
+      tx.booking.create({
         data: {
           userId,
           showtimeId,
           status: 'PENDING',
           totalAmount,
+          currency: 'VND',
           expiresAt,
           bookingItems: {
             create: showtimeSeats.map((showtimeSeat) => ({
@@ -145,8 +140,8 @@ export class BookingsService {
             ],
           },
         },
-      });
-    });
+      })
+    );
 
     return {
       id: booking.id,
@@ -194,7 +189,7 @@ export class BookingsService {
     }
 
     const unheldSeat = booking.bookingItems.find(
-      (bookingItem) => bookingItem.showtimeSeat.status !== 'HELD',
+      (bookingItem) => bookingItem.showtimeSeat.status !== 'AVAILABLE',
     );
 
     if (unheldSeat) {
@@ -205,13 +200,19 @@ export class BookingsService {
       (bookingItem) => bookingItem.showtimeSeatId,
     );
 
+    await this.seatHoldsService.verifyBookingHolds({
+      userId: booking.userId,
+      showtimeId: booking.showtimeId,
+      showtimeSeatIds,
+    });
+
     const paidBooking = await this.prisma.$transaction(async (tx) => {
       const updatedSeats = await tx.showtimeSeat.updateMany({
         where: {
           id: {
             in: showtimeSeatIds,
           },
-          status: 'HELD',
+          status: 'AVAILABLE',
         },
         data: {
           status: 'BOOKED',
@@ -274,6 +275,8 @@ export class BookingsService {
         payment,
       };
     });
+
+    await this.seatHoldsService.releaseMany(showtimeSeatIds);
 
     return {
       bookingId: paidBooking.booking.id,
@@ -497,37 +500,22 @@ export class BookingsService {
       (bookingItem) => bookingItem.showtimeSeatId,
     );
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const releasedSeats = await tx.showtimeSeat.updateMany({
-        where: {
-          id: {
-            in: showtimeSeatIds,
-          },
-          status: 'HELD',
-        },
-        data: {
-          status: 'AVAILABLE',
-        },
-      });
-
-      const cancelledBooking = await tx.booking.update({
+    const cancelledBooking = await this.prisma.$transaction(async (tx) =>
+      tx.booking.update({
         where: { id: booking.id },
         data: {
           status: 'CANCELLED',
           expiresAt: null,
         },
-      });
+      }),
+    );
 
-      return {
-        booking: cancelledBooking,
-        releasedSeatCount: releasedSeats.count,
-      };
-    });
+    await this.seatHoldsService.releaseMany(showtimeSeatIds);
 
     return {
-      bookingId: result.booking.id,
-      status: result.booking.status,
-      releasedSeatCount: result.releasedSeatCount,
+      bookingId: cancelledBooking.id,
+      status: cancelledBooking.status,
+      releasedSeatCount: showtimeSeatIds.length,
     };
   }
 
@@ -563,12 +551,18 @@ export class BookingsService {
     }
 
     const unheldSeat = booking.bookingItems.find(
-      (bookingItem) => bookingItem.showtimeSeat.status !== 'HELD',
+      (bookingItem) => bookingItem.showtimeSeat.status !== 'AVAILABLE',
     );
 
     if (unheldSeat) {
       throw new ConflictException('One or more seats are no longer held');
     }
+
+    await this.seatHoldsService.verifyBookingHolds({
+      userId: booking.userId,
+      showtimeId: booking.showtimeId,
+      showtimeSeatIds: booking.bookingItems.map((item) => item.showtimeSeatId),
+    });
 
     if (this.isVnpayDemoMode()) {
       return this.createVnpayDemoPayment(booking, request);
@@ -652,12 +646,18 @@ export class BookingsService {
     }
 
     const unheldSeat = booking.bookingItems.find(
-      (bookingItem) => bookingItem.showtimeSeat.status !== 'HELD',
+      (bookingItem) => bookingItem.showtimeSeat.status !== 'AVAILABLE',
     );
 
     if (unheldSeat) {
       throw new ConflictException('One or more seats are no longer held');
     }
+
+    await this.seatHoldsService.verifyBookingHolds({
+      userId: booking.userId,
+      showtimeId: booking.showtimeId,
+      showtimeSeatIds: booking.bookingItems.map((item) => item.showtimeSeatId),
+    });
 
     const payment = await this.prisma.payment.create({
       data: {
@@ -999,18 +999,6 @@ export class BookingsService {
     );
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const releasedSeats = await tx.showtimeSeat.updateMany({
-        where: {
-          id: {
-            in: showtimeSeatIds,
-          },
-          status: 'HELD',
-        },
-        data: {
-          status: 'AVAILABLE',
-        },
-      });
-
       const updatedBookings = await tx.booking.updateMany({
         where: {
           id: {
@@ -1025,9 +1013,11 @@ export class BookingsService {
 
       return {
         expiredBookingCount: updatedBookings.count,
-        releasedSeatCount: releasedSeats.count,
+        releasedSeatCount: showtimeSeatIds.length,
       };
     });
+
+    await this.seatHoldsService.releaseMany(showtimeSeatIds);
 
     return result;
   }
@@ -1203,17 +1193,23 @@ export class BookingsService {
   }
 
   private async confirmPaidBookingPayment(payment: any, providerRef?: string) {
-    await this.prisma.$transaction(async (tx) => {
-      const showtimeSeatIds = payment.booking.bookingItems.map(
-        (bookingItem) => bookingItem.showtimeSeatId,
-      );
+    const showtimeSeatIds = payment.booking.bookingItems.map(
+      (bookingItem) => bookingItem.showtimeSeatId,
+    );
 
+    await this.seatHoldsService.verifyBookingHolds({
+      userId: payment.booking.userId,
+      showtimeId: payment.booking.showtimeId,
+      showtimeSeatIds,
+    });
+
+    await this.prisma.$transaction(async (tx) => {
       const updatedSeats = await tx.showtimeSeat.updateMany({
         where: {
           id: {
             in: showtimeSeatIds,
           },
-          status: 'HELD',
+          status: 'AVAILABLE',
         },
         data: {
           status: 'BOOKED',
@@ -1259,6 +1255,8 @@ export class BookingsService {
           ),
       );
     });
+
+    await this.seatHoldsService.releaseMany(showtimeSeatIds);
   }
 
   private getClientIp(request: Request) {

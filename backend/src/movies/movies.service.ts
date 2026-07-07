@@ -133,8 +133,8 @@ export class MoviesService {
       endAt: showtime.endAt,
       price: {
         normal: Number(showtime.basePrice),
-        vip: 12,
-        couple: 18,
+        vip: 120000,
+        couple: 180000,
       },
       totalSeats,
       bookedSeats,

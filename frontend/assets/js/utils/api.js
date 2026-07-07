@@ -220,7 +220,7 @@ const API = {
       { cinemaId: 'ci003', rooms: ['rm008', 'rm009'] }
     ];
     const times = ['09:00', '11:30', '14:00', '16:30', '19:00', '21:30'];
-    const prices = { 'IMAX': { normal: 8, vip: 12, couple: 18 }, '4DX': { normal: 8, vip: 12, couple: 18 }, 'Dolby': { normal: 8, vip: 12, couple: 18 }, '2D': { normal: 8, vip: 12, couple: 18 }, '3D': { normal: 8, vip: 12, couple: 18 }, 'VIP': { normal: 8, vip: 12, couple: 18 } };
+    const prices = { 'IMAX': { normal: 80000, vip: 120000, couple: 180000 }, '4DX': { normal: 80000, vip: 120000, couple: 180000 }, 'Dolby': { normal: 80000, vip: 120000, couple: 180000 }, '2D': { normal: 80000, vip: 120000, couple: 180000 }, '3D': { normal: 80000, vip: 120000, couple: 180000 }, 'VIP': { normal: 80000, vip: 120000, couple: 180000 } };
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const date = new Date(today);
@@ -392,6 +392,15 @@ const API = {
     return user.backendUserId;
   },
 
+  getSeatHoldSessionId() {
+    let sessionId = localStorage.getItem('cineticket_hold_session_id');
+    if (!sessionId) {
+      sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('cineticket_hold_session_id', sessionId);
+    }
+    return sessionId;
+  },
+
   async backendRequest(path, options = {}) {
     const response = await fetch(`${this.backendBaseUrl}${path}`, {
       headers: {
@@ -412,7 +421,35 @@ const API = {
   },
 
   getShowtimeSeats(showtimeId) {
-    return this.backendRequest(`/showtimes/${showtimeId}/seats`);
+    const params = new URLSearchParams({
+      sessionId: this.getSeatHoldSessionId(),
+    });
+    const user = State && State.get ? State.get('currentUser') : null;
+    if (user && user.backendUserId) params.set('userId', user.backendUserId);
+    return this.backendRequest(`/showtimes/${showtimeId}/seats?${params.toString()}`);
+  },
+
+  holdSeat(data) {
+    const user = State && State.get ? State.get('currentUser') : null;
+    return this.backendRequest('/seat-holds', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...data,
+        sessionId: this.getSeatHoldSessionId(),
+        userId: user && user.backendUserId ? user.backendUserId : undefined,
+      })
+    });
+  },
+
+  releaseSeat(showtimeSeatId) {
+    const params = new URLSearchParams({
+      sessionId: this.getSeatHoldSessionId(),
+    });
+    const user = State && State.get ? State.get('currentUser') : null;
+    if (user && user.backendUserId) params.set('userId', user.backendUserId);
+    return this.backendRequest(`/seat-holds/${showtimeSeatId}?${params.toString()}`, {
+      method: 'DELETE'
+    });
   },
 
   login(data) {

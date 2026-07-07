@@ -1,0 +1,197 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
+
+export class CreateGenreDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+}
+
+export class UpdateGenreDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  name?: string;
+}
+
+export class CreateMovieDto {
+  @ApiProperty()
+  @IsString()
+  title: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  posterUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  trailerUrl?: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  durationMin: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  releaseDate?: string;
+
+  @ApiPropertyOptional({ enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'] })
+  @IsOptional()
+  @IsEnum(['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'])
+  status?: 'DRAFT' | 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED';
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  genreIds?: string[];
+}
+
+export class UpdateMovieDto extends CreateMovieDto {}
+
+export class CreateCinemaDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ default: 'Da Nang' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+}
+
+export class UpdateCinemaDto extends CreateCinemaDto {}
+
+export class CreateRoomDto {
+  @ApiProperty()
+  @IsString()
+  cinemaId: string;
+
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  capacity: number;
+}
+
+export class UpdateRoomDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  capacity?: number;
+}
+
+export class CreateSeatDto {
+  @ApiProperty()
+  @IsString()
+  roomId: string;
+
+  @ApiProperty()
+  @IsString()
+  row: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  number: number;
+
+  @ApiPropertyOptional({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
+  @IsOptional()
+  @IsEnum(['STANDARD', 'VIP', 'COUPLE'])
+  type?: 'STANDARD' | 'VIP' | 'COUPLE';
+}
+
+export class UpdateSeatDto {
+  @ApiPropertyOptional({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
+  @IsOptional()
+  @IsEnum(['STANDARD', 'VIP', 'COUPLE'])
+  type?: 'STANDARD' | 'VIP' | 'COUPLE';
+}
+
+export class GenerateSeatsDto {
+  @ApiProperty()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  rows: string[];
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  columns: number;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  coupleRows?: string[];
+}
+
+export class CreateShowtimeDto {
+  @ApiProperty()
+  @IsString()
+  movieId: string;
+
+  @ApiProperty()
+  @IsString()
+  roomId: string;
+
+  @ApiProperty()
+  @IsDateString()
+  startAt: string;
+
+  @ApiProperty()
+  @IsDateString()
+  endAt: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  basePrice: number;
+}
+
+export class UpdateShowtimeDto extends CreateShowtimeDto {}

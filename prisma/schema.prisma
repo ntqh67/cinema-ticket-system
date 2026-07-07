@@ -225,7 +225,7 @@ model Booking {
   showtime     Showtime      @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
   status       BookingStatus @default(PENDING)
   totalAmount  Decimal       @db.Decimal(10, 2)
-  currency     String        @default("USD")
+  currency     String        @default("VND")
   expiresAt    DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -263,7 +263,7 @@ model Payment {
   provider    String?
   providerRef String?
   amount      Decimal       @db.Decimal(10, 2)
-  currency    String        @default("USD")
+  currency    String        @default("VND")
   status      PaymentStatus @default(PENDING)
   paidAt      DateTime?
   createdAt   DateTime      @default(now())

@@ -1,11 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SeatHoldsService } from '../seat-holds/seat-holds.service';
 
 @Injectable()
 export class SeatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly seatHoldsService: SeatHoldsService,
+  ) {}
 
-  async findByShowtime(showtimeId: string) {
+  async findByShowtime(
+    showtimeId: string,
+    viewer: { sessionId?: string; userId?: string } = {},
+  ) {
     const showtime = await this.prisma.showtime.findUnique({
       where: { id: showtimeId },
       include: {
@@ -41,6 +48,11 @@ export class SeatsService {
       ],
     });
 
+    const holds = await this.seatHoldsService.listByShowtime(showtimeId);
+    const holdsBySeatId = new Map(
+      holds.map((hold) => [hold.showtimeSeatId, hold]),
+    );
+
     return {
       showtime: {
         id: showtime.id,
@@ -60,15 +72,27 @@ export class SeatsService {
           },
         },
       },
-      seats: showtimeSeats.map((showtimeSeat) => ({
-        showtimeSeatId: showtimeSeat.id,
-        seatId: showtimeSeat.seatId,
-        row: showtimeSeat.seat.row,
-        number: showtimeSeat.seat.number,
-        type: showtimeSeat.seat.type,
-        price: Number(showtimeSeat.price),
-        status: showtimeSeat.status,
-      })),
+      seats: showtimeSeats.map((showtimeSeat) => {
+        const hold = holdsBySeatId.get(showtimeSeat.id);
+        const heldByMe =
+          !!hold &&
+          ((viewer.sessionId && hold.sessionId === viewer.sessionId) ||
+            (viewer.userId && hold.userId === viewer.userId));
+
+        return {
+          showtimeSeatId: showtimeSeat.id,
+          seatId: showtimeSeat.seatId,
+          row: showtimeSeat.seat.row,
+          number: showtimeSeat.seat.number,
+          type: showtimeSeat.seat.type,
+          price: Number(showtimeSeat.price),
+          status: hold && showtimeSeat.status === 'AVAILABLE'
+            ? 'HELD'
+            : showtimeSeat.status,
+          heldByMe,
+          holdExpiresAt: hold?.expiresAt || null,
+        };
+      }),
     };
   }
 }
