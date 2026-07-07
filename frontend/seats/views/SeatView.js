@@ -82,7 +82,6 @@ const SeatView = {
             <div class="booking-info-title">${Helpers.escapeHtml(movie.title)}</div>
             <div class="booking-info-meta">
               <span><i class="fas fa-building"></i> ${Helpers.escapeHtml(cinema ? cinema.shortName : '')}</span>
-              <span><i class="fas fa-door-open"></i> ${Helpers.escapeHtml(room.name)}</span>
               <span><i class="fas fa-calendar"></i> ${showtime.date}</span>
               <span><i class="fas fa-clock"></i> ${showtime.startTime} - ${showtime.endTime}</span>
             </div>
@@ -133,10 +132,6 @@ const SeatView = {
                     ${showtime.date} - ${showtime.startTime}
                   </div>
                 </div>
-              </div>
-              <div class="summary-row">
-                <span class="summary-label">Phong</span>
-                <span class="summary-value">${Helpers.escapeHtml(room.name)}</span>
               </div>
               <div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
                 <span class="summary-label">Ghe da chon</span>

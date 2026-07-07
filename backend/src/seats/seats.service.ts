@@ -19,7 +19,11 @@ export class SeatsService {
         movie: true,
         room: {
           include: {
-            cinema: true,
+            cinema: {
+              include: {
+                chain: true,
+              },
+            },
           },
         },
       },
@@ -69,6 +73,12 @@ export class SeatsService {
           cinema: {
             id: showtime.room.cinema.id,
             name: showtime.room.cinema.name,
+            chain: showtime.room.cinema.chain
+              ? {
+                  id: showtime.room.cinema.chain.id,
+                  name: showtime.room.cinema.chain.name,
+                }
+              : null,
           },
         },
       },

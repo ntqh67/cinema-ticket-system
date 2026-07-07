@@ -18,7 +18,11 @@ const movieInclude = {
 const showtimeInclude = {
   room: {
     include: {
-      cinema: true,
+      cinema: {
+        include: {
+          chain: true,
+        },
+      },
     },
   },
   showtimeSeats: {
@@ -124,6 +128,7 @@ export class MoviesService {
     return {
       id: showtime.id,
       movieId: showtime.movieId,
+      chainId: showtime.room.cinema.chainId || showtime.room.cinema.id,
       cinemaId: showtime.room.cinema.id,
       roomId: showtime.room.id,
       date: this.formatDate(showtime.startAt),
@@ -138,8 +143,19 @@ export class MoviesService {
       },
       totalSeats,
       bookedSeats,
+      chain: {
+        id: showtime.room.cinema.chain?.id || showtime.room.cinema.id,
+        name: showtime.room.cinema.chain?.name || showtime.room.cinema.name,
+      },
       cinema: {
         id: showtime.room.cinema.id,
+        chainId: showtime.room.cinema.chainId,
+        chain: showtime.room.cinema.chain
+          ? {
+              id: showtime.room.cinema.chain.id,
+              name: showtime.room.cinema.chain.name,
+            }
+          : null,
         name: showtime.room.cinema.name,
         shortName: showtime.room.cinema.name,
         address: showtime.room.cinema.address || '',

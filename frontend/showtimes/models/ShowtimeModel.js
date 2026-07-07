@@ -4,14 +4,16 @@ const ShowtimeModel = {
   getById(id) { return API.catalogLoadedFromBackend ? API.mockData.showtimes.find(s => s.id === id) || null : null; },
   getByMovie(movieId) { return API.catalogLoadedFromBackend ? API.mockData.showtimes.filter(s => s.movieId === movieId) : []; },
   getByCinema(cinemaId) { return API.catalogLoadedFromBackend ? API.mockData.showtimes.filter(s => s.cinemaId === cinemaId) : []; },
+  getByChain(chainId) { return API.catalogLoadedFromBackend ? API.mockData.showtimes.filter(s => s.chainId === chainId) : []; },
   getByMovieAndDate(movieId, date) {
     if (!API.catalogLoadedFromBackend) return [];
     return API.mockData.showtimes.filter(s => s.movieId === movieId && s.date === date);
   },
-  getByFilters({ movieId, cinemaId, date }) {
+  getByFilters({ movieId, cinemaId, chainId, date }) {
     if (!API.catalogLoadedFromBackend) return [];
     let items = API.mockData.showtimes;
     if (movieId) items = items.filter(s => s.movieId === movieId);
+    if (chainId) items = items.filter(s => s.chainId === chainId);
     if (cinemaId) items = items.filter(s => s.cinemaId === cinemaId);
     if (date) items = items.filter(s => s.date === date);
     return items;

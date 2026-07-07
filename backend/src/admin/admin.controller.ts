@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import {
   CreateCinemaDto,
+  CreateCinemaChainDto,
   CreateGenreDto,
   CreateMovieDto,
   CreateRoomDto,
@@ -10,6 +11,7 @@ import {
   CreateShowtimeDto,
   GenerateSeatsDto,
   UpdateCinemaDto,
+  UpdateCinemaChainDto,
   UpdateGenreDto,
   UpdateMovieDto,
   UpdateRoomDto,
@@ -31,6 +33,11 @@ export class AdminController {
   @Post('movies') createMovie(@Body() dto: CreateMovieDto) { return this.adminService.createMovie(dto); }
   @Patch('movies/:id') updateMovie(@Param('id') id: string, @Body() dto: UpdateMovieDto) { return this.adminService.updateMovie(id, dto); }
   @Delete('movies/:id') deleteMovie(@Param('id') id: string) { return this.adminService.deleteMovie(id); }
+
+  @Get('cinema-chains') listCinemaChains() { return this.adminService.listCinemaChains(); }
+  @Post('cinema-chains') createCinemaChain(@Body() dto: CreateCinemaChainDto) { return this.adminService.createCinemaChain(dto); }
+  @Patch('cinema-chains/:id') updateCinemaChain(@Param('id') id: string, @Body() dto: UpdateCinemaChainDto) { return this.adminService.updateCinemaChain(id, dto); }
+  @Delete('cinema-chains/:id') deleteCinemaChain(@Param('id') id: string) { return this.adminService.deleteCinemaChain(id); }
 
   @Get('cinemas') listCinemas() { return this.adminService.listCinemas(); }
   @Post('cinemas') createCinema(@Body() dto: CreateCinemaDto) { return this.adminService.createCinema(dto); }

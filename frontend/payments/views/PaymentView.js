@@ -12,7 +12,6 @@ const PaymentView = {
     const movie = MovieModel.getById(booking.movieId);
     const showtime = ShowtimeModel.getById(booking.showtimeId);
     const cinema = showtime ? CinemaModel.getById(showtime.cinemaId) : null;
-    const room = showtime ? RoomModel.getById(showtime.roomId) : null;
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
     if (!main) return;
@@ -118,8 +117,7 @@ const PaymentView = {
                   <div class="order-movie-name">${movie ? Helpers.escapeHtml(movie.title) : ''}</div>
                   <div class="order-movie-details">
                     ${cinema ? Helpers.escapeHtml(cinema.shortName) : ''}<br>
-                    ${showtime ? showtime.date + ' · ' + showtime.startTime : ''}<br>
-                    ${room ? Helpers.escapeHtml(room.name) : ''}
+                    ${showtime ? showtime.date + ' - ' + showtime.startTime : ''}
                   </div>
                 </div>
               </div>

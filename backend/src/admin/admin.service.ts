@@ -8,6 +8,7 @@ import { MovieStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCinemaDto,
+  CreateCinemaChainDto,
   CreateGenreDto,
   CreateMovieDto,
   CreateRoomDto,
@@ -15,6 +16,7 @@ import {
   CreateShowtimeDto,
   GenerateSeatsDto,
   UpdateCinemaDto,
+  UpdateCinemaChainDto,
   UpdateGenreDto,
   UpdateMovieDto,
   UpdateRoomDto,
@@ -81,15 +83,38 @@ export class AdminService {
     return this.prisma.movie.delete({ where: { id } });
   }
 
-  listCinemas() {
-    return this.prisma.cinema.findMany({
+  listCinemaChains() {
+    return this.prisma.cinemaChain.findMany({
       where: { city: 'Da Nang' },
-      include: { rooms: true },
+      include: { cinemas: true },
       orderBy: { name: 'asc' },
     });
   }
 
-  createCinema(dto: CreateCinemaDto) {
+  createCinemaChain(dto: CreateCinemaChainDto) {
+    return this.prisma.cinemaChain.create({
+      data: { ...dto, city: dto.city || 'Da Nang' },
+    });
+  }
+
+  updateCinemaChain(id: string, dto: UpdateCinemaChainDto) {
+    return this.prisma.cinemaChain.update({ where: { id }, data: dto });
+  }
+
+  deleteCinemaChain(id: string) {
+    return this.prisma.cinemaChain.delete({ where: { id } });
+  }
+
+  listCinemas() {
+    return this.prisma.cinema.findMany({
+      where: { city: 'Da Nang' },
+      include: { chain: true, rooms: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createCinema(dto: CreateCinemaDto) {
+    if (dto.chainId) await this.ensureCinemaChain(dto.chainId);
     return this.prisma.cinema.create({
       data: { ...dto, city: dto.city || 'Da Nang' },
     });
@@ -105,7 +130,10 @@ export class AdminService {
 
   listRooms() {
     return this.prisma.room.findMany({
-      include: { cinema: true, _count: { select: { seats: true, showtimes: true } } },
+      include: {
+        cinema: { include: { chain: true } },
+        _count: { select: { seats: true, showtimes: true } },
+      },
       orderBy: [{ cinemaId: 'asc' }, { name: 'asc' }],
     });
   }
@@ -125,7 +153,7 @@ export class AdminService {
 
   listSeats() {
     return this.prisma.seat.findMany({
-      include: { room: { include: { cinema: true } } },
+      include: { room: { include: { cinema: { include: { chain: true } } } } },
       orderBy: [{ roomId: 'asc' }, { row: 'asc' }, { number: 'asc' }],
     });
   }
@@ -183,7 +211,11 @@ export class AdminService {
 
   listShowtimes() {
     return this.prisma.showtime.findMany({
-      include: { movie: true, room: { include: { cinema: true } }, _count: true },
+      include: {
+        movie: true,
+        room: { include: { cinema: { include: { chain: true } } } },
+        _count: true,
+      },
       orderBy: { startAt: 'asc' },
     });
   }
@@ -306,6 +338,12 @@ export class AdminService {
     const cinema = await this.prisma.cinema.findUnique({ where: { id } });
     if (!cinema) throw new NotFoundException('Cinema not found');
     return cinema;
+  }
+
+  private async ensureCinemaChain(id: string) {
+    const chain = await this.prisma.cinemaChain.findUnique({ where: { id } });
+    if (!chain) throw new NotFoundException('Cinema chain not found');
+    return chain;
   }
 
   private async ensureRoom(id: string) {

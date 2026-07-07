@@ -2,6 +2,15 @@
 const CinemaModel = {
   getAll() { return [...API.mockData.cinemas]; },
   getById(id) { return API.mockData.cinemas.find(c => c.id === id) || null; },
+  getChains() {
+    const chains = new Map();
+    API.mockData.cinemas.forEach((cinema) => {
+      const chainId = cinema.chainId || (cinema.chain && cinema.chain.id) || cinema.id;
+      const chainName = cinema.chain && cinema.chain.name ? cinema.chain.name : cinema.name;
+      if (!chains.has(chainId)) chains.set(chainId, { id: chainId, name: chainName });
+    });
+    return [...chains.values()].sort((a, b) => a.name.localeCompare(b.name));
+  },
   getByCity(city) { return API.mockData.cinemas.filter(c => c.city === city); },
   getCities() { return [...new Set(API.mockData.cinemas.map(c => c.city))]; },
   create(data) {

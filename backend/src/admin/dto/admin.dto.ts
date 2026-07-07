@@ -25,6 +25,19 @@ export class UpdateGenreDto {
   name?: string;
 }
 
+export class CreateCinemaChainDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({ default: 'Da Nang' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+}
+
+export class UpdateCinemaChainDto extends CreateCinemaChainDto {}
+
 export class CreateMovieDto {
   @ApiProperty()
   @IsString()
@@ -70,6 +83,11 @@ export class CreateMovieDto {
 export class UpdateMovieDto extends CreateMovieDto {}
 
 export class CreateCinemaDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  chainId?: string;
+
   @ApiProperty()
   @IsString()
   name: string;

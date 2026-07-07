@@ -129,8 +129,24 @@ model MovieGenre {
   @@map("movie_genres")
 }
 
+model CinemaChain {
+  id        String   @id @default(cuid())
+  name      String
+  city      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cinemas   Cinema[]
+
+  @@unique([name, city])
+  @@index([city])
+  @@index([name])
+  @@map("cinema_chains")
+}
+
 model Cinema {
   id        String   @id @default(cuid())
+  chainId   String?
+  chain     CinemaChain? @relation(fields: [chainId], references: [id], onDelete: SetNull)
   name      String
   address   String?
   city      String?
@@ -140,6 +156,7 @@ model Cinema {
   updatedAt DateTime @updatedAt
   rooms     Room[]
 
+  @@index([chainId])
   @@index([city])
   @@index([name])
   @@map("cinemas")

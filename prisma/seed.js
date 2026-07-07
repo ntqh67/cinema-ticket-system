@@ -16,46 +16,55 @@ const PRICE_BY_SEAT_TYPE = {
 
 const CINEMAS = [
   {
+    chain: 'Galaxy',
     name: 'Galaxy Da Nang',
     address: 'Tang 3 Co.opmart, 478 Dien Bien Phu',
     roomCount: 7,
   },
   {
+    chain: 'CGV',
     name: 'CGV Vinh Trung Plaza',
     address: '255-257 Hung Vuong, Thanh Khe',
     roomCount: 6,
   },
   {
+    chain: 'Rio',
     name: 'Rio Da Nang',
     address: '403 Ton Duc Thang, Hoa Khanh',
     roomCount: 6,
   },
   {
+    chain: 'CGV',
     name: 'CGV Vincom Da Nang',
     address: 'Tang 4 Vincom, Ngo Quyen, Son Tra',
     roomCount: 5,
   },
   {
+    chain: 'Metiz',
     name: 'Metiz Cinema',
     address: 'Tang 1 Helio Center, duong 2/9',
     roomCount: 5,
   },
   {
+    chain: 'Lotte',
     name: 'Lotte Cinema Da Nang',
     address: 'Tang 5-6 Lotte Mart Da Nang',
     roomCount: 4,
   },
   {
+    chain: 'Le Do',
     name: 'Rap Le Do',
     address: '46 Tran Phu, Hai Chau',
     roomCount: 2,
   },
   {
+    chain: 'Starlight',
     name: 'Starlight Da Nang',
     address: 'Tang 4 Nguyen Kim, 46 Dien Bien Phu',
     roomCount: 5,
   },
   {
+    chain: 'CGV',
     name: 'CGV MM Supercenter Da Nang',
     address: 'MM Mega Market, 167 Nguyen Sinh Sac',
     roomCount: 5,
@@ -191,7 +200,8 @@ async function main() {
 
   const genres = await createGenres();
   const movies = await createMovies(genres);
-  const roomSeatMap = await createCinemasRoomsAndSeats();
+  const chains = await createCinemaChains();
+  const roomSeatMap = await createCinemasRoomsAndSeats(chains);
   const showtimes = await createShowtimes(movies, roomSeatMap);
   await createShowtimeSeats(showtimes, roomSeatMap);
 
@@ -201,6 +211,7 @@ async function main() {
     customerUser: customerUser.email,
     hungUser: hungUser.email,
     movieCount: movies.length,
+    cinemaChainCount: chains.size,
     cinemaCount: CINEMAS.length,
     roomCount: roomSeatMap.length,
     showtimeCount: showtimes.length,
@@ -219,6 +230,7 @@ async function clearDatabase() {
   await prisma.seat.deleteMany();
   await prisma.room.deleteMany();
   await prisma.cinema.deleteMany();
+  await prisma.cinemaChain.deleteMany();
   await prisma.movieGenre.deleteMany();
   await prisma.genre.deleteMany();
   await prisma.movie.deleteMany();
@@ -272,12 +284,30 @@ async function createMovies(genres) {
   return movies;
 }
 
-async function createCinemasRoomsAndSeats() {
+async function createCinemaChains() {
+  const chainNames = [...new Set(CINEMAS.map((cinema) => cinema.chain))];
+  const chains = new Map();
+
+  for (const name of chainNames) {
+    const chain = await prisma.cinemaChain.create({
+      data: {
+        name,
+        city: 'Da Nang',
+      },
+    });
+    chains.set(name, chain);
+  }
+
+  return chains;
+}
+
+async function createCinemasRoomsAndSeats(chains) {
   const roomSeatMap = [];
 
   for (const cinemaConfig of CINEMAS) {
     const cinema = await prisma.cinema.create({
       data: {
+        chainId: chains.get(cinemaConfig.chain).id,
         name: cinemaConfig.name,
         address: cinemaConfig.address,
         city: 'Da Nang',

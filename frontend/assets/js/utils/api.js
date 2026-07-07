@@ -347,6 +347,8 @@ const API = {
     return {
       id: showtime.id,
       movieId: showtime.movieId,
+      chainId: showtime.chainId || (showtime.chain && showtime.chain.id) || showtime.cinemaId,
+      chain: showtime.chain || null,
       cinemaId: showtime.cinemaId,
       roomId: showtime.roomId,
       date: showtime.date,
@@ -362,6 +364,8 @@ const API = {
   _mapBackendCinema(cinema) {
     return {
       id: cinema.id,
+      chainId: cinema.chainId || (cinema.chain && cinema.chain.id) || cinema.id,
+      chain: cinema.chain || null,
       name: cinema.name,
       shortName: cinema.shortName || cinema.name,
       address: cinema.address || '',
