@@ -77,7 +77,7 @@ const SeatView = {
         </div>
 
         <div class="booking-info-bar">
-          <img class="booking-info-poster" src="${movie.poster}" alt="" onerror="this.src='https://picsum.photos/48/64?grayscale'" />
+          <img class="booking-info-poster" src="${movie.poster}" alt="" onerror="this.src=API.moviePosterFallback" />
           <div class="booking-info-details">
             <div class="booking-info-title">${Helpers.escapeHtml(movie.title)}</div>
             <div class="booking-info-meta">
@@ -124,7 +124,7 @@ const SeatView = {
             <div class="booking-summary-header"><i class="fas fa-ticket-alt"></i> Thong Tin Dat Ve</div>
             <div class="booking-summary-body">
               <div class="summary-movie-mini">
-                <img class="summary-poster" src="${movie.poster}" alt="" onerror="this.src='https://picsum.photos/56/76?grayscale'" />
+                <img class="summary-poster" src="${movie.poster}" alt="" onerror="this.src=API.moviePosterFallback" />
                 <div>
                   <div class="summary-movie-title">${Helpers.escapeHtml(movie.title)}</div>
                   <div class="summary-movie-meta">

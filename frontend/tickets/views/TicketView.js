@@ -82,7 +82,7 @@ const TicketView = {
               <div class="ticket-backdrop" style="background-image:url('${visual.banner}')"></div>
               <div style="position:absolute;inset:0;background:linear-gradient(to right, rgba(0,0,0,0.85), rgba(0,0,0,0.5));z-index:0;"></div>
               <div class="ticket-header-content">
-                <img class="ticket-poster" src="${visual.poster}" alt="" onerror="this.src='https://picsum.photos/seed/movie-${ticket.movie ? ticket.movie.id : ticket.id}/80/110'" />
+                <img class="ticket-poster" src="${visual.poster}" alt="" onerror="this.src=API.moviePosterFallback" />
                 <div class="ticket-header-info">
                   <div class="ticket-movie-title">${Helpers.escapeHtml(ticket.movie ? ticket.movie.title : 'Cinema Ticket')}</div>
                   <div class="ticket-cinema-name"><i class="fas fa-map-marker-alt"></i> ${Helpers.escapeHtml(ticket.cinema ? ticket.cinema.name : '')}</div>
@@ -148,7 +148,7 @@ const TicketView = {
               <div class="ticket-backdrop" style="background-image:url('${visual.banner}')"></div>
               <div style="position:absolute;inset:0;background:linear-gradient(to right, rgba(0,0,0,0.85), rgba(0,0,0,0.5));z-index:0;"></div>
               <div class="ticket-header-content">
-                <img class="ticket-poster" src="${visual.poster}" alt="" onerror="this.src='https://picsum.photos/seed/movie-${firstTicket.movie ? firstTicket.movie.id : booking.id}/80/110'" />
+                <img class="ticket-poster" src="${visual.poster}" alt="" onerror="this.src=API.moviePosterFallback" />
                 <div class="ticket-header-info">
                   <div class="ticket-movie-title">${Helpers.escapeHtml(firstTicket.movie ? firstTicket.movie.title : 'Cinema Ticket')}</div>
                   <div class="ticket-cinema-name"><i class="fas fa-map-marker-alt"></i> ${Helpers.escapeHtml(firstTicket.cinema ? firstTicket.cinema.name : '')}</div>
@@ -219,8 +219,8 @@ const TicketView = {
     const movieId = movie ? movie.id : 'unknown';
     const localMovie = movie ? MovieModel.getById(movie.id) : null;
     return {
-      poster: localMovie && localMovie.poster ? localMovie.poster : `https://picsum.photos/seed/movie-${movieId}/400/600`,
-      banner: localMovie && localMovie.banner ? localMovie.banner : `https://picsum.photos/seed/movie-${movieId}-banner/1280/720`,
+      poster: localMovie && localMovie.poster ? localMovie.poster : API.moviePosterFallback,
+      banner: localMovie && localMovie.banner ? localMovie.banner : API.moviePosterFallback,
     };
   },
 
@@ -273,7 +273,7 @@ const TicketView = {
               <div class="ticket-backdrop" style="background-image:url('${movie ? movie.banner : ''}')"></div>
               <div style="position:absolute;inset:0;background:linear-gradient(to right, rgba(0,0,0,0.85), rgba(0,0,0,0.5));z-index:0;"></div>
               <div class="ticket-header-content">
-                <img class="ticket-poster" src="${movie ? movie.poster : ''}" alt="" onerror="this.src='https://picsum.photos/80/110?grayscale'" />
+                <img class="ticket-poster" src="${movie ? movie.poster : API.moviePosterFallback}" alt="" onerror="this.src=API.moviePosterFallback" />
                 <div class="ticket-header-info">
                   <div class="ticket-movie-title">${movie ? Helpers.escapeHtml(movie.title) : ''}</div>
                   <div class="ticket-cinema-name"><i class="fas fa-map-marker-alt"></i> ${cinema ? Helpers.escapeHtml(cinema.name) : ''}</div>

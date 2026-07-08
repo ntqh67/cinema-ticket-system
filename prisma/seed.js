@@ -97,7 +97,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 129,
     releaseDate: '2026-07-10',
     genres: ['Action', 'Adventure', 'Fantasy'],
-    posterSeed: 'superman-2026',
+    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/32/Superman_%282025_film%29_poster.jpg/250px-Superman_%282025_film%29_poster.jpg',
+    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Superman%202025%20official%20trailer%20DC%20Studios',
   },
   {
     title: 'F1: The Movie',
@@ -105,7 +106,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 155,
     releaseDate: '2026-06-27',
     genres: ['Action', 'Drama'],
-    posterSeed: 'f1-the-movie',
+    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/38/F1_%282025_film%29.png/250px-F1_%282025_film%29.png',
+    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=F1%20The%20Movie%20official%20trailer',
   },
   {
     title: 'Jurassic World: Rebirth',
@@ -113,7 +115,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 134,
     releaseDate: '2026-07-02',
     genres: ['Action', 'Adventure', 'Sci-Fi'],
-    posterSeed: 'jurassic-world-rebirth',
+    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a5/Jurassic_World_Rebirth_poster.jpg/250px-Jurassic_World_Rebirth_poster.jpg',
+    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Jurassic%20World%20Rebirth%20official%20trailer%20Universal%20Pictures',
   },
   {
     title: 'How to Train Your Dragon',
@@ -121,7 +124,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 125,
     releaseDate: '2026-06-13',
     genres: ['Adventure', 'Family', 'Fantasy'],
-    posterSeed: 'how-to-train-your-dragon',
+    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/8/80/How_To_Train_Your_Dragon_2025_Poster.jpg',
+    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=How%20to%20Train%20Your%20Dragon%202025%20official%20trailer%20Universal%20Pictures',
   },
   {
     title: 'Doraemon: Nobita va The Gioi Trong Tranh',
@@ -129,7 +133,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 105,
     releaseDate: '2026-05-23',
     genres: ['Animation', 'Family', 'Adventure'],
-    posterSeed: 'doraemon-art-world',
+    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/44/Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg/250px-Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg',
+    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Doraemon%20Nobita%27s%20Art%20World%20Tales%20official%20trailer',
   },
   {
     title: 'Detective Conan: Du Anh Cua Doc Nhan',
@@ -137,7 +142,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 110,
     releaseDate: '2026-06-20',
     genres: ['Animation', 'Thriller'],
-    posterSeed: 'detective-conan-one-eyed',
+    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/86/DetectiveConanOneeyedFlashback.jpg/250px-DetectiveConanOneeyedFlashback.jpg',
+    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Detective%20Conan%20One-eyed%20Flashback%20official%20trailer',
   },
   {
     title: 'Mang Me Di Bo',
@@ -145,7 +151,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 112,
     releaseDate: '2026-07-01',
     genres: ['Drama', 'Family'],
-    posterSeed: 'mang-me-di-bo',
+    posterUrl: null,
+    trailerUrl: null,
   },
   {
     title: '28 Years Later',
@@ -153,7 +160,8 @@ const NOW_SHOWING_MOVIES = [
     durationMin: 115,
     releaseDate: '2026-06-20',
     genres: ['Horror', 'Thriller'],
-    posterSeed: '28-years-later',
+    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/38/28_Years_Later_film_poster.jpg/250px-28_Years_Later_film_poster.jpg',
+    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=28%20Years%20Later%20official%20trailer%20Sony%20Pictures',
   },
 ];
 
@@ -268,8 +276,8 @@ async function createMovies(genres) {
         description: movieConfig.description,
         durationMin: movieConfig.durationMin,
         releaseDate: new Date(`${movieConfig.releaseDate}T00:00:00.000+07:00`),
-        posterUrl: `https://picsum.photos/seed/${movieConfig.posterSeed}/400/600`,
-        trailerUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+        posterUrl: movieConfig.posterUrl || null,
+        trailerUrl: movieConfig.trailerUrl || null,
         status: 'NOW_SHOWING',
         genres: {
           create: movieConfig.genres.map((genreName) => ({

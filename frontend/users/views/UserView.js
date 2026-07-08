@@ -161,7 +161,7 @@ const UserView = {
     return `<tr>
       <td>
         <div class="history-movie-cell">
-          <img class="history-poster" src="${visual.poster}" alt="" onerror="this.src='https://picsum.photos/seed/movie-${group.movie ? group.movie.id : group.bookingId}/40/60'">
+          <img class="history-poster" src="${visual.poster}" alt="" onerror="this.src=API.moviePosterFallback">
           <div>
             <div class="history-movie-title">${Helpers.escapeHtml(movieTitle)}</div>
             <div class="history-movie-cinema">${group.bookingId.slice(0, 10).toUpperCase()} · ${group.tickets.length} ve</div>
@@ -185,8 +185,8 @@ const UserView = {
     const movieId = movie ? movie.id : "unknown";
     const localMovie = movie ? MovieModel.getById(movie.id) : null;
     return {
-      poster: localMovie && localMovie.poster ? localMovie.poster : `https://picsum.photos/seed/movie-${movieId}/400/600`,
-      banner: localMovie && localMovie.banner ? localMovie.banner : `https://picsum.photos/seed/movie-${movieId}-banner/1280/720`,
+      poster: localMovie && localMovie.poster ? localMovie.poster : API.moviePosterFallback,
+      banner: localMovie && localMovie.banner ? localMovie.banner : API.moviePosterFallback,
     };
   },
 

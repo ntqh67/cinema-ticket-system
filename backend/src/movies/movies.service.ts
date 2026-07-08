@@ -100,8 +100,8 @@ export class MoviesService {
       title: movie.title,
       titleEn: movie.title,
       description: movie.description || '',
-      poster: movie.posterUrl || `https://picsum.photos/seed/${movie.id}/400/600`,
-      banner: movie.posterUrl || `https://picsum.photos/seed/${movie.id}-banner/1280/720`,
+      poster: movie.posterUrl || '',
+      banner: movie.posterUrl || '',
       duration: movie.durationMin,
       releaseDate: movie.releaseDate,
       status:

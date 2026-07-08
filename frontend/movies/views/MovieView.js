@@ -177,18 +177,21 @@ const MovieView = {
 
   _movieCard(movie) {
     const isNew = new Date(movie.releaseDate) > new Date(Date.now() - 14 * 86400000);
+    const trailerButton = movie.trailer
+      ? `<button class="overlay-btn btn-trailer" onclick="event.stopPropagation();MovieView._showTrailer('${movie.id}')" title="Xem trailer">
+              <i class="fas fa-play"></i>
+            </button>`
+      : '';
     return `
     <div class="movie-card" onclick="Router.navigate('/movies/${movie.id}')">
       <div class="movie-poster-wrap">
-        <img class="movie-poster" src="${movie.poster}" alt="${Helpers.escapeHtml(movie.title)}" loading="lazy" onerror="this.src='https://picsum.photos/400/600?grayscale'" />
+        <img class="movie-poster" src="${movie.poster}" alt="${Helpers.escapeHtml(movie.title)}" loading="lazy" onerror="this.src=API.moviePosterFallback" />
         <div class="movie-poster-overlay">
           <div class="movie-overlay-btn">
             <button class="overlay-btn" onclick="event.stopPropagation();Router.navigate('/movies/${movie.id}')" title="Đặt vé">
               <i class="fas fa-ticket-alt"></i>
             </button>
-            <button class="overlay-btn btn-trailer" onclick="event.stopPropagation();MovieView._showTrailer('${movie.id}')" title="Xem trailer">
-              <i class="fas fa-play"></i>
-            </button>
+            ${trailerButton}
           </div>
         </div>
         <span class="movie-badge-age">${movie.ageRating || 'P'}</span>
@@ -209,9 +212,15 @@ const MovieView = {
   _showTrailer(movieId) {
     const movie = MovieModel.getById(movieId);
     if (!movie) return;
+    if (!movie.trailer) {
+      Toast.info('Trailer dang cap nhat');
+      return;
+    }
+    const separator = movie.trailer.includes('?') ? '&' : '?';
+    const trailerSrc = `${movie.trailer}${separator}autoplay=1`;
     const content = `
       <div class="trailer-wrapper">
-        <iframe src="${movie.trailer}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        <iframe src="${trailerSrc}" allow="autoplay; encrypted-media" allowfullscreen></iframe>
       </div>`;
     Modal.show(`Trailer: ${movie.title}`, content, { size: 'lg' });
   },
@@ -241,7 +250,7 @@ const MovieView = {
           <div class="container">
             <div class="movie-detail-layout">
               <div class="movie-detail-poster">
-                <img src="${movie.poster}" alt="${Helpers.escapeHtml(movie.title)}" onerror="this.src='https://picsum.photos/260/390?grayscale'" />
+                <img src="${movie.poster}" alt="${Helpers.escapeHtml(movie.title)}" onerror="this.src=API.moviePosterFallback" />
                 <span class="poster-age-badge">${movie.ageRating || 'P'}</span>
               </div>
               <div class="movie-detail-info">
@@ -265,7 +274,7 @@ const MovieView = {
                     ? `<button class="btn btn-primary btn-lg" onclick="document.getElementById('booking-section').scrollIntoView({behavior:'smooth'})"><i class="fas fa-ticket-alt"></i> Đặt Vé Ngay</button>`
                     : `<button class="btn btn-accent btn-lg" onclick="Toast.info('Tính năng nhắc nhở sẽ sớm ra mắt!')"><i class="fas fa-bell"></i> Đặt Lịch Nhắc</button>`
                   }
-                  <button class="btn btn-secondary" onclick="MovieView._showTrailer('${movie.id}')"><i class="fas fa-play"></i> Xem Trailer</button>
+                  ${movie.trailer ? `<button class="btn btn-secondary" onclick="MovieView._showTrailer('${movie.id}')"><i class="fas fa-play"></i> Xem Trailer</button>` : ''}
                 </div>
               </div>
             </div>
@@ -396,6 +405,7 @@ const MovieView = {
           </div>
           <div class="form-group"><label class="form-label">Link Poster</label><input type="text" class="form-control" id="movie-poster" placeholder="https://..." /></div>
           <div class="form-group form-full"><label class="form-label">Link Banner</label><input type="text" class="form-control" id="movie-banner" placeholder="https://..." /></div>
+          <div class="form-group form-full"><label class="form-label">Link Trailer</label><input type="text" class="form-control" id="movie-trailer" placeholder="https://www.youtube.com/embed/..." /></div>
           <div class="form-group form-full"><label class="form-label">Mô Tả</label><textarea class="form-control" id="movie-desc" rows="3"></textarea></div>
         </div>
         <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">

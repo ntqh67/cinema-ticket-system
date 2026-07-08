@@ -19,9 +19,11 @@ const MovieController = {
       director: form.querySelector('#movie-director').value.trim(),
       releaseDate: form.querySelector('#movie-release').value,
       status: form.querySelector('#movie-status').value,
-      poster: form.querySelector('#movie-poster').value.trim() || `https://picsum.photos/seed/${Helpers.generateId()}/400/600`,
-      banner: form.querySelector('#movie-banner').value.trim() || `https://picsum.photos/seed/${Helpers.generateId()}b/1280/720`,
-      cast: [], ageRating: 'C13', trailer: ''
+      poster: form.querySelector('#movie-poster').value.trim() || API.moviePosterFallback,
+      banner: form.querySelector('#movie-banner').value.trim() || API.moviePosterFallback,
+      cast: [],
+      ageRating: 'C13',
+      trailer: form.querySelector('#movie-trailer').value.trim()
     };
     if (!data.title) { Toast.error('Vui lòng nhập tên phim'); return; }
     const result = MovieModel.create(data);

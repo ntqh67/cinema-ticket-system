@@ -112,7 +112,7 @@ const PaymentView = {
             <div class="order-panel-header"><i class="fas fa-receipt"></i> Tóm Tắt Đơn Hàng</div>
             <div class="order-panel-body">
               <div class="order-movie-mini">
-                <img class="order-poster" src="${movie ? movie.poster : ''}" alt="" onerror="this.src='https://picsum.photos/50/68?grayscale'" />
+                <img class="order-poster" src="${movie ? movie.poster : API.moviePosterFallback}" alt="" onerror="this.src=API.moviePosterFallback" />
                 <div>
                   <div class="order-movie-name">${movie ? Helpers.escapeHtml(movie.title) : ''}</div>
                   <div class="order-movie-details">

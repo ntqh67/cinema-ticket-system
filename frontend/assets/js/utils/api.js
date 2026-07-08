@@ -3,6 +3,7 @@ const API = {
   baseUrl: '/api',
   backendBaseUrl: localStorage.getItem('cineticket_api_base') || `${window.location.protocol}//${window.location.hostname}:3000/api`,
   catalogLoadedFromBackend: false,
+  moviePosterFallback: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600"%3E%3Crect width="400" height="600" fill="%23171717"/%3E%3Crect x="28" y="28" width="344" height="544" rx="18" fill="%23222222" stroke="%23444444"/%3E%3Ctext x="200" y="290" text-anchor="middle" fill="%23bbbbbb" font-family="Arial" font-size="28" font-weight="700"%3ECineTicket%3C/text%3E%3Ctext x="200" y="330" text-anchor="middle" fill="%23777777" font-family="Arial" font-size="18"%3EPoster dang cap nhat%3C/text%3E%3C/svg%3E',
 
   // ========== MOCK DATA ==========
   mockData: {
@@ -20,7 +21,7 @@ const API = {
           { name: 'Hứa Minh Đạt', role: 'Vai hài', avatar: 'https://picsum.photos/seed/huaminh/100/100' }
         ],
         director: 'Lý Hải', releaseDate: '2025-04-28', status: 'nowShowing',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'P'
+        trailer: '', ageRating: 'P'
       },
       {
         id: 'mv002', title: 'Avengers: Doomsday', titleEn: 'Avengers: Doomsday',
@@ -34,7 +35,7 @@ const API = {
           { name: 'Scarlett Johansson', role: 'Black Widow', avatar: 'https://picsum.photos/seed/sj/100/100' }
         ],
         director: 'Russo Brothers', releaseDate: '2025-05-01', status: 'nowShowing',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'C13'
+        trailer: '', ageRating: 'C13'
       },
       {
         id: 'mv003', title: 'Kính Vạn Hoa: Huyền Thoại Mới', titleEn: 'Kaleidoscope: New Legend',
@@ -46,7 +47,7 @@ const API = {
           { name: 'Diễn viên lồng tiếng', role: 'Nhân vật chính', avatar: 'https://picsum.photos/seed/kvhcast/100/100' }
         ],
         director: 'Nguyễn Văn A', releaseDate: '2025-04-15', status: 'nowShowing',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'P'
+        trailer: '', ageRating: 'P'
       },
       {
         id: 'mv004', title: 'Mission: Impossible 8', titleEn: 'Mission: Impossible – Dead Reckoning Part Two',
@@ -59,7 +60,7 @@ const API = {
           { name: 'Hayley Atwell', role: 'Grace', avatar: 'https://picsum.photos/seed/hayley/100/100' }
         ],
         director: 'Christopher McQuarrie', releaseDate: '2025-05-23', status: 'nowShowing',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'C13'
+        trailer: '', ageRating: 'C13'
       },
       {
         id: 'mv005', title: 'Cô Gái Từ Quá Khứ', titleEn: 'The Girl From the Past',
@@ -72,7 +73,7 @@ const API = {
           { name: 'Will', role: 'Nam chính', avatar: 'https://picsum.photos/seed/will/100/100' }
         ],
         director: 'Trịnh Đình Lê Minh', releaseDate: '2025-06-05', status: 'nowShowing',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'C13'
+        trailer: '', ageRating: 'C13'
       },
       {
         id: 'mv006', title: 'Spider-Man: Beyond the Spider-Verse', titleEn: 'Spider-Man: Beyond the Spider-Verse',
@@ -85,7 +86,7 @@ const API = {
           { name: 'Hailee Steinfeld', role: 'Gwen Stacy', avatar: 'https://picsum.photos/seed/hailee/100/100' }
         ],
         director: 'Joaquim Dos Santos', releaseDate: '2025-07-04', status: 'comingSoon',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'P'
+        trailer: '', ageRating: 'P'
       },
       {
         id: 'mv007', title: 'Quái Vật Biển Sâu', titleEn: 'Deep Sea Monster',
@@ -98,7 +99,7 @@ const API = {
           { name: 'Diệu Nhi', role: 'Nữ chính', avatar: 'https://picsum.photos/seed/dieunhi/100/100' }
         ],
         director: 'Bảo Nhân', releaseDate: '2025-08-15', status: 'comingSoon',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'C16'
+        trailer: '', ageRating: 'C16'
       },
       {
         id: 'mv008', title: 'Jurassic World: Rebirth', titleEn: 'Jurassic World: Rebirth',
@@ -111,7 +112,7 @@ const API = {
           { name: 'Mahershala Ali', role: 'Nam chính', avatar: 'https://picsum.photos/seed/mahershala/100/100' }
         ],
         director: 'Gareth Edwards', releaseDate: '2025-07-02', status: 'comingSoon',
-        trailer: 'https://www.youtube.com/embed/dQw4w9WgXcQ', ageRating: 'C13'
+        trailer: '', ageRating: 'C13'
       }
     ],
 
@@ -326,8 +327,8 @@ const API = {
       id: movie.id,
       title: movie.title,
       titleEn: movie.titleEn || movie.title,
-      poster: movie.poster || `https://picsum.photos/seed/${movie.id}/400/600`,
-      banner: movie.banner || movie.poster || `https://picsum.photos/seed/${movie.id}-banner/1280/720`,
+      poster: movie.poster || this.moviePosterFallback,
+      banner: movie.banner || movie.poster || this.moviePosterFallback,
       genre: movie.genre || [],
       duration: movie.duration || 0,
       language: movie.language || 'Dang cap nhat',
