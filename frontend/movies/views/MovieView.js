@@ -177,6 +177,7 @@ const MovieView = {
 
   _movieCard(movie) {
     const isNew = new Date(movie.releaseDate) > new Date(Date.now() - 14 * 86400000);
+    const ratingLabel = movie.ratingCount ? movie.rating : 'Chua co';
     const trailerButton = movie.trailer
       ? `<button class="overlay-btn btn-trailer" onclick="event.stopPropagation();MovieView._showTrailer('${movie.id}')" title="Xem trailer">
               <i class="fas fa-play"></i>
@@ -201,7 +202,7 @@ const MovieView = {
         <div class="movie-title" title="${Helpers.escapeHtml(movie.title)}">${Helpers.escapeHtml(movie.title)}</div>
         <div class="movie-genres">${movie.genre.slice(0, 2).join(' · ')}</div>
         <div class="movie-rating-row">
-          <div class="movie-rating"><i class="fas fa-star"></i> ${movie.rating}</div>
+          <div class="movie-rating"><i class="fas fa-star"></i> ${ratingLabel}</div>
           <div class="movie-duration"><i class="fas fa-clock"></i> ${Helpers.formatDuration(movie.duration)}</div>
         </div>
       </div>
@@ -258,9 +259,9 @@ const MovieView = {
                 <h1 class="movie-detail-title">${Helpers.escapeHtml(movie.title)}</h1>
                 <p class="movie-detail-title-en">${Helpers.escapeHtml(movie.titleEn || '')}</p>
                 <div class="movie-detail-rating">
-                  <span class="rating-score">${movie.rating}</span>
+                  <span class="rating-score">${movie.ratingCount ? movie.rating : 'Chua co'}</span>
                   <div class="rating-stars stars">${Helpers.getStars(movie.rating / 2)}</div>
-                  <span class="rating-count">/ 10</span>
+                  <span class="rating-count">${movie.ratingCount ? `/ 10 (${movie.ratingCount} danh gia)` : ''}</span>
                 </div>
                 <div class="movie-detail-meta">
                   <div class="meta-item"><i class="fas fa-clock"></i><span>${Helpers.formatDuration(movie.duration)}</span></div>
@@ -300,11 +301,99 @@ const MovieView = {
           <h3 style="margin-bottom:8px;">Phim Sắp Ra Mắt</h3>
           <p style="color:var(--color-text-muted);">Khởi chiếu: <strong style="color:var(--color-accent);">${Helpers.formatDate(movie.releaseDate)}</strong></p>
         </div>`}
+        ${this._reviewSection(movie)}
       </div>
     </div>`;
 
     if (movie.status === 'nowShowing') {
       ShowtimeView.renderForMovie(movie.id, 'movie-booking-section');
+    }
+    this._loadReviewSection(movie.id);
+  },
+
+  _reviewSection(movie) {
+    return `
+      <div id="movie-review-section" style="margin-top:40px;background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:24px;">
+        <h3 style="margin-bottom:12px;">Danh Gia Phim</h3>
+        <p style="color:var(--color-text-muted);margin-bottom:16px;">
+          Diem hien tai: <strong style="color:var(--color-accent);">${movie.ratingCount ? `${movie.rating}/10` : 'Chua co danh gia'}</strong>
+          ${movie.ratingCount ? `(${movie.ratingCount} luot)` : ''}
+        </p>
+        <div style="color:var(--color-text-muted);">Dang tai quyen danh gia...</div>
+      </div>`;
+  },
+
+  async _loadReviewSection(movieId) {
+    const section = document.getElementById('movie-review-section');
+    if (!section) return;
+    const user = State.get('currentUser');
+    try {
+      const data = await API.getMovieReviews(movieId, user && user.backendUserId);
+      const current = data.currentUserReview || {};
+      const reviewList = (data.reviews || []).slice(0, 5).map(review => `
+        <div style="padding:12px 0;border-top:1px solid var(--color-border);">
+          <strong>${Helpers.escapeHtml(review.userName)}</strong>
+          <span style="color:var(--color-accent);margin-left:8px;"><i class="fas fa-star"></i> ${review.rating}/10</span>
+          ${review.comment ? `<div style="color:var(--color-text-muted);margin-top:4px;">${Helpers.escapeHtml(review.comment)}</div>` : ''}
+        </div>`).join('');
+
+      section.innerHTML = `
+        <h3 style="margin-bottom:12px;">Danh Gia Phim</h3>
+        <p style="color:var(--color-text-muted);margin-bottom:16px;">
+          Diem hien tai: <strong style="color:var(--color-accent);">${data.ratingCount ? `${data.ratingAverage}/10` : 'Chua co danh gia'}</strong>
+          ${data.ratingCount ? `(${data.ratingCount} luot)` : ''}
+        </p>
+        ${this._reviewAction(movieId, user, data.canReview, current)}
+        <div style="margin-top:16px;">${reviewList || '<div style="color:var(--color-text-muted);">Chua co binh luan nao.</div>'}</div>
+      `;
+    } catch (error) {
+      section.innerHTML += `<div style="color:var(--color-danger);">Khong tai duoc danh gia: ${Helpers.escapeHtml(error.message || '')}</div>`;
+    }
+  },
+
+  _reviewAction(movieId, user, canReview, current) {
+    if (!user || !user.backendUserId) {
+      return `<button class="btn btn-outline" onclick="Router.navigate('/login')">Dang nhap de danh gia</button>`;
+    }
+    if (!canReview) {
+      return `<div class="alert alert-info">Ban can mua ve va thanh toan thanh cong phim nay de danh gia.</div>`;
+    }
+    return `
+      <form onsubmit="MovieView._submitReview(event, '${movieId}')">
+        <div class="admin-form-grid" style="grid-template-columns:180px 1fr;">
+          <div class="form-group">
+            <label class="form-label">Diem (1-10)</label>
+            <input class="form-control" id="movie-review-rating" type="number" min="1" max="10" value="${current.rating || 8}" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nhan xet</label>
+            <input class="form-control" id="movie-review-comment" type="text" value="${Helpers.escapeHtml(current.comment || '')}" placeholder="Cam nhan ngan cua ban..." />
+          </div>
+        </div>
+        <button class="btn btn-primary" type="submit"><i class="fas fa-star"></i> ${current.id ? 'Cap Nhat Danh Gia' : 'Gui Danh Gia'}</button>
+      </form>`;
+  },
+
+  async _submitReview(event, movieId) {
+    event.preventDefault();
+    const user = State.get('currentUser');
+    if (!user || !user.backendUserId) {
+      Toast.error('Vui long dang nhap de danh gia');
+      return;
+    }
+    const rating = parseInt(document.getElementById('movie-review-rating').value, 10);
+    const comment = document.getElementById('movie-review-comment').value.trim();
+    try {
+      await API.createMovieReview(movieId, {
+        userId: user.backendUserId,
+        rating,
+        comment,
+      });
+      await API.syncBackendCatalog();
+      Toast.success('Da luu danh gia cua ban');
+      Router.navigate(`/movies/${movieId}`);
+    } catch (error) {
+      Toast.error(error.message || 'Khong the gui danh gia');
     }
   },
 
@@ -326,6 +415,8 @@ const MovieView = {
               <p class="admin-page-subtitle">${movies.length} phim trong hệ thống</p>
             </div>
             <div class="admin-page-actions">
+              <button class="btn btn-outline" onclick="MovieController.handleImportUpcomingFromTmdb()"><i class="fas fa-cloud-download-alt"></i> Cập Nhật Sắp Chiếu</button>
+              <button class="btn btn-secondary" onclick="MovieView._showTmdbAddForm()"><i class="fas fa-database"></i> Thêm Bằng TMDB ID</button>
               <button class="btn btn-primary" onclick="MovieView._showAddForm()"><i class="fas fa-plus"></i> Thêm Phim</button>
             </div>
           </div>
@@ -363,7 +454,7 @@ const MovieView = {
       </div></td>
       <td>${m.genre.slice(0,2).join(', ')}</td>
       <td>${Helpers.formatDuration(m.duration)}</td>
-      <td><span class="text-accent font-bold"><i class="fas fa-star"></i> ${m.rating}</span></td>
+      <td><span class="text-accent font-bold"><i class="fas fa-star"></i> ${m.ratingCount ? `${m.rating} (${m.ratingCount})` : 'Chua co'}</span></td>
       <td><span class="badge ${m.status === 'nowShowing' ? 'badge-success' : 'badge-warning'}">${m.status === 'nowShowing' ? 'Đang chiếu' : 'Sắp chiếu'}</span></td>
       <td>${Helpers.formatDate(m.releaseDate)}</td>
       <td><div class="table-actions">
@@ -382,6 +473,36 @@ const MovieView = {
     });
   },
 
+  _showTmdbAddForm() {
+    const content = `
+      <form onsubmit="MovieController.handleCreateFromTmdb(event)">
+        <div class="admin-form-grid">
+          <div class="form-group">
+            <label class="form-label">TMDB Movie ID *</label>
+            <input type="number" class="form-control" id="tmdb-movie-id" min="1" placeholder="Vi du: 123456" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trang Thai</label>
+            <select class="form-control" id="tmdb-movie-status">
+              <option value="NOW_SHOWING">Dang Chieu</option>
+              <option value="COMING_SOON">Sap Chieu</option>
+              <option value="DRAFT">Ban Nhap</option>
+            </select>
+          </div>
+          <div class="form-group form-full">
+            <div class="alert alert-info" style="margin:0;">
+              Backend se lay ten phim, poster, trailer, thoi luong, ngay phat hanh va the loai tu TMDB.
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Huy</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-database"></i> Lay Tu TMDB</button>
+        </div>
+      </form>`;
+    Modal.show('Them Phim Bang TMDB ID', content, { size: 'md' });
+  },
+
   _showAddForm() {
     const content = `
       <form onsubmit="MovieController.handleCreate(event)">
@@ -395,7 +516,6 @@ const MovieView = {
               <option>Tiếng Việt</option><option>Tiếng Anh (Phụ đề)</option><option>Tiếng Anh (Lồng tiếng)</option>
             </select>
           </div>
-          <div class="form-group"><label class="form-label">Đánh Giá (0-10)</label><input type="number" class="form-control" id="movie-rating" value="7.5" min="0" max="10" step="0.1" /></div>
           <div class="form-group"><label class="form-label">Đạo Diễn</label><input type="text" class="form-control" id="movie-director" /></div>
           <div class="form-group"><label class="form-label">Ngày Khởi Chiếu</label><input type="date" class="form-control" id="movie-release" /></div>
           <div class="form-group"><label class="form-label">Trạng Thái</label>

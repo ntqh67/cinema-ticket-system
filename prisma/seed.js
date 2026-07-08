@@ -92,6 +92,7 @@ const GENRES = [
 
 const NOW_SHOWING_MOVIES = [
   {
+    tmdbId: null,
     title: 'Superman',
     description: 'A new generation of Superman begins with action, heart, and hope.',
     durationMin: 129,
@@ -101,6 +102,7 @@ const NOW_SHOWING_MOVIES = [
     trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Superman%202025%20official%20trailer%20DC%20Studios',
   },
   {
+    tmdbId: null,
     title: 'F1: The Movie',
     description: 'A high-speed racing drama following a veteran driver and a rising rookie.',
     durationMin: 155,
@@ -110,6 +112,7 @@ const NOW_SHOWING_MOVIES = [
     trailerUrl: 'https://www.youtube.com/embed?listType=search&list=F1%20The%20Movie%20official%20trailer',
   },
   {
+    tmdbId: null,
     title: 'Jurassic World: Rebirth',
     description: 'A new expedition enters a dangerous world of dinosaurs and genetic secrets.',
     durationMin: 134,
@@ -119,6 +122,7 @@ const NOW_SHOWING_MOVIES = [
     trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Jurassic%20World%20Rebirth%20official%20trailer%20Universal%20Pictures',
   },
   {
+    tmdbId: null,
     title: 'How to Train Your Dragon',
     description: 'A live-action adventure about friendship, courage, and dragons.',
     durationMin: 125,
@@ -128,6 +132,7 @@ const NOW_SHOWING_MOVIES = [
     trailerUrl: 'https://www.youtube.com/embed?listType=search&list=How%20to%20Train%20Your%20Dragon%202025%20official%20trailer%20Universal%20Pictures',
   },
   {
+    tmdbId: null,
     title: 'Doraemon: Nobita va The Gioi Trong Tranh',
     description: 'Nobita and friends begin a colorful adventure inside a mysterious painting world.',
     durationMin: 105,
@@ -137,15 +142,18 @@ const NOW_SHOWING_MOVIES = [
     trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Doraemon%20Nobita%27s%20Art%20World%20Tales%20official%20trailer',
   },
   {
-    title: 'Detective Conan: Du Anh Cua Doc Nhan',
-    description: 'Conan investigates a dangerous case connected to a long-hidden memory.',
-    durationMin: 110,
-    releaseDate: '2026-06-20',
-    genres: ['Animation', 'Thriller'],
-    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/86/DetectiveConanOneeyedFlashback.jpg/250px-DetectiveConanOneeyedFlashback.jpg',
-    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Detective%20Conan%20One-eyed%20Flashback%20official%20trailer',
+    tmdbId: null,
+    title: 'Obsession',
+    description:
+      'A supernatural horror story about a wish that turns affection into a dangerous obsession.',
+    durationMin: 109,
+    releaseDate: '2026-05-15',
+    genres: ['Horror', 'Thriller'],
+    posterUrl: null,
+    trailerUrl: null,
   },
   {
+    tmdbId: null,
     title: 'Mang Me Di Bo',
     description: 'A Vietnamese family drama about love, regret, and the road back home.',
     durationMin: 112,
@@ -155,6 +163,7 @@ const NOW_SHOWING_MOVIES = [
     trailerUrl: null,
   },
   {
+    tmdbId: null,
     title: '28 Years Later',
     description: 'A tense horror story set decades after a terrifying outbreak.',
     durationMin: 115,
@@ -240,6 +249,7 @@ async function clearDatabase() {
   await prisma.cinema.deleteMany();
   await prisma.cinemaChain.deleteMany();
   await prisma.movieGenre.deleteMany();
+  await prisma.movieReview.deleteMany();
   await prisma.genre.deleteMany();
   await prisma.movie.deleteMany();
   await prisma.refreshToken.deleteMany();
@@ -273,6 +283,7 @@ async function createMovies(genres) {
     const movie = await prisma.movie.create({
       data: {
         title: movieConfig.title,
+        tmdbId: movieConfig.tmdbId || null,
         description: movieConfig.description,
         durationMin: movieConfig.durationMin,
         releaseDate: new Date(`${movieConfig.releaseDate}T00:00:00.000+07:00`),

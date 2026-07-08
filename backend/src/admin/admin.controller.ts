@@ -5,7 +5,9 @@ import {
   CreateCinemaDto,
   CreateCinemaChainDto,
   CreateGenreDto,
+  CreateMovieFromTmdbDto,
   CreateMovieDto,
+  ImportUpcomingMoviesFromTmdbDto,
   CreateRoomDto,
   CreateSeatDto,
   CreateShowtimeDto,
@@ -24,12 +26,16 @@ import {
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('dashboard') getDashboard() { return this.adminService.getDashboard(); }
+
   @Get('genres') listGenres() { return this.adminService.listGenres(); }
   @Post('genres') createGenre(@Body() dto: CreateGenreDto) { return this.adminService.createGenre(dto); }
   @Patch('genres/:id') updateGenre(@Param('id') id: string, @Body() dto: UpdateGenreDto) { return this.adminService.updateGenre(id, dto); }
   @Delete('genres/:id') deleteGenre(@Param('id') id: string) { return this.adminService.deleteGenre(id); }
 
   @Get('movies') listMovies() { return this.adminService.listMovies(); }
+  @Post('movies/tmdb') createMovieFromTmdb(@Body() dto: CreateMovieFromTmdbDto) { return this.adminService.createMovieFromTmdb(dto); }
+  @Post('movies/tmdb/upcoming') importUpcomingMoviesFromTmdb(@Body() dto: ImportUpcomingMoviesFromTmdbDto) { return this.adminService.importUpcomingMoviesFromTmdb(dto); }
   @Post('movies') createMovie(@Body() dto: CreateMovieDto) { return this.adminService.createMovie(dto); }
   @Patch('movies/:id') updateMovie(@Param('id') id: string, @Body() dto: UpdateMovieDto) { return this.adminService.updateMovie(id, dto); }
   @Delete('movies/:id') deleteMovie(@Param('id') id: string) { return this.adminService.deleteMovie(id); }

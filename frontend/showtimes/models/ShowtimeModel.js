@@ -26,10 +26,7 @@ const ShowtimeModel = {
     return dates;
   },
   create(data) {
-    const item = { ...data, id: `st_${Helpers.generateId()}`, createdAt: new Date().toISOString() };
-    API.mockData.showtimes.push(item);
-    API._save('showtimes');
-    return { success: true, showtime: item };
+    return API.createAdminShowtime(data);
   },
   delete(id) {
     const idx = API.mockData.showtimes.findIndex(s => s.id === id);

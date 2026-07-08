@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { MovieStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateMovieReviewDto } from './dto/movie-review.dto';
 
 const movieInclude = {
   genres: {
@@ -11,6 +12,12 @@ const movieInclude = {
   _count: {
     select: {
       showtimes: true,
+      reviews: true,
+    },
+  },
+  reviews: {
+    select: {
+      rating: true,
     },
   },
 } satisfies Prisma.MovieInclude;
@@ -94,6 +101,96 @@ export class MoviesService {
     };
   }
 
+  async findReviews(movieId: string, userId?: string) {
+    await this.ensureMovie(movieId);
+    const [reviews, canReview, currentUserReview] = await Promise.all([
+      this.prisma.movieReview.findMany({
+        where: { movieId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      }),
+      userId ? this.userHasPaidMovieBooking(userId, movieId) : Promise.resolve(false),
+      userId
+        ? this.prisma.movieReview.findUnique({
+            where: {
+              userId_movieId: {
+                userId,
+                movieId,
+              },
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    return {
+      movieId,
+      ratingAverage: this.averageRating(reviews),
+      ratingCount: reviews.length,
+      canReview,
+      currentUserReview,
+      reviews: reviews.map((review) => ({
+        id: review.id,
+        userId: review.userId,
+        userName: [review.user.firstName, review.user.lastName].filter(Boolean).join(' ') || 'User',
+        rating: review.rating,
+        comment: review.comment || '',
+        createdAt: review.createdAt,
+        updatedAt: review.updatedAt,
+      })),
+    };
+  }
+
+  async createReview(movieId: string, dto: CreateMovieReviewDto) {
+    await this.ensureMovie(movieId);
+    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const canReview = await this.userHasPaidMovieBooking(dto.userId, movieId);
+    if (!canReview) {
+      throw new BadRequestException('Only paid customers can review this movie');
+    }
+
+    const review = await this.prisma.movieReview.upsert({
+      where: {
+        userId_movieId: {
+          userId: dto.userId,
+          movieId,
+        },
+      },
+      update: {
+        rating: dto.rating,
+        comment: dto.comment || null,
+      },
+      create: {
+        userId: dto.userId,
+        movieId,
+        rating: dto.rating,
+        comment: dto.comment || null,
+      },
+    });
+
+    const summary = await this.prisma.movieReview.aggregate({
+      where: { movieId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    return {
+      review,
+      ratingAverage: Number((summary._avg.rating || 0).toFixed(1)),
+      ratingCount: summary._count.rating,
+    };
+  }
+
   private mapMovie(movie: MovieWithInclude) {
     return {
       id: movie.id,
@@ -109,7 +206,9 @@ export class MoviesService {
           ? 'nowShowing'
           : this.mapMovieStatus(movie.status),
       genre: movie.genres.map((item) => item.genre.name),
-      rating: 8,
+      rating: this.averageRating(movie.reviews),
+      ratingAverage: this.averageRating(movie.reviews),
+      ratingCount: movie._count.reviews,
       language: 'Dang cap nhat',
       director: 'Dang cap nhat',
       ageRating: 'P',
@@ -177,6 +276,34 @@ export class MoviesService {
     if (status === MovieStatus.COMING_SOON) return 'comingSoon';
     if (status === MovieStatus.ENDED) return 'ended';
     return 'nowShowing';
+  }
+
+  private averageRating(reviews: Array<{ rating: number }>) {
+    if (!reviews.length) return 0;
+    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return Number((total / reviews.length).toFixed(1));
+  }
+
+  private async ensureMovie(movieId: string) {
+    const movie = await this.prisma.movie.findUnique({ where: { id: movieId } });
+    if (!movie) {
+      throw new NotFoundException('Movie not found');
+    }
+    return movie;
+  }
+
+  private async userHasPaidMovieBooking(userId: string, movieId: string) {
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        userId,
+        status: 'PAID',
+        showtime: {
+          movieId,
+        },
+      },
+      select: { id: true },
+    });
+    return Boolean(booking);
   }
 
   private formatDate(value: Date) {

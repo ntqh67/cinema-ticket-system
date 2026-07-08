@@ -4,13 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MovieStatus, Prisma } from '@prisma/client';
+import { PaymentStatus, MovieStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCinemaDto,
   CreateCinemaChainDto,
   CreateGenreDto,
+  CreateMovieFromTmdbDto,
   CreateMovieDto,
+  ImportUpcomingMoviesFromTmdbDto,
   CreateRoomDto,
   CreateSeatDto,
   CreateShowtimeDto,
@@ -29,6 +31,12 @@ const PRICE_BY_SEAT_TYPE = {
   STANDARD: 80000,
   VIP: 120000,
   COUPLE: 180000,
+};
+const TMDB_API_URL = 'https://api.themoviedb.org/3';
+const TMDB_IMAGE_BASE_URL = process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
+const TMDB_GENRE_MAP: Record<string, string> = {
+  'Science Fiction': 'Sci-Fi',
+  'TV Movie': 'Drama',
 };
 
 @Injectable()
@@ -51,6 +59,37 @@ export class AdminService {
     return this.prisma.genre.delete({ where: { id } });
   }
 
+  async getDashboard() {
+    const [
+      movies,
+      cinemas,
+      showtimes,
+      users,
+      paidBookings,
+      revenue,
+    ] = await Promise.all([
+      this.prisma.movie.count(),
+      this.prisma.cinema.count({ where: { city: 'Da Nang' } }),
+      this.prisma.showtime.count(),
+      this.prisma.user.count(),
+      this.prisma.booking.count({ where: { status: 'PAID' } }),
+      this.prisma.payment.aggregate({
+        where: { status: PaymentStatus.SUCCESS },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    return {
+      movies,
+      cinemas,
+      showtimes,
+      users,
+      bookings: paidBookings,
+      revenue: Number(revenue._sum.amount || 0),
+      currency: 'VND',
+    };
+  }
+
   listMovies() {
     return this.prisma.movie.findMany({
       include: { genres: { include: { genre: true } }, _count: true },
@@ -62,6 +101,87 @@ export class AdminService {
     return this.prisma.movie.create({
       data: this.movieData(dto),
       include: { genres: { include: { genre: true } } },
+    });
+  }
+
+  async createMovieFromTmdb(dto: CreateMovieFromTmdbDto) {
+    return this.upsertMovieFromTmdb(dto.tmdbId, dto.status || 'NOW_SHOWING');
+  }
+
+  async importUpcomingMoviesFromTmdb(dto: ImportUpcomingMoviesFromTmdbDto) {
+    const page = dto.page || 1;
+    const limit = dto.limit || 10;
+    const upcoming = await this.fetchTmdb('/movie/upcoming', {
+      language: 'vi-VN',
+      region: 'VN',
+      page,
+    });
+    const results = (upcoming.results || []).slice(0, limit);
+    const movies: unknown[] = [];
+
+    for (const item of results) {
+      movies.push(await this.upsertMovieFromTmdb(item.id, 'COMING_SOON'));
+    }
+
+    return {
+      importedCount: movies.length,
+      movies,
+    };
+  }
+
+  private async upsertMovieFromTmdb(tmdbId: number, status: string) {
+    const detailsVi = await this.fetchTmdb(`/movie/${tmdbId}`, { language: 'vi-VN' });
+    const detailsEn =
+      detailsVi.title && detailsVi.runtime
+        ? detailsVi
+        : await this.fetchTmdb(`/movie/${tmdbId}`, { language: 'en-US' });
+    const details = {
+      ...detailsEn,
+      ...Object.fromEntries(
+        Object.entries(detailsVi).filter(([, value]) => value !== null && value !== ''),
+      ),
+    };
+    const trailerUrl = await this.fetchTmdbTrailer(tmdbId);
+    const existingMovie = await this.prisma.movie.findFirst({ where: { tmdbId } });
+
+    return this.prisma.$transaction(async (tx) => {
+      const movieData = {
+        tmdbId,
+        title: details.title || detailsEn.title,
+        description: details.overview || detailsEn.overview || null,
+        durationMin: details.runtime || detailsEn.runtime || 100,
+        releaseDate: details.release_date
+          ? new Date(`${details.release_date}T00:00:00.000Z`)
+          : null,
+        posterUrl: this.tmdbImageUrl(details.poster_path || detailsEn.poster_path, 'w500'),
+        trailerUrl,
+        status: status as MovieStatus,
+      };
+      const movie = existingMovie
+        ? await tx.movie.update({ where: { id: existingMovie.id }, data: movieData })
+        : await tx.movie.create({ data: movieData });
+
+      await tx.movieGenre.deleteMany({ where: { movieId: movie.id } });
+
+      for (const genre of details.genres || detailsEn.genres || []) {
+        const name = TMDB_GENRE_MAP[genre.name] || genre.name;
+        const genreRecord = await tx.genre.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
+        await tx.movieGenre.create({
+          data: {
+            movieId: movie.id,
+            genreId: genreRecord.id,
+          },
+        });
+      }
+
+      return tx.movie.findUnique({
+        where: { id: movie.id },
+        include: { genres: { include: { genre: true } } },
+      });
     });
   }
 
@@ -241,6 +361,10 @@ export class AdminService {
           status: 'AVAILABLE',
         })),
       });
+      await tx.movie.update({
+        where: { id: dto.movieId },
+        data: { status: MovieStatus.NOW_SHOWING },
+      });
       return showtime;
     });
   }
@@ -332,6 +456,56 @@ export class AdminService {
 
   private addMinutes(date: Date, minutes: number) {
     return new Date(date.getTime() + minutes * 60 * 1000);
+  }
+
+  private async fetchTmdb(path: string, params: Record<string, string | number | boolean> = {}) {
+    const apiKey = process.env.TMDB_API_KEY;
+    const readAccessToken = process.env.TMDB_READ_ACCESS_TOKEN;
+
+    if (!apiKey && !readAccessToken) {
+      throw new BadRequestException('TMDB API key is not configured');
+    }
+
+    const url = new URL(`${TMDB_API_URL}${path}`);
+    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, String(value)));
+    if (!readAccessToken && apiKey) {
+      url.searchParams.set('api_key', apiKey);
+    }
+
+    const response = await fetch(url, {
+      headers: readAccessToken
+        ? { Authorization: `Bearer ${readAccessToken}`, Accept: 'application/json' }
+        : { Accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new BadRequestException(`TMDB request failed: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  private async fetchTmdbTrailer(tmdbId: number) {
+    for (const language of ['vi-VN', 'en-US']) {
+      const videos = await this.fetchTmdb(`/movie/${tmdbId}/videos`, { language });
+      const trailerUrl = this.pickTmdbTrailer(videos.results || []);
+      if (trailerUrl) return trailerUrl;
+    }
+    return null;
+  }
+
+  private pickTmdbTrailer(videos: Array<{ site?: string; key?: string; type?: string; official?: boolean }>) {
+    const youtubeVideos = videos.filter((video) => video.site === 'YouTube' && video.key);
+    const selected =
+      youtubeVideos.find((video) => video.type === 'Trailer' && video.official) ||
+      youtubeVideos.find((video) => video.type === 'Trailer') ||
+      youtubeVideos.find((video) => video.type === 'Teaser') ||
+      youtubeVideos[0];
+    return selected ? `https://www.youtube.com/embed/${selected.key}` : null;
+  }
+
+  private tmdbImageUrl(path: string | null | undefined, size: string) {
+    return path ? `${TMDB_IMAGE_BASE_URL}/${size}${path}` : null;
   }
 
   private async ensureCinema(id: string) {

@@ -14,7 +14,6 @@ const MovieController = {
       genre: form.querySelector('#movie-genre').value.split(',').map(g => g.trim()).filter(Boolean),
       duration: parseInt(form.querySelector('#movie-duration').value),
       language: form.querySelector('#movie-language').value,
-      rating: parseFloat(form.querySelector('#movie-rating').value) || 0,
       description: form.querySelector('#movie-desc').value.trim(),
       director: form.querySelector('#movie-director').value.trim(),
       releaseDate: form.querySelector('#movie-release').value,
@@ -29,6 +28,40 @@ const MovieController = {
     const result = MovieModel.create(data);
     if (result.success) { Toast.success('Thêm phim thành công'); MovieView.renderAdmin(); }
     else Toast.error('Có lỗi xảy ra');
+  },
+
+  async handleCreateFromTmdb(event) {
+    event.preventDefault();
+    const form = event.target;
+    const tmdbId = parseInt(form.querySelector('#tmdb-movie-id').value, 10);
+    const status = form.querySelector('#tmdb-movie-status').value;
+
+    if (!tmdbId) {
+      Toast.error('Vui long nhap TMDB ID hop le');
+      return;
+    }
+
+    try {
+      await API.createAdminMovieFromTmdb(tmdbId, status);
+      await API.syncBackendCatalog();
+      Modal.close();
+      Toast.success('Da them/cap nhat phim tu TMDB');
+      MovieView.renderAdmin();
+    } catch (error) {
+      Toast.error(error.message || 'Khong the lay phim tu TMDB');
+    }
+  },
+
+  async handleImportUpcomingFromTmdb() {
+    try {
+      Toast.info('Dang cap nhat phim sap chieu tu TMDB...');
+      const result = await API.importUpcomingMoviesFromTmdb({ page: 1, limit: 10 });
+      await API.syncBackendCatalog();
+      Toast.success(`Da cap nhat ${result.importedCount || 0} phim sap chieu`);
+      MovieView.renderAdmin();
+    } catch (error) {
+      Toast.error(error.message || 'Khong the cap nhat phim sap chieu');
+    }
   },
 
   handleDelete(id) {

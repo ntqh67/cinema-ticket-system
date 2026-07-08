@@ -68,6 +68,7 @@ model User {
   updatedAt     DateTime       @updatedAt
   bookings      Booking[]
   refreshTokens RefreshToken[]
+  movieReviews  MovieReview[]
 
   @@index([email])
   @@index([role])
@@ -90,6 +91,7 @@ model RefreshToken {
 
 model Movie {
   id          String       @id @default(cuid())
+  tmdbId      Int?
   title       String
   description String?      @db.Text
   posterUrl   String?
@@ -101,11 +103,30 @@ model Movie {
   updatedAt   DateTime     @updatedAt
   genres      MovieGenre[]
   showtimes   Showtime[]
+  reviews     MovieReview[]
 
   @@index([status])
   @@index([releaseDate])
   @@index([title])
+  @@index([tmdbId])
   @@map("movies")
+}
+
+model MovieReview {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movieId   String
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, movieId])
+  @@index([movieId])
+  @@index([userId])
+  @@map("movie_reviews")
 }
 
 model Genre {

@@ -39,6 +39,12 @@ export class CreateCinemaChainDto {
 export class UpdateCinemaChainDto extends CreateCinemaChainDto {}
 
 export class CreateMovieDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  tmdbId?: number;
+
   @ApiProperty()
   @IsString()
   title: string;
@@ -81,6 +87,32 @@ export class CreateMovieDto {
 }
 
 export class UpdateMovieDto extends CreateMovieDto {}
+
+export class CreateMovieFromTmdbDto {
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  tmdbId: number;
+
+  @ApiPropertyOptional({ enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'] })
+  @IsOptional()
+  @IsEnum(['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'])
+  status?: 'DRAFT' | 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED';
+}
+
+export class ImportUpcomingMoviesFromTmdbDto {
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}
 
 export class CreateCinemaDto {
   @ApiPropertyOptional()

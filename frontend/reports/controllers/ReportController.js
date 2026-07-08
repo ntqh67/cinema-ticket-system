@@ -1,6 +1,6 @@
 /* CineTicket - Report Controller */
 const ReportController = {
-  getSummary() {
+  async getSummary() {
     return ReportModel.getSummary();
   }
 };

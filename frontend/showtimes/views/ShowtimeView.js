@@ -141,7 +141,7 @@ const ShowtimeView = {
               <p class="admin-page-subtitle">${API.mockData.showtimes.length} suat chieu trong he thong</p>
             </div>
             <div class="admin-page-actions">
-              <button class="btn btn-primary" onclick="Toast.info('Tinh nang them lich chieu dang phat trien')"><i class="fas fa-plus"></i> Them Lich Chieu</button>
+              <button class="btn btn-primary" onclick="ShowtimeView._showAddForm()"><i class="fas fa-plus"></i> Them Lich Chieu</button>
             </div>
           </div>
           <div class="admin-table-card">
@@ -194,5 +194,64 @@ const ShowtimeView = {
     tbody.querySelectorAll('tr').forEach(row => {
       row.style.display = row.textContent.toLowerCase().includes(query.toLowerCase()) ? '' : 'none';
     });
+  },
+
+  _showAddForm() {
+    const movies = MovieModel.getAll();
+    const cinemas = CinemaModel.getAll();
+    const today = Helpers.getDateString(new Date());
+    const content = `
+      <form onsubmit="ShowtimeController.handleCreate(event)">
+        <div class="admin-form-grid">
+          <div class="form-group form-full">
+            <label class="form-label">Phim</label>
+            <select class="form-control" id="showtime-movie-id" required>
+              <option value="">Chon phim</option>
+              ${movies.map(movie => `<option value="${movie.id}">${Helpers.escapeHtml(movie.title)} (${movie.status === 'comingSoon' ? 'Sap chieu' : 'Dang chieu'})</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rap / Chi nhanh</label>
+            <select class="form-control" id="showtime-cinema-id" onchange="ShowtimeView._updateRoomOptions()" required>
+              <option value="">Chon rap</option>
+              ${cinemas.map(cinema => `<option value="${cinema.id}">${Helpers.escapeHtml(cinema.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phong</label>
+            <select class="form-control" id="showtime-room-id" required>
+              <option value="">Chon phong</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ngay chieu</label>
+            <input class="form-control" id="showtime-date" type="date" min="${today}" value="${today}" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gio bat dau</label>
+            <input class="form-control" id="showtime-time" type="time" value="19:00" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gia ghe thuong</label>
+            <input class="form-control" id="showtime-base-price" type="number" min="0" step="1000" value="80000" required />
+          </div>
+          <div class="form-group form-full">
+            <div class="alert alert-info" style="margin:0;">He thong tu tinh gio ket thuc theo thoi luong phim va tu tao ghe cho suat chieu.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Huy</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tao Lich Chieu</button>
+        </div>
+      </form>`;
+    Modal.show('Them Lich Chieu', content, { size: 'lg' });
+  },
+
+  _updateRoomOptions() {
+    const cinemaId = document.getElementById('showtime-cinema-id')?.value;
+    const roomSelect = document.getElementById('showtime-room-id');
+    if (!roomSelect) return;
+    const rooms = cinemaId ? RoomModel.getByCinema(cinemaId) : [];
+    roomSelect.innerHTML = `<option value="">Chon phong</option>${rooms.map(room => `<option value="${room.id}">${Helpers.escapeHtml(room.name)} (${room.capacity || 0} ghe)</option>`).join('')}`;
   },
 };

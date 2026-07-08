@@ -1,18 +1,41 @@
 /* CineTicket - Report View */
 const ReportView = {
-  renderDashboard() {
+  async renderDashboard() {
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
-    const summary = ReportController.getSummary();
     const main = document.getElementById('main-content');
     if (!main) return;
 
+    main.innerHTML = `
+      <div class="admin-layout-wrap">
+        ${UserView._renderAdminSidebar('dashboard')}
+        <div class="admin-main">
+          ${UserView._renderAdminTopbar('Dashboard', 'admin')}
+          <div class="admin-content">
+            <div class="admin-table-card">
+              <div class="admin-table-empty">Dang tai dashboard tu PostgreSQL...</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    let summary;
+    try {
+      summary = await ReportController.getSummary();
+    } catch (error) {
+      main.querySelector('.admin-content').innerHTML = `
+        <div class="admin-table-card">
+          <div class="admin-table-empty">Khong tai duoc dashboard: ${Helpers.escapeHtml(error.message || 'Backend unavailable')}</div>
+        </div>`;
+      return;
+    }
+
     const cards = [
       { label: 'Phim', value: summary.movies, icon: 'film', color: 'var(--color-primary)' },
-      { label: 'Rạp Chiếu', value: summary.cinemas, icon: 'building', color: 'var(--color-info)' },
-      { label: 'Suất Chiếu', value: summary.showtimes, icon: 'calendar-alt', color: 'var(--color-warning)' },
-      { label: 'Người Dùng', value: summary.users, icon: 'users', color: 'var(--color-success)' },
-      { label: 'Đặt Vé', value: summary.bookings, icon: 'ticket-alt', color: 'var(--color-accent)' },
+      { label: 'Rap Chieu', value: summary.cinemas, icon: 'building', color: 'var(--color-info)' },
+      { label: 'Suat Chieu', value: summary.showtimes, icon: 'calendar-alt', color: 'var(--color-warning)' },
+      { label: 'Nguoi Dung', value: summary.users, icon: 'users', color: 'var(--color-success)' },
+      { label: 'Dat Ve Da Thanh Toan', value: summary.bookings, icon: 'ticket-alt', color: 'var(--color-accent)' },
       { label: 'Doanh Thu', value: Helpers.formatCurrency(summary.revenue), icon: 'chart-line', color: 'var(--color-danger)' }
     ];
 
@@ -24,8 +47,8 @@ const ReportView = {
           <div class="admin-content">
             <div class="admin-page-header">
               <div>
-                <h1 class="admin-page-title">Tổng Quan</h1>
-                <p class="admin-page-subtitle">Dữ liệu demo từ mock data của CineTicket</p>
+                <h1 class="admin-page-title">Tong Quan</h1>
+                <p class="admin-page-subtitle">Du lieu that tu PostgreSQL</p>
               </div>
             </div>
             <div class="dashboard-grid">

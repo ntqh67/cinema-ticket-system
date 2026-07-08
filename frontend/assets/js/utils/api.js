@@ -332,7 +332,8 @@ const API = {
       genre: movie.genre || [],
       duration: movie.duration || 0,
       language: movie.language || 'Dang cap nhat',
-      rating: movie.rating || 8,
+      rating: movie.ratingAverage || movie.rating || 0,
+      ratingCount: movie.ratingCount || 0,
       description: movie.description || '',
       cast: [],
       director: movie.director || 'Dang cap nhat',
@@ -483,6 +484,20 @@ const API = {
     return this.backendRequest(`/movies/${movieId}/showtimes`);
   },
 
+  getMovieReviews(movieId, userId) {
+    const params = new URLSearchParams();
+    if (userId) params.set('userId', userId);
+    const query = params.toString();
+    return this.backendRequest(`/movies/${movieId}/reviews${query ? `?${query}` : ''}`);
+  },
+
+  createMovieReview(movieId, data) {
+    return this.backendRequest(`/movies/${movieId}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
   createBooking(data) {
     return this.backendRequest('/bookings', {
       method: 'POST',
@@ -523,6 +538,31 @@ const API = {
 
   getAdminBookings() {
     return this.backendRequest('/bookings');
+  },
+
+  getAdminDashboard() {
+    return this.backendRequest('/admin/dashboard');
+  },
+
+  createAdminShowtime(data) {
+    return this.backendRequest('/admin/showtimes', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  createAdminMovieFromTmdb(tmdbId, status = 'NOW_SHOWING') {
+    return this.backendRequest('/admin/movies/tmdb', {
+      method: 'POST',
+      body: JSON.stringify({ tmdbId, status })
+    });
+  },
+
+  importUpcomingMoviesFromTmdb({ page = 1, limit = 10 } = {}) {
+    return this.backendRequest('/admin/movies/tmdb/upcoming', {
+      method: 'POST',
+      body: JSON.stringify({ page, limit })
+    });
   },
 
   getBookingTickets(bookingId) {
