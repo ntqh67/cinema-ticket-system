@@ -180,10 +180,20 @@ export class MoviesService {
   }
 
   private formatDate(value: Date) {
-    return value.toISOString().slice(0, 10);
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
   }
 
   private formatTime(value: Date) {
-    return value.toISOString().slice(11, 16);
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Bangkok',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(value);
   }
 }

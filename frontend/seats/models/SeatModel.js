@@ -57,9 +57,9 @@ const SeatModel = {
       movieId: showtime.movie ? showtime.movie.id : '',
       cinemaId: showtime.room && showtime.room.cinema ? showtime.room.cinema.id : '',
       roomId: showtime.room ? showtime.room.id : '',
-      date: Helpers.getDateString(start),
-      startTime: start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      endTime: end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      date: showtime.date || Helpers.getDateString(start),
+      startTime: showtime.startTime || start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      endTime: showtime.endTime || end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       price: {
         normal: Number(showtime.basePrice || 80000),
         vip: 120000,

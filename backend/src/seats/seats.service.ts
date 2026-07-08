@@ -60,6 +60,9 @@ export class SeatsService {
     return {
       showtime: {
         id: showtime.id,
+        date: this.formatDate(showtime.startAt),
+        startTime: this.formatTime(showtime.startAt),
+        endTime: this.formatTime(showtime.endAt),
         startAt: showtime.startAt,
         endAt: showtime.endAt,
         basePrice: Number(showtime.basePrice),
@@ -104,5 +107,23 @@ export class SeatsService {
         };
       }),
     };
+  }
+
+  private formatDate(value: Date) {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
+  }
+
+  private formatTime(value: Date) {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Bangkok',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(value);
   }
 }
