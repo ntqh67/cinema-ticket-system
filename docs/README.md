@@ -252,3 +252,31 @@ node --check frontend\reports\views\ReportView.js
 - [Booking service API](./booking-service.md)
 - [Booking demo workflow](./booking-demo.md)
 - [Da Nang demo setup](./danang-demo.md)
+
+## 11. Dùng Database Giống Máy Quang Huy
+
+Nếu muốn người khác pull branch về và có dữ liệu giống máy hiện tại, dùng file dump:
+
+```text
+database/cinema_ticket_system_dump.sql
+```
+
+Sau khi chạy Docker, import database bằng PowerShell:
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema"
+docker compose up -d
+docker exec project4-cinema-postgres-1 psql -U postgres -c "DROP DATABASE IF EXISTS cinema_ticket_system;"
+docker exec project4-cinema-postgres-1 psql -U postgres -c "CREATE DATABASE cinema_ticket_system;"
+Get-Content database\cinema_ticket_system_dump.sql | docker exec -i project4-cinema-postgres-1 psql -U postgres -d cinema_ticket_system
+npx.cmd prisma generate
+```
+
+File dump này chứa cả dữ liệu test đã tạo trực tiếp trên máy:
+
+- phim thêm bằng admin/TMDB
+- suất chiếu tạo thủ công trong admin
+- user đăng ký thêm
+- booking, payment, ticket, QR test
+
+Lưu ý: Git không push database PostgreSQL đang chạy trong Docker. Muốn mọi người có dữ liệu giống hệt sau mỗi lần cập nhật lớn, cần export lại file dump rồi commit/push file dump mới.
