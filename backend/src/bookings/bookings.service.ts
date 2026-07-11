@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SeatHoldsService } from '../seat-holds/seat-holds.service';
 import { CheckInTicketDto } from './dto/check-in-ticket.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingCombosDto } from './dto/update-booking-combos.dto';
 
 const BOOKING_HOLD_MINUTES = 5;
 const BOOKING_QR_PREFIX = 'CINETICKET:BOOKING:';
@@ -147,8 +148,11 @@ export class BookingsService {
       id: booking.id,
       status: booking.status,
       totalAmount: Number(booking.totalAmount),
+      seatSubtotal: Number(booking.totalAmount),
+      comboSubtotal: 0,
       currency: booking.currency,
       expiresAt: booking.expiresAt,
+      comboItems: [],
       items: booking.bookingItems.map((bookingItem) => ({
         id: bookingItem.id,
         showtimeSeatId: bookingItem.showtimeSeatId,
@@ -156,6 +160,92 @@ export class BookingsService {
         number: bookingItem.showtimeSeat.seat.number,
         type: bookingItem.showtimeSeat.seat.type,
         unitPrice: Number(bookingItem.unitPrice),
+      })),
+    };
+  }
+
+  async updateBookingCombos(bookingId: string, dto: UpdateBookingCombosDto) {
+    const items = dto.items || [];
+    const normalizedItems = items.filter((item) => item.quantity > 0);
+    const comboIds = normalizedItems.map((item) => item.comboId);
+    const duplicateCombo = new Set(comboIds).size !== comboIds.length;
+    if (duplicateCombo) {
+      throw new BadRequestException('Duplicate combos are not allowed');
+    }
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        bookingItems: true,
+      },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== 'PENDING') {
+      throw new BadRequestException('Only pending bookings can be updated');
+    }
+
+    const combos = comboIds.length
+      ? await this.prisma.concessionCombo.findMany({
+          where: { id: { in: comboIds }, isActive: true },
+        })
+      : [];
+    if (combos.length !== comboIds.length) {
+      throw new NotFoundException('One or more combos were not found');
+    }
+
+    const combosById = new Map(combos.map((combo) => [combo.id, combo]));
+    const seatSubtotal = booking.bookingItems.reduce(
+      (sum, item) => sum + Number(item.unitPrice),
+      0,
+    );
+    const comboSubtotal = normalizedItems.reduce((sum, item) => {
+      const combo = combosById.get(item.comboId);
+      return sum + Number(combo?.price || 0) * item.quantity;
+    }, 0);
+
+    const updatedBooking = await this.prisma.$transaction(async (tx) => {
+      await tx.bookingComboItem.deleteMany({ where: { bookingId } });
+      if (normalizedItems.length) {
+        await tx.bookingComboItem.createMany({
+          data: normalizedItems.map((item) => {
+            const combo = combosById.get(item.comboId);
+            if (!combo) throw new NotFoundException('Combo not found');
+            return {
+              bookingId,
+              comboId: item.comboId,
+              quantity: item.quantity,
+              unitPrice: combo.price,
+            };
+          }),
+        });
+      }
+
+      return tx.booking.update({
+        where: { id: bookingId },
+        data: { totalAmount: seatSubtotal + comboSubtotal },
+        include: {
+          comboItems: {
+            include: { combo: true },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+    });
+
+    return {
+      bookingId,
+      status: updatedBooking.status,
+      seatSubtotal,
+      comboSubtotal,
+      totalAmount: Number(updatedBooking.totalAmount),
+      currency: updatedBooking.currency,
+      comboItems: updatedBooking.comboItems.map((item) => ({
+        id: item.id,
+        comboId: item.comboId,
+        name: item.combo.name,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        lineTotal: Number(item.unitPrice) * item.quantity,
       })),
     };
   }
@@ -1040,6 +1130,11 @@ export class BookingsService {
       checkIn: true,
       booking: {
         include: {
+          comboItems: {
+            include: {
+              combo: true,
+            },
+          },
           user: true,
           showtime: {
             include: {
@@ -1109,6 +1204,14 @@ export class BookingsService {
         totalAmount: Number(ticket.booking.totalAmount),
         currency: ticket.booking.currency,
         qrToken: this.bookingQrToken(ticket.booking.id),
+        comboItems: (ticket.booking.comboItems || []).map((item) => ({
+          id: item.id,
+          comboId: item.comboId,
+          name: item.combo?.name,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+          lineTotal: Number(item.unitPrice) * item.quantity,
+        })),
       },
     };
   }

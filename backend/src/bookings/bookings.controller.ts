@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Patch,
   Query,
   Req,
   Res,
@@ -12,6 +13,7 @@ import {
 import type { Request, Response } from 'express';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingCombosDto } from './dto/update-booking-combos.dto';
 
 @Controller('bookings')
 export class BookingsController {
@@ -67,6 +69,14 @@ export class BookingsController {
   @Get(':bookingId/tickets')
   findBookingTickets(@Param('bookingId') bookingId: string) {
     return this.bookingsService.findBookingTickets(bookingId);
+  }
+
+  @Patch(':bookingId/combos')
+  updateBookingCombos(
+    @Param('bookingId') bookingId: string,
+    @Body() dto: UpdateBookingCombosDto,
+  ) {
+    return this.bookingsService.updateBookingCombos(bookingId, dto);
   }
 
   @Post(':bookingId/pay')

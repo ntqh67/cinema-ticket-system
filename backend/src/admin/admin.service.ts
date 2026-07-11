@@ -8,6 +8,7 @@ import { PaymentStatus, MovieStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCinemaDto,
+  CreateConcessionComboDto,
   CreateCinemaChainDto,
   CreateGenreDto,
   CreateMovieFromTmdbDto,
@@ -18,20 +19,17 @@ import {
   CreateShowtimeDto,
   GenerateSeatsDto,
   UpdateCinemaDto,
+  UpdateConcessionComboDto,
   UpdateCinemaChainDto,
   UpdateGenreDto,
   UpdateMovieDto,
   UpdateRoomDto,
   UpdateSeatDto,
   UpdateShowtimeDto,
+  UpsertCinemaTicketPriceDto,
 } from './dto/admin.dto';
 
 const CLEANUP_MINUTES = 30;
-const PRICE_BY_SEAT_TYPE = {
-  STANDARD: 80000,
-  VIP: 120000,
-  COUPLE: 180000,
-};
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 const TMDB_GENRE_MAP: Record<string, string> = {
@@ -228,7 +226,7 @@ export class AdminService {
   listCinemas() {
     return this.prisma.cinema.findMany({
       where: { city: 'Da Nang' },
-      include: { chain: true, rooms: true },
+      include: { chain: true, rooms: true, ticketPrices: true },
       orderBy: { name: 'asc' },
     });
   }
@@ -246,6 +244,78 @@ export class AdminService {
 
   deleteCinema(id: string) {
     return this.prisma.cinema.delete({ where: { id } });
+  }
+
+  async listCinemaTicketPrices(cinemaId: string) {
+    await this.ensureCinema(cinemaId);
+    return this.prisma.cinemaTicketPrice.findMany({
+      where: { cinemaId },
+      orderBy: { seatType: 'asc' },
+    });
+  }
+
+  async upsertCinemaTicketPrice(cinemaId: string, dto: UpsertCinemaTicketPriceDto) {
+    await this.ensureCinema(cinemaId);
+    return this.prisma.cinemaTicketPrice.upsert({
+      where: {
+        cinemaId_seatType: {
+          cinemaId,
+          seatType: dto.seatType,
+        },
+      },
+      update: {
+        price: dto.price,
+        isActive: dto.isActive ?? true,
+      },
+      create: {
+        cinemaId,
+        seatType: dto.seatType,
+        price: dto.price,
+        isActive: dto.isActive ?? true,
+      },
+    });
+  }
+
+  async deactivateCinemaTicketPrice(cinemaId: string, seatType: string) {
+    await this.ensureCinema(cinemaId);
+    return this.prisma.cinemaTicketPrice.update({
+      where: {
+        cinemaId_seatType: {
+          cinemaId,
+          seatType: this.parseSeatType(seatType),
+        },
+      },
+      data: { isActive: false },
+    });
+  }
+
+  listConcessionCombos() {
+    return this.prisma.concessionCombo.findMany({
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+    });
+  }
+
+  createConcessionCombo(dto: CreateConcessionComboDto) {
+    return this.prisma.concessionCombo.create({
+      data: {
+        ...dto,
+        isActive: dto.isActive ?? true,
+      },
+    });
+  }
+
+  updateConcessionCombo(id: string, dto: UpdateConcessionComboDto) {
+    return this.prisma.concessionCombo.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  deleteConcessionCombo(id: string) {
+    return this.prisma.concessionCombo.update({
+      where: { id },
+      data: { isActive: false },
+    });
   }
 
   listRooms() {
@@ -342,6 +412,7 @@ export class AdminService {
 
   async createShowtime(dto: CreateShowtimeDto) {
     await this.validateShowtime(dto);
+    const { priceBySeatType, basePrice } = await this.getRoomPriceMap(dto.roomId);
     return this.prisma.$transaction(async (tx) => {
       const showtime = await tx.showtime.create({
         data: {
@@ -349,7 +420,7 @@ export class AdminService {
           roomId: dto.roomId,
           startAt: new Date(dto.startAt),
           endAt: new Date(dto.endAt),
-          basePrice: dto.basePrice,
+          basePrice,
         },
       });
       const seats = await tx.seat.findMany({ where: { roomId: dto.roomId } });
@@ -357,7 +428,7 @@ export class AdminService {
         data: seats.map((seat) => ({
           showtimeId: showtime.id,
           seatId: seat.id,
-          price: PRICE_BY_SEAT_TYPE[seat.type],
+          price: priceBySeatType[seat.type],
           status: 'AVAILABLE',
         })),
       });
@@ -440,6 +511,43 @@ export class AdminService {
         'Showtime overlaps this room or violates 30-minute cleanup time',
       );
     }
+  }
+
+  private async getRoomPriceMap(roomId: string) {
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        cinema: true,
+        seats: { select: { type: true } },
+      },
+    });
+    if (!room) throw new NotFoundException('Room not found');
+
+    const activePrices = await this.prisma.cinemaTicketPrice.findMany({
+      where: { cinemaId: room.cinemaId, isActive: true },
+    });
+    const priceBySeatType = Object.fromEntries(
+      activePrices.map((price) => [price.seatType, Number(price.price)]),
+    ) as Record<string, number>;
+    const seatTypes = [...new Set(room.seats.map((seat) => seat.type))];
+    const missing = seatTypes.filter((seatType) => priceBySeatType[seatType] === undefined);
+    if (missing.length) {
+      throw new BadRequestException(
+        `Cinema ticket price is missing for seat type(s): ${missing.join(', ')}`,
+      );
+    }
+
+    return {
+      priceBySeatType,
+      basePrice: priceBySeatType.STANDARD ?? Object.values(priceBySeatType)[0] ?? 0,
+    };
+  }
+
+  private parseSeatType(value: string) {
+    if (!['STANDARD', 'VIP', 'COUPLE'].includes(value)) {
+      throw new BadRequestException('Invalid seat type');
+    }
+    return value as 'STANDARD' | 'VIP' | 'COUPLE';
   }
 
   private getVipZone(rows: string[], columns: number) {

@@ -35,6 +35,12 @@ const showtimeInclude = {
   showtimeSeats: {
     select: {
       status: true,
+      price: true,
+      seat: {
+        select: {
+          type: true,
+        },
+      },
     },
   },
 } satisfies Prisma.ShowtimeInclude;
@@ -223,6 +229,7 @@ export class MoviesService {
     const bookedSeats = showtime.showtimeSeats.filter(
       (seat) => seat.status !== 'AVAILABLE',
     ).length;
+    const priceBySeatType = this.priceBySeatType(showtime.showtimeSeats);
 
     return {
       id: showtime.id,
@@ -236,9 +243,9 @@ export class MoviesService {
       startAt: showtime.startAt,
       endAt: showtime.endAt,
       price: {
-        normal: Number(showtime.basePrice),
-        vip: 120000,
-        couple: 180000,
+        normal: priceBySeatType.STANDARD ?? Number(showtime.basePrice),
+        vip: priceBySeatType.VIP ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
+        couple: priceBySeatType.COUPLE ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
       },
       totalSeats,
       bookedSeats,
@@ -270,6 +277,17 @@ export class MoviesService {
       },
       backend: true,
     };
+  }
+
+  private priceBySeatType(showtimeSeats: ShowtimeWithInclude['showtimeSeats']) {
+    return showtimeSeats.reduce((prices, showtimeSeat) => {
+      const seatType = showtimeSeat.seat.type;
+      const price = Number(showtimeSeat.price);
+      if (prices[seatType] === undefined || price < prices[seatType]) {
+        prices[seatType] = price;
+      }
+      return prices;
+    }, {} as Record<string, number>);
   }
 
   private mapMovieStatus(status: MovieStatus) {

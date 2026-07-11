@@ -524,6 +524,17 @@ const API = {
     });
   },
 
+  getConcessionCombos() {
+    return this.backendRequest('/concession-combos');
+  },
+
+  updateBookingCombos(bookingId, items) {
+    return this.backendRequest(`/bookings/${bookingId}/combos`, {
+      method: 'PATCH',
+      body: JSON.stringify({ items })
+    });
+  },
+
   cancelBooking(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}`, {
       method: 'DELETE'
@@ -542,6 +553,45 @@ const API = {
 
   getAdminDashboard() {
     return this.backendRequest('/admin/dashboard');
+  },
+
+  getAdminCinemas() {
+    return this.backendRequest('/admin/cinemas');
+  },
+
+  getCinemaTicketPrices(cinemaId) {
+    return this.backendRequest(`/admin/cinemas/${cinemaId}/ticket-prices`);
+  },
+
+  upsertCinemaTicketPrice(cinemaId, data) {
+    return this.backendRequest(`/admin/cinemas/${cinemaId}/ticket-prices`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  getAdminConcessionCombos() {
+    return this.backendRequest('/admin/concession-combos');
+  },
+
+  createAdminConcessionCombo(data) {
+    return this.backendRequest('/admin/concession-combos', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  updateAdminConcessionCombo(id, data) {
+    return this.backendRequest(`/admin/concession-combos/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
+  deleteAdminConcessionCombo(id) {
+    return this.backendRequest(`/admin/concession-combos/${id}`, {
+      method: 'DELETE'
+    });
   },
 
   createAdminShowtime(data) {

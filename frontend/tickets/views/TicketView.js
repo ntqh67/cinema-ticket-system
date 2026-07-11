@@ -65,6 +65,7 @@ const TicketView = {
       seats: [seatText],
       qrCode,
       totalAmount: ticket.booking ? ticket.booking.totalAmount : 0,
+      comboItems: ticket.booking ? ticket.booking.comboItems || [] : [],
     });
 
     main.innerHTML = `
@@ -131,6 +132,7 @@ const TicketView = {
       seats: seatList,
       qrCode: bookingQrCode,
       totalAmount: booking.totalAmount || 0,
+      comboItems: booking.comboItems || [],
     });
 
     main.innerHTML = `
@@ -172,7 +174,7 @@ const TicketView = {
     </div>`;
   },
 
-  _ticketSummaryDetails({ showtime, room, seats, qrCode, totalAmount }) {
+  _ticketSummaryDetails({ showtime, room, seats, qrCode, totalAmount, comboItems = [] }) {
     const startAt = showtime ? new Date(showtime.startAt) : null;
     const endAt = showtime ? new Date(showtime.endAt) : null;
     const dateText = startAt ? Helpers.formatDate(showtime.startAt) : '';
@@ -200,6 +202,11 @@ const TicketView = {
             <div class="ticket-info-label">So Ghe</div>
             <div class="ticket-info-value">${Helpers.escapeHtml(seatText)}</div>
           </div>
+          ${comboItems.length ? `
+          <div class="ticket-info-item">
+            <div class="ticket-info-label">Combo</div>
+            <div class="ticket-info-value">${Helpers.escapeHtml(comboItems.map((item) => `${item.name} x${item.quantity}`).join(', '))}</div>
+          </div>` : ''}
         </div>
       </div>
 

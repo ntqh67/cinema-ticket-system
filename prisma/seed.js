@@ -14,6 +14,43 @@ const PRICE_BY_SEAT_TYPE = {
   COUPLE: 180000,
 };
 
+const CINEMA_PRICE_BY_CHAIN = {
+  CGV: { STANDARD: 95000, VIP: 140000, COUPLE: 220000 },
+  Galaxy: { STANDARD: 85000, VIP: 125000, COUPLE: 200000 },
+  Lotte: { STANDARD: 90000, VIP: 135000, COUPLE: 210000 },
+  Starlight: { STANDARD: 80000, VIP: 120000, COUPLE: 190000 },
+  Metiz: { STANDARD: 80000, VIP: 120000, COUPLE: 190000 },
+  Rio: { STANDARD: 75000, VIP: 110000, COUPLE: 175000 },
+  'Le Do': { STANDARD: 65000, VIP: 95000, COUPLE: 150000 },
+};
+
+const CONCESSION_COMBOS = [
+  {
+    name: 'Combo Solo',
+    description: '1 bap vua + 1 nuoc ngot',
+    price: 79000,
+    imageUrl: 'https://images.unsplash.com/photo-1578849278619-e73505e9610f?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    name: 'Combo Couple',
+    description: '1 bap lon + 2 nuoc ngot',
+    price: 129000,
+    imageUrl: 'https://images.unsplash.com/photo-1585647347384-2593bc35786b?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    name: 'Combo Family',
+    description: '2 bap lon + 4 nuoc ngot',
+    price: 229000,
+    imageUrl: 'https://images.unsplash.com/photo-1526676037777-05a232554f77?auto=format&fit=crop&w=600&q=80',
+  },
+  {
+    name: 'Nuoc Ngot',
+    description: '1 ly nuoc ngot tuy chon',
+    price: 35000,
+    imageUrl: 'https://images.unsplash.com/photo-1581006852262-e4307cf6283a?auto=format&fit=crop&w=600&q=80',
+  },
+];
+
 const CINEMAS = [
   {
     chain: 'Galaxy',
@@ -221,6 +258,7 @@ async function main() {
   const roomSeatMap = await createCinemasRoomsAndSeats(chains);
   const showtimes = await createShowtimes(movies, roomSeatMap);
   await createShowtimeSeats(showtimes, roomSeatMap);
+  await createConcessionCombos();
 
   console.log('Seed completed:', {
     adminUser: adminUser.email,
@@ -232,6 +270,7 @@ async function main() {
     cinemaCount: CINEMAS.length,
     roomCount: roomSeatMap.length,
     showtimeCount: showtimes.length,
+    concessionComboCount: CONCESSION_COMBOS.length,
     currency: 'VND',
   });
 }
@@ -240,14 +279,17 @@ async function clearDatabase() {
   await prisma.ticketCheckIn.deleteMany();
   await prisma.ticket.deleteMany();
   await prisma.bookingItem.deleteMany();
+  await prisma.bookingComboItem.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.showtimeSeat.deleteMany();
   await prisma.showtime.deleteMany();
   await prisma.seat.deleteMany();
   await prisma.room.deleteMany();
+  await prisma.cinemaTicketPrice.deleteMany();
   await prisma.cinema.deleteMany();
   await prisma.cinemaChain.deleteMany();
+  await prisma.concessionCombo.deleteMany();
   await prisma.movieGenre.deleteMany();
   await prisma.movieReview.deleteMany();
   await prisma.genre.deleteMany();
@@ -335,6 +377,8 @@ async function createCinemasRoomsAndSeats(chains) {
       },
     });
 
+    await createCinemaTicketPrices(cinema.id, cinemaConfig.chain);
+
     for (let roomIndex = 0; roomIndex < cinemaConfig.roomCount; roomIndex += 1) {
       const layout = ROOM_LAYOUTS[(roomIndex + cinemaConfig.roomCount) % ROOM_LAYOUTS.length];
       const seatCount = countSeats(layout);
@@ -351,11 +395,23 @@ async function createCinemasRoomsAndSeats(chains) {
         columns: layout.columns,
         coupleRows: [layout.rows[layout.rows.length - 1]],
       });
-      roomSeatMap.push({ cinema, room, seats, layout });
+      roomSeatMap.push({ cinema, chainName: cinemaConfig.chain, room, seats, layout });
     }
   }
 
   return roomSeatMap;
+}
+
+async function createCinemaTicketPrices(cinemaId, chainName) {
+  const priceSet = CINEMA_PRICE_BY_CHAIN[chainName] || PRICE_BY_SEAT_TYPE;
+  await prisma.cinemaTicketPrice.createMany({
+    data: Object.entries(priceSet).map(([seatType, price]) => ({
+      cinemaId,
+      seatType,
+      price,
+      isActive: true,
+    })),
+  });
 }
 
 function countSeats(layout) {
@@ -464,21 +520,34 @@ function createShowtime({ movieId, roomId, startAt, endAt }) {
 }
 
 async function createShowtimeSeats(showtimes, roomSeatMap) {
-  const seatsByRoomId = new Map(
-    roomSeatMap.map((roomInfo) => [roomInfo.room.id, roomInfo.seats]),
-  );
+  const roomInfoByRoomId = new Map(roomSeatMap.map((roomInfo) => [roomInfo.room.id, roomInfo]));
 
   for (const showtime of showtimes) {
-    const seats = seatsByRoomId.get(showtime.roomId) || [];
+    const roomInfo = roomInfoByRoomId.get(showtime.roomId);
+    const seats = roomInfo?.seats || [];
+    const priceSet = CINEMA_PRICE_BY_CHAIN[roomInfo?.chainName] || PRICE_BY_SEAT_TYPE;
+    await prisma.showtime.update({
+      where: { id: showtime.id },
+      data: { basePrice: priceSet.STANDARD },
+    });
     await prisma.showtimeSeat.createMany({
       data: seats.map((seat) => ({
         showtimeId: showtime.id,
         seatId: seat.id,
-        price: PRICE_BY_SEAT_TYPE[seat.type],
+        price: priceSet[seat.type],
         status: 'AVAILABLE',
       })),
     });
   }
+}
+
+async function createConcessionCombos() {
+  await prisma.concessionCombo.createMany({
+    data: CONCESSION_COMBOS.map((combo) => ({
+      ...combo,
+      isActive: true,
+    })),
+  });
 }
 
 function startOfTodayInBangkok() {

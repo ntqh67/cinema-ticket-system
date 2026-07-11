@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import {
   CreateCinemaDto,
+  CreateConcessionComboDto,
   CreateCinemaChainDto,
   CreateGenreDto,
   CreateMovieFromTmdbDto,
@@ -13,12 +14,14 @@ import {
   CreateShowtimeDto,
   GenerateSeatsDto,
   UpdateCinemaDto,
+  UpdateConcessionComboDto,
   UpdateCinemaChainDto,
   UpdateGenreDto,
   UpdateMovieDto,
   UpdateRoomDto,
   UpdateSeatDto,
   UpdateShowtimeDto,
+  UpsertCinemaTicketPriceDto,
 } from './dto/admin.dto';
 
 @ApiTags('admin')
@@ -49,6 +52,15 @@ export class AdminController {
   @Post('cinemas') createCinema(@Body() dto: CreateCinemaDto) { return this.adminService.createCinema(dto); }
   @Patch('cinemas/:id') updateCinema(@Param('id') id: string, @Body() dto: UpdateCinemaDto) { return this.adminService.updateCinema(id, dto); }
   @Delete('cinemas/:id') deleteCinema(@Param('id') id: string) { return this.adminService.deleteCinema(id); }
+  @Get('cinemas/:id/ticket-prices') listCinemaTicketPrices(@Param('id') id: string) { return this.adminService.listCinemaTicketPrices(id); }
+  @Post('cinemas/:id/ticket-prices') upsertCinemaTicketPrice(@Param('id') id: string, @Body() dto: UpsertCinemaTicketPriceDto) { return this.adminService.upsertCinemaTicketPrice(id, dto); }
+  @Patch('cinemas/:id/ticket-prices/:seatType') updateCinemaTicketPrice(@Param('id') id: string, @Param('seatType') seatType: string, @Body() dto: UpsertCinemaTicketPriceDto) { return this.adminService.upsertCinemaTicketPrice(id, { ...dto, seatType: seatType as any }); }
+  @Delete('cinemas/:id/ticket-prices/:seatType') deactivateCinemaTicketPrice(@Param('id') id: string, @Param('seatType') seatType: string) { return this.adminService.deactivateCinemaTicketPrice(id, seatType); }
+
+  @Get('concession-combos') listConcessionCombos() { return this.adminService.listConcessionCombos(); }
+  @Post('concession-combos') createConcessionCombo(@Body() dto: CreateConcessionComboDto) { return this.adminService.createConcessionCombo(dto); }
+  @Patch('concession-combos/:id') updateConcessionCombo(@Param('id') id: string, @Body() dto: UpdateConcessionComboDto) { return this.adminService.updateConcessionCombo(id, dto); }
+  @Delete('concession-combos/:id') deleteConcessionCombo(@Param('id') id: string) { return this.adminService.deleteConcessionCombo(id); }
 
   @Get('rooms') listRooms() { return this.adminService.listRooms(); }
   @Post('rooms') createRoom(@Body() dto: CreateRoomDto) { return this.adminService.createRoom(dto); }

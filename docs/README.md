@@ -269,6 +269,7 @@ docker compose up -d
 docker exec project4-cinema-postgres-1 psql -U postgres -c "DROP DATABASE IF EXISTS cinema_ticket_system;"
 docker exec project4-cinema-postgres-1 psql -U postgres -c "CREATE DATABASE cinema_ticket_system;"
 Get-Content database\cinema_ticket_system_dump.sql | docker exec -i project4-cinema-postgres-1 psql -U postgres -d cinema_ticket_system
+npx.cmd prisma migrate dev
 npx.cmd prisma generate
 ```
 

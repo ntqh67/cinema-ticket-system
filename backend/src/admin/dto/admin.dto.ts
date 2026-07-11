@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -146,6 +147,50 @@ export class CreateCinemaDto {
 }
 
 export class UpdateCinemaDto extends CreateCinemaDto {}
+
+export class UpsertCinemaTicketPriceDto {
+  @ApiProperty({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
+  @IsEnum(['STANDARD', 'VIP', 'COUPLE'])
+  seatType: 'STANDARD' | 'VIP' | 'COUPLE';
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  price: number;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class CreateConcessionComboDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  price: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class UpdateConcessionComboDto extends CreateConcessionComboDto {}
 
 export class CreateRoomDto {
   @ApiProperty()

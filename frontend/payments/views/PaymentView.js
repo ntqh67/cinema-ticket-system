@@ -3,12 +3,21 @@ const PaymentView = {
   _selectedMethod: 'vnpay',
   _processing: false,
   _holdTimer: null,
+  _combos: [],
+  _selectedCombos: {},
 
-  render() {
+  async render() {
     if (!AuthController.checkAuth()) return;
     this._clearHoldCountdown();
+    this._selectedCombos = {};
     const booking = State.get('currentBooking');
     if (!booking) { Toast.warning('Không có thông tin đặt vé'); Router.navigate('/'); return; }
+    try {
+      this._combos = await API.getConcessionCombos();
+    } catch (error) {
+      console.warn('Could not load concession combos:', error);
+      this._combos = [];
+    }
     const movie = MovieModel.getById(booking.movieId);
     const showtime = ShowtimeModel.getById(booking.showtimeId);
     const cinema = showtime ? CinemaModel.getById(showtime.cinemaId) : null;
@@ -80,6 +89,11 @@ const PaymentView = {
                     </div>
                   </div>
 
+                  <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--color-border);">
+                    <h5 style="margin-bottom:12px;"><i class="fas fa-shopping-basket" style="color:var(--color-primary);"></i> Combo Bap Nuoc</h5>
+                    <div id="combo-list">${this._comboList()}</div>
+                  </div>
+
                   <!-- Promo Code -->
                   <div style="display:none;margin-top:24px;padding-top:24px;border-top:1px solid var(--color-border);">
                     <h5 style="margin-bottom:12px;"><i class="fas fa-tags" style="color:var(--color-primary);"></i> Mã Khuyến Mãi</h5>
@@ -138,6 +152,7 @@ const PaymentView = {
                 <span class="order-line-value" id="booking-hold-countdown">--:--</span>
               </div>
               ${seatDetails}
+              <div id="combo-summary"></div>
               <div class="order-line" id="discount-line" style="display:none;">
                 <span class="order-line-label" style="color:var(--color-success);">Giảm Giá</span>
                 <span class="order-line-value" style="color:var(--color-success);" id="discount-value">- $0.00</span>
@@ -173,6 +188,66 @@ const PaymentView = {
       });
     });
     this._startHoldCountdown(booking.expiresAt, booking.showtimeId);
+    this._renderComboSummary();
+  },
+
+  _comboList() {
+    if (!this._combos.length) {
+      return '<p style="color:var(--color-text-muted);font-size:0.9rem;">Hien chua co combo dang ban.</p>';
+    }
+
+    return this._combos.map((combo) => `
+      <div class="order-row" style="align-items:center;gap:12px;">
+        <img src="${Helpers.escapeHtml(combo.imageUrl || API.moviePosterFallback)}" alt="" style="width:54px;height:54px;object-fit:cover;border-radius:6px;" onerror="this.src=API.moviePosterFallback" />
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;color:var(--color-text);">${Helpers.escapeHtml(combo.name)}</div>
+          <div style="font-size:0.78rem;color:var(--color-text-muted);">${Helpers.escapeHtml(combo.description || '')}</div>
+          <div style="font-size:0.85rem;color:var(--color-primary);font-weight:700;">${Helpers.formatCurrency(Number(combo.price))}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" class="action-btn" onclick="PaymentView.changeComboQuantity('${combo.id}', -1)">-</button>
+          <span id="combo-qty-${combo.id}" style="min-width:22px;text-align:center;font-weight:700;">0</span>
+          <button type="button" class="action-btn edit" onclick="PaymentView.changeComboQuantity('${combo.id}', 1)">+</button>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  changeComboQuantity(comboId, delta) {
+    const current = this._selectedCombos[comboId] || 0;
+    const next = Math.max(0, Math.min(10, current + delta));
+    if (next === 0) {
+      delete this._selectedCombos[comboId];
+    } else {
+      this._selectedCombos[comboId] = next;
+    }
+    const qtyEl = document.getElementById(`combo-qty-${comboId}`);
+    if (qtyEl) qtyEl.textContent = String(next);
+    this._renderComboSummary();
+  },
+
+  getSelectedComboItems() {
+    return Object.entries(this._selectedCombos).map(([comboId, quantity]) => ({ comboId, quantity }));
+  },
+
+  getComboSubtotal() {
+    return this._combos.reduce((sum, combo) => {
+      return sum + Number(combo.price || 0) * (this._selectedCombos[combo.id] || 0);
+    }, 0);
+  },
+
+  _renderComboSummary() {
+    const booking = State.get('currentBooking');
+    const container = document.getElementById('combo-summary');
+    if (!booking || !container) return;
+    const selected = this._combos.filter((combo) => this._selectedCombos[combo.id]);
+    container.innerHTML = selected.map((combo) => `
+      <div class="order-row">
+        <span class="order-row-label">${Helpers.escapeHtml(combo.name)} x${this._selectedCombos[combo.id]}</span>
+        <span class="order-row-value">${Helpers.formatCurrency(Number(combo.price) * this._selectedCombos[combo.id])}</span>
+      </div>
+    `).join('');
+    this.updateTotal(booking.totalPrice + this.getComboSubtotal(), PaymentController._discount || 0);
   },
 
   _startHoldCountdown(expiresAt, showtimeId) {

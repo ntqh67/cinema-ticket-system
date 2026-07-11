@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { ConcessionsModule } from './concessions/concessions.module';
 import { HealthModule } from './health/health.module';
 import { MoviesModule } from './movies/movies.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -27,6 +28,7 @@ import { SeatsModule } from './seats/seats.module';
     SeatHoldsModule,
     SeatsModule,
     BookingsModule,
+    ConcessionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

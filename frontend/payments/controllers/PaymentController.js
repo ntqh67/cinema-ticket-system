@@ -54,7 +54,8 @@ const PaymentController = {
     }
 
     const user = State.get('currentUser');
-    const finalAmount = booking.totalPrice;
+    let finalAmount = booking.totalPrice + PaymentView.getComboSubtotal();
+    let comboItems = PaymentView.getSelectedComboItems();
     const paymentData = {
       userId: user.id,
       backendBookingId: booking.backendBookingId,
@@ -64,6 +65,7 @@ const PaymentController = {
       roomId: booking.roomId,
       seats: booking.seats.map((seat) => typeof seat === 'object' ? seat.id : seat),
       totalAmount: finalAmount,
+      comboItems,
       discount: 0,
       promoCode: null,
       paymentMethod: method,
@@ -72,6 +74,17 @@ const PaymentController = {
 
     PaymentView.showProcessing();
     try {
+      const comboResult = await API.updateBookingCombos(booking.backendBookingId, comboItems);
+      finalAmount = comboResult.totalAmount;
+      paymentData.totalAmount = finalAmount;
+      paymentData.comboItems = comboResult.comboItems || [];
+      State.set('currentBooking', {
+        ...booking,
+        totalPrice: finalAmount,
+        seatSubtotal: comboResult.seatSubtotal,
+        comboSubtotal: comboResult.comboSubtotal,
+        comboItems: comboResult.comboItems || [],
+      });
       const result = await PaymentModel.process(paymentData);
       if (result.success && result.redirect && result.paymentUrl) {
         PaymentView._clearHoldCountdown();

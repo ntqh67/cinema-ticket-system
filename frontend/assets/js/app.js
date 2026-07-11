@@ -29,6 +29,7 @@ const App = {
     Router.register('/admin/rooms', () => RoomView.renderAdmin());
     Router.register('/admin/showtimes', () => ShowtimeView.renderAdmin());
     Router.register('/admin/bookings', () => BookingView.renderAdmin());
+    Router.register('/admin/concessions', () => ConcessionView.renderAdmin());
     Router.register('/admin/users', () => UserView.renderAdmin());
     Router.register('/admin/promotions', () => PromotionView.renderAdmin());
   },

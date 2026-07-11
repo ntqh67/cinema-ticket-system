@@ -234,6 +234,7 @@ const UserView = {
           <a class="admin-nav-item ${active === "rooms" ? "active" : ""}" onclick="Router.navigate('/admin/rooms')"><i class="fas fa-door-open"></i> Phong Chieu</a>
           <a class="admin-nav-item ${active === "showtimes" ? "active" : ""}" onclick="Router.navigate('/admin/showtimes')"><i class="fas fa-calendar-alt"></i> Lich Chieu</a>
           <a class="admin-nav-item ${active === "bookings" ? "active" : ""}" onclick="Router.navigate('/admin/bookings')"><i class="fas fa-ticket-alt"></i> Dat Ve</a>
+          <a class="admin-nav-item ${active === "concessions" ? "active" : ""}" onclick="Router.navigate('/admin/concessions')"><i class="fas fa-shopping-basket"></i> Combo</a>
           <a class="admin-nav-item ${active === "users" ? "active" : ""}" onclick="Router.navigate('/admin/users')"><i class="fas fa-users"></i> Nguoi Dung</a>
           <a class="admin-nav-item ${active === "promotions" ? "active" : ""}" onclick="Router.navigate('/admin/promotions')"><i class="fas fa-tags"></i> Khuyen Mai</a>
         </div>

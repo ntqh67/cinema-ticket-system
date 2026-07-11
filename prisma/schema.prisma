@@ -176,11 +176,28 @@ model Cinema {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   rooms     Room[]
+  ticketPrices CinemaTicketPrice[]
 
   @@index([chainId])
   @@index([city])
   @@index([name])
   @@map("cinemas")
+}
+
+model CinemaTicketPrice {
+  id        String   @id @default(cuid())
+  cinemaId  String
+  cinema    Cinema   @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  seatType  SeatType
+  price     Decimal  @db.Decimal(10, 2)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cinemaId, seatType])
+  @@index([cinemaId, isActive])
+  @@index([seatType])
+  @@map("cinema_ticket_prices")
 }
 
 model Room {
@@ -268,6 +285,7 @@ model Booking {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   bookingItems BookingItem[]
+  comboItems    BookingComboItem[]
   payments     Payment[]
   tickets      Ticket[]
 
@@ -275,6 +293,39 @@ model Booking {
   @@index([showtimeId, status])
   @@index([status, createdAt])
   @@map("bookings")
+}
+
+model ConcessionCombo {
+  id          String             @id @default(cuid())
+  name        String
+  description String?            @db.Text
+  price       Decimal            @db.Decimal(10, 2)
+  imageUrl    String?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  bookingItems BookingComboItem[]
+
+  @@index([isActive])
+  @@index([name])
+  @@map("concession_combos")
+}
+
+model BookingComboItem {
+  id        String           @id @default(cuid())
+  bookingId String
+  booking   Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  comboId   String
+  combo     ConcessionCombo  @relation(fields: [comboId], references: [id], onDelete: Restrict)
+  quantity  Int
+  unitPrice Decimal          @db.Decimal(10, 2)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([bookingId, comboId])
+  @@index([bookingId])
+  @@index([comboId])
+  @@map("booking_combo_items")
 }
 
 model BookingItem {
