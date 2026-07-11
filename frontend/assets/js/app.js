@@ -19,6 +19,7 @@ const App = {
     Router.register('/profile', () => UserView.renderProfile());
     Router.register('/history', () => UserView.renderHistory());
     Router.register('/seats/:id', (params) => SeatView.render(params));
+    Router.register('/concessions', () => ConcessionView.renderCheckout());
     Router.register('/payment', () => PaymentView.render());
     Router.register('/ticket/:id', (params) => TicketView.render(params));
 

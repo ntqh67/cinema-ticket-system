@@ -74,8 +74,8 @@ const TicketView = {
         <div class="ticket-page-center">
           <div class="ticket-success-banner">
             <div class="ticket-success-icon"><i class="fas fa-check"></i></div>
-            <h2 class="ticket-success-title">Dat Ve Thanh Cong!</h2>
-            <p class="ticket-success-sub">Ve cua ban da duoc xac nhan tu backend Booking Service.</p>
+            <h2 class="ticket-success-title">Đặt Vé Thành Công!</h2>
+            <p class="ticket-success-sub">Vé của bạn đã được xác nhận từ backend Booking Service.</p>
           </div>
 
           <div class="ticket-card">
@@ -98,9 +98,9 @@ const TicketView = {
           </div>
 
           <div class="ticket-actions">
-            <button class="btn btn-primary" onclick="TicketView.printCurrentTicket()"><i class="fas fa-print"></i> In Ve</button>
-            <button class="btn btn-outline" onclick="Router.navigate('/history')"><i class="fas fa-ticket-alt"></i> Ve Cua Toi</button>
-            <button class="btn btn-outline" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chu</button>
+            <button class="btn btn-primary" onclick="TicketView.printCurrentTicket()"><i class="fas fa-print"></i> In Vé</button>
+            <button class="btn btn-outline" onclick="Router.navigate('/history')"><i class="fas fa-ticket-alt"></i> Vé Của Tôi</button>
+            <button class="btn btn-outline" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chủ</button>
           </div>
         </div>
       </div>
@@ -141,8 +141,8 @@ const TicketView = {
         <div class="ticket-page-center">
           <div class="ticket-success-banner">
             <div class="ticket-success-icon"><i class="fas fa-ticket-alt"></i></div>
-            <h2 class="ticket-success-title">Chi Tiet Dat Ve</h2>
-            <p class="ticket-success-sub">Ma QR nay dung cho toan bo ghe trong booking.</p>
+            <h2 class="ticket-success-title">Chi Tiết Đặt Vé</h2>
+            <p class="ticket-success-sub">Mã QR này dùng cho toàn bộ ghế trong booking.</p>
           </div>
 
           <div class="ticket-card">
@@ -165,9 +165,9 @@ const TicketView = {
           </div>
 
           <div class="ticket-actions">
-            <button class="btn btn-primary" onclick="TicketView.printCurrentTicket()"><i class="fas fa-print"></i> In Ve</button>
-            <button class="btn btn-outline" onclick="Router.navigate('/history')"><i class="fas fa-ticket-alt"></i> Ve Cua Toi</button>
-            <button class="btn btn-outline" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chu</button>
+            <button class="btn btn-primary" onclick="TicketView.printCurrentTicket()"><i class="fas fa-print"></i> In Vé</button>
+            <button class="btn btn-outline" onclick="Router.navigate('/history')"><i class="fas fa-ticket-alt"></i> Vé Của Tôi</button>
+            <button class="btn btn-outline" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chủ</button>
           </div>
         </div>
       </div>
@@ -187,19 +187,19 @@ const TicketView = {
       <div class="ticket-body">
         <div class="ticket-info-grid ticket-info-grid-compact">
           <div class="ticket-info-item">
-            <div class="ticket-info-label">Ngay Chieu</div>
+            <div class="ticket-info-label">Ngày Chiếu</div>
             <div class="ticket-info-value">${dateText}</div>
           </div>
           <div class="ticket-info-item">
-            <div class="ticket-info-label">Gio Chieu</div>
+            <div class="ticket-info-label">Giờ Chiếu</div>
             <div class="ticket-info-value highlight">${timeText}</div>
           </div>
           <div class="ticket-info-item">
-            <div class="ticket-info-label">Phong</div>
+            <div class="ticket-info-label">Phòng</div>
             <div class="ticket-info-value">${room ? Helpers.escapeHtml(room.name) : ''}</div>
           </div>
           <div class="ticket-info-item">
-            <div class="ticket-info-label">So Ghe</div>
+            <div class="ticket-info-label">Số Ghế</div>
             <div class="ticket-info-value">${Helpers.escapeHtml(seatText)}</div>
           </div>
           ${comboItems.length ? `
@@ -215,9 +215,9 @@ const TicketView = {
       <div class="ticket-footer ticket-footer-summary">
         <div class="ticket-qr ticket-qr-large">${qrCode}</div>
         <div class="ticket-total">
-          <div class="ticket-total-label">Tong Tien Da Thanh Toan</div>
+          <div class="ticket-total-label">Tổng Tiền Đã Thanh Toán</div>
           <div class="ticket-total-amount">${Helpers.formatCurrency(totalAmount || 0)}</div>
-          <div class="ticket-footer-note">Dua ma QR cho nhan vien soat ve de nhan ve vao rap</div>
+          <div class="ticket-footer-note">Đưa mã QR cho nhân viên soát vé để nhận vé vào rạp</div>
         </div>
       </div>`;
   },

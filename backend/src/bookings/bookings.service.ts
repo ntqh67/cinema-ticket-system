@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHmac, randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { SeatHoldsService } from '../seat-holds/seat-holds.service';
@@ -127,14 +128,14 @@ export class BookingsService {
               {
                 showtimeSeat: {
                   seat: {
-                    row: 'asc',
+                    row: Prisma.SortOrder.asc,
                   },
                 },
               },
               {
                 showtimeSeat: {
                   seat: {
-                    number: 'asc',
+                    number: Prisma.SortOrder.asc,
                   },
                 },
               },
@@ -520,6 +521,14 @@ export class BookingsService {
             },
           ],
         },
+        comboItems: {
+          include: {
+            combo: true,
+          },
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
         tickets: true,
       },
       orderBy: {
@@ -528,46 +537,20 @@ export class BookingsService {
       take: 100,
     });
 
-    return {
-      bookings: bookings.map((booking) => ({
-        id: booking.id,
-        status: booking.status,
-        totalAmount: Number(booking.totalAmount),
-        currency: booking.currency,
-        expiresAt: booking.expiresAt,
-        createdAt: booking.createdAt,
-        user: {
-          id: booking.user.id,
-          email: booking.user.email,
-          name: [booking.user.firstName, booking.user.lastName]
-            .filter(Boolean)
-            .join(' ') || booking.user.email,
-        },
-        movie: {
-          id: booking.showtime.movie.id,
-          title: booking.showtime.movie.title,
-        },
-        showtime: {
-          id: booking.showtime.id,
-          startAt: booking.showtime.startAt,
-          endAt: booking.showtime.endAt,
-        },
-        cinema: {
-          id: booking.showtime.room.cinema.id,
-          name: booking.showtime.room.cinema.name,
-        },
-        room: {
-          id: booking.showtime.room.id,
-          name: booking.showtime.room.name,
-        },
-        seats: booking.bookingItems.map((bookingItem) => ({
-          row: bookingItem.showtimeSeat.seat.row,
-          number: bookingItem.showtimeSeat.seat.number,
-          type: bookingItem.showtimeSeat.seat.type,
-        })),
-        ticketCount: booking.tickets.length,
-      })),
-    };
+    return { bookings: bookings.map((booking) => this.mapBookingDetail(booking)) };
+  }
+
+  async findOne(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: this.bookingDetailInclude(),
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    return this.mapBookingDetail(booking);
   }
 
   async cancel(bookingId: string) {
@@ -1157,7 +1140,143 @@ export class BookingsService {
           },
         },
       },
-    } as const;
+    };
+  }
+
+  private bookingDetailInclude() {
+    return {
+      user: true,
+      showtime: {
+        include: {
+          movie: true,
+          room: {
+            include: {
+              cinema: true,
+            },
+          },
+        },
+      },
+      bookingItems: {
+        include: {
+          showtimeSeat: {
+            include: {
+              seat: true,
+            },
+          },
+        },
+        orderBy: [
+          { showtimeSeat: { seat: { row: Prisma.SortOrder.asc } } },
+          { showtimeSeat: { seat: { number: Prisma.SortOrder.asc } } },
+        ],
+      },
+      comboItems: {
+        include: {
+          combo: true,
+        },
+      },
+      payments: {
+        orderBy: { createdAt: Prisma.SortOrder.desc },
+      },
+      tickets: {
+        include: {
+          bookingItem: {
+            include: {
+              showtimeSeat: {
+                include: {
+                  seat: true,
+                },
+              },
+            },
+          },
+          checkIn: true,
+        },
+        orderBy: { issuedAt: Prisma.SortOrder.asc },
+      },
+    };
+  }
+
+  private mapBookingDetail(booking: any) {
+    const seats = booking.bookingItems.map((bookingItem) => ({
+      id: `${bookingItem.showtimeSeat.seat.row}${bookingItem.showtimeSeat.seat.number}`,
+      row: bookingItem.showtimeSeat.seat.row,
+      number: bookingItem.showtimeSeat.seat.number,
+      type: bookingItem.showtimeSeat.seat.type,
+      unitPrice: Number(bookingItem.unitPrice),
+    }));
+    const comboItems = (booking.comboItems || []).map((item) => ({
+      id: item.id,
+      comboId: item.comboId,
+      name: item.combo?.name,
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
+      lineTotal: Number(item.unitPrice) * item.quantity,
+    }));
+    const payments = (booking.payments || []).map((payment) => ({
+      id: payment.id,
+      provider: payment.provider,
+      providerRef: payment.providerRef,
+      amount: Number(payment.amount),
+      currency: payment.currency,
+      status: payment.status,
+      paidAt: payment.paidAt,
+      createdAt: payment.createdAt,
+    }));
+    const tickets = (booking.tickets || []).map((ticket) => ({
+      id: ticket.id,
+      qrToken: ticket.qrToken,
+      status: ticket.status,
+      issuedAt: ticket.issuedAt,
+      checkedInAt: ticket.checkIn?.checkedInAt || null,
+      seat: ticket.bookingItem
+        ? {
+            id: `${ticket.bookingItem.showtimeSeat.seat.row}${ticket.bookingItem.showtimeSeat.seat.number}`,
+            row: ticket.bookingItem.showtimeSeat.seat.row,
+            number: ticket.bookingItem.showtimeSeat.seat.number,
+            type: ticket.bookingItem.showtimeSeat.seat.type,
+          }
+        : null,
+    }));
+
+    return {
+      id: booking.id,
+      status: booking.status,
+      totalAmount: Number(booking.totalAmount),
+      currency: booking.currency,
+      expiresAt: booking.expiresAt,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+      user: {
+        id: booking.user.id,
+        email: booking.user.email,
+        name:
+          [booking.user.firstName, booking.user.lastName].filter(Boolean).join(' ') ||
+          booking.user.email,
+      },
+      movie: {
+        id: booking.showtime.movie.id,
+        title: booking.showtime.movie.title,
+      },
+      showtime: {
+        id: booking.showtime.id,
+        startAt: booking.showtime.startAt,
+        endAt: booking.showtime.endAt,
+      },
+      cinema: {
+        id: booking.showtime.room.cinema.id,
+        name: booking.showtime.room.cinema.name,
+        address: booking.showtime.room.cinema.address,
+      },
+      room: {
+        id: booking.showtime.room.id,
+        name: booking.showtime.room.name,
+      },
+      seats,
+      comboItems,
+      payments,
+      tickets,
+      ticketCount: tickets.length,
+      bookingQrToken: this.bookingQrToken(booking.id),
+    };
   }
 
   private mapTicketDetail(ticket: any) {

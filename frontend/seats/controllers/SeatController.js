@@ -19,7 +19,7 @@ const SeatController = {
       this.currentRoom = data.room;
       this.currentRows = data.rows;
     } catch (error) {
-      this.currentError = error.message || 'Khong the tai so do ghe';
+      this.currentError = error.message || 'Không thể tải sơ đồ ghế';
     }
 
     State.set('selectedSeats', []);
@@ -27,7 +27,7 @@ const SeatController = {
 
   async toggleSeat(seatId, type, isBooked, showtimeSeatId, price) {
     if (isBooked) {
-      Toast.warning('Ghe nay khong con trong');
+      Toast.warning('Ghế này không còn trống');
       return false;
     }
 
@@ -37,7 +37,7 @@ const SeatController = {
       this.selectedSeats.splice(idx, 1);
     } else {
       if (this.selectedSeats.length >= 8) {
-        Toast.warning('Toi da 8 ghe moi lan dat');
+        Toast.warning('Tối đa 8 ghế mỗi lần đặt');
         return false;
       }
       await API.holdSeat({
@@ -66,7 +66,7 @@ const SeatController = {
 
   async proceedToPayment() {
     if (this.selectedSeats.length === 0) {
-      Toast.warning('Vui long chon it nhat 1 ghe');
+      Toast.warning('Vui lòng chọn ít nhất 1 ghế');
       return;
     }
     if (!AuthController.checkAuth()) return;
@@ -90,9 +90,9 @@ const SeatController = {
         expiresAt: booking.expiresAt,
       });
 
-      Router.navigate('/payment');
+      Router.navigate('/concessions');
     } catch (error) {
-      Toast.error(error.message || 'Khong the tao booking');
+      Toast.error(error.message || 'Không thể tạo booking');
     }
   },
 };

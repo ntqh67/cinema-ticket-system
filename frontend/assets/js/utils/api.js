@@ -385,15 +385,16 @@ const API = {
       name: room.name,
       type: room.type || '2D',
       capacity: room.capacity || 0,
-      rows: 0,
-      cols: 0,
+      rows: room.rows || 0,
+      cols: room.cols || 0,
+      seatTypeSummary: room.seatTypeSummary || {},
     };
   },
 
   getBackendUserId() {
     const user = State && State.get ? State.get('currentUser') : null;
     if (!user || !user.backendUserId) {
-      throw new Error('Tai khoan hien tai chua lien ket database. Vui long dang xuat va dang nhap lai.');
+      throw new Error('Tài khoản hiện tại chưa liên kết database. Vui lòng đăng xuất và đăng nhập lại.');
     }
     return user.backendUserId;
   },
@@ -551,12 +552,24 @@ const API = {
     return this.backendRequest('/bookings');
   },
 
+  getAdminBookingDetail(bookingId) {
+    return this.backendRequest(`/bookings/${bookingId}`);
+  },
+
   getAdminDashboard() {
     return this.backendRequest('/admin/dashboard');
   },
 
   getAdminCinemas() {
     return this.backendRequest('/admin/cinemas');
+  },
+
+  getAdminRooms() {
+    return this.backendRequest('/admin/rooms');
+  },
+
+  getAdminShowtimes() {
+    return this.backendRequest('/admin/showtimes');
   },
 
   getCinemaTicketPrices(cinemaId) {

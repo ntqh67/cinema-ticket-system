@@ -31,13 +31,13 @@ const PaymentController = {
     if (!AuthController.checkAuth()) return;
     const onlineMethods = ['vnpay', 'card', 'momo', 'zalopay'];
     if (!onlineMethods.includes(method)) {
-      Toast.error('Phuong thuc thanh toan khong hop le');
+      Toast.error('Phương thức thanh toán không hợp lệ');
       return;
     }
 
     const booking = State.get('currentBooking');
     if (!booking) {
-      Toast.error('Phien dat ve da het han');
+      Toast.error('Phiên đặt vé đã hết hạn');
       Router.navigate('/');
       return;
     }
@@ -48,14 +48,13 @@ const PaymentController = {
         console.warn('Could not expire pending bookings:', error);
       }
       State.set('currentBooking', null);
-      Toast.error('Phien giu ghe da het han. Vui long chon ghe lai.');
+      Toast.error('Phiên giữ ghế đã hết hạn. Vui lòng chọn ghế lại.');
       Router.navigate(`/seats/${booking.showtimeId}`);
       return;
     }
 
     const user = State.get('currentUser');
-    let finalAmount = booking.totalPrice + PaymentView.getComboSubtotal();
-    let comboItems = PaymentView.getSelectedComboItems();
+    const finalAmount = booking.totalPrice;
     const paymentData = {
       userId: user.id,
       backendBookingId: booking.backendBookingId,
@@ -65,7 +64,7 @@ const PaymentController = {
       roomId: booking.roomId,
       seats: booking.seats.map((seat) => typeof seat === 'object' ? seat.id : seat),
       totalAmount: finalAmount,
-      comboItems,
+      comboItems: booking.comboItems || [],
       discount: 0,
       promoCode: null,
       paymentMethod: method,
@@ -74,17 +73,6 @@ const PaymentController = {
 
     PaymentView.showProcessing();
     try {
-      const comboResult = await API.updateBookingCombos(booking.backendBookingId, comboItems);
-      finalAmount = comboResult.totalAmount;
-      paymentData.totalAmount = finalAmount;
-      paymentData.comboItems = comboResult.comboItems || [];
-      State.set('currentBooking', {
-        ...booking,
-        totalPrice: finalAmount,
-        seatSubtotal: comboResult.seatSubtotal,
-        comboSubtotal: comboResult.comboSubtotal,
-        comboItems: comboResult.comboItems || [],
-      });
       const result = await PaymentModel.process(paymentData);
       if (result.success && result.redirect && result.paymentUrl) {
         PaymentView._clearHoldCountdown();
@@ -94,13 +82,13 @@ const PaymentController = {
         State.set('currentBooking', null);
         SeatController.selectedSeats = [];
         Router.navigate(`/ticket/${result.booking.id}`);
-        Toast.success('Thanh toan thanh cong!');
+        Toast.success('Thanh toán thành công!');
       } else {
-        Toast.error('Thanh toan that bai, vui long thu lai');
+        Toast.error('Thanh toán thất bại, vui lòng thử lại');
         PaymentView.hideProcessing();
       }
     } catch (error) {
-      Toast.error(error.message || 'Thanh toan that bai, vui long thu lai');
+      Toast.error(error.message || 'Thanh toán thất bại, vui lòng thử lại');
       PaymentView.hideProcessing();
     }
   },

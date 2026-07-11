@@ -66,6 +66,11 @@ export class BookingsController {
     return this.bookingsService.findAll();
   }
 
+  @Get(':bookingId')
+  findOne(@Param('bookingId') bookingId: string) {
+    return this.bookingsService.findOne(bookingId);
+  }
+
   @Get(':bookingId/tickets')
   findBookingTickets(@Param('bookingId') bookingId: string) {
     return this.bookingsService.findBookingTickets(bookingId);

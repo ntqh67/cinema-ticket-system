@@ -318,13 +318,38 @@ export class AdminService {
     });
   }
 
-  listRooms() {
-    return this.prisma.room.findMany({
+  async listRooms() {
+    const rooms = await this.prisma.room.findMany({
       include: {
         cinema: { include: { chain: true } },
+        seats: true,
         _count: { select: { seats: true, showtimes: true } },
       },
       orderBy: [{ cinemaId: 'asc' }, { name: 'asc' }],
+    });
+
+    return rooms.map((room) => {
+      const rowLabels = [...new Set(room.seats.map((seat) => seat.row))].sort();
+      const cols = room.seats.reduce((max, seat) => Math.max(max, seat.number), 0);
+      const seatTypeSummary = room.seats.reduce((summary, seat) => {
+        summary[seat.type] = (summary[seat.type] || 0) + 1;
+        return summary;
+      }, {} as Record<string, number>);
+
+      return {
+        id: room.id,
+        cinemaId: room.cinemaId,
+        cinema: room.cinema,
+        name: room.name,
+        capacity: room.capacity,
+        rows: rowLabels.length,
+        cols,
+        seatCount: room._count.seats,
+        showtimeCount: room._count.showtimes,
+        seatTypeSummary,
+        createdAt: room.createdAt,
+        updatedAt: room.updatedAt,
+      };
     });
   }
 
@@ -399,14 +424,59 @@ export class AdminService {
     return { roomId, createdSeatCount: seats.length };
   }
 
-  listShowtimes() {
-    return this.prisma.showtime.findMany({
+  async listShowtimes() {
+    const showtimes = await this.prisma.showtime.findMany({
       include: {
         movie: true,
         room: { include: { cinema: { include: { chain: true } } } },
+        showtimeSeats: {
+          select: {
+            status: true,
+            price: true,
+            seat: { select: { type: true } },
+          },
+        },
         _count: true,
       },
       orderBy: { startAt: 'asc' },
+    });
+
+    return showtimes.map((showtime) => {
+      const totalSeats = showtime.showtimeSeats.length;
+      const bookedSeats = showtime.showtimeSeats.filter((seat) => seat.status === 'BOOKED').length;
+      const priceBySeatType = showtime.showtimeSeats.reduce((prices, showtimeSeat) => {
+        const seatType = showtimeSeat.seat.type;
+        const price = Number(showtimeSeat.price);
+        if (prices[seatType] === undefined || price < prices[seatType]) {
+          prices[seatType] = price;
+        }
+        return prices;
+      }, {} as Record<string, number>);
+
+      return {
+        id: showtime.id,
+        movieId: showtime.movieId,
+        roomId: showtime.roomId,
+        cinemaId: showtime.room.cinema.id,
+        chainId: showtime.room.cinema.chainId || showtime.room.cinema.id,
+        movie: showtime.movie,
+        room: showtime.room,
+        cinema: showtime.room.cinema,
+        chain: showtime.room.cinema.chain,
+        startAt: showtime.startAt,
+        endAt: showtime.endAt,
+        basePrice: Number(showtime.basePrice),
+        price: {
+          normal: priceBySeatType.STANDARD ?? Number(showtime.basePrice),
+          vip: priceBySeatType.VIP ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
+          couple: priceBySeatType.COUPLE ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
+        },
+        totalSeats,
+        bookedSeats,
+        seatBookedPercent: totalSeats ? Math.round((bookedSeats / totalSeats) * 100) : 0,
+        createdAt: showtime.createdAt,
+        updatedAt: showtime.updatedAt,
+      };
     });
   }
 

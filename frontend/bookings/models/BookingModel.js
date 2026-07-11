@@ -9,6 +9,10 @@ const BookingModel = {
     return null;
   },
 
+  async getDetail(id) {
+    return API.getAdminBookingDetail(id);
+  },
+
   getByUser(userId) {
     return [];
   },

@@ -200,12 +200,12 @@ const UserView = {
     <div class="admin-layout-wrap">
       ${this._renderAdminSidebar("users")}
       <div class="admin-main">
-        ${this._renderAdminTopbar("Quan Ly Nguoi Dung", "admin/users")}
+        ${this._renderAdminTopbar("Quản Lý Người Dùng", "admin/users")}
         <div class="admin-content">
           <div class="admin-page-header">
             <div>
-              <h1 class="admin-page-title">Nguoi Dung</h1>
-              <p class="admin-page-subtitle">${users.length} nguoi dung trong he thong</p>
+              <h1 class="admin-page-title">Người Dùng</h1>
+              <p class="admin-page-subtitle">${users.length} người dùng trong hệ thống</p>
             </div>
           </div>
         </div>
@@ -223,20 +223,20 @@ const UserView = {
       </div>
       <nav class="admin-nav">
         <div class="admin-nav-section">
-          <div class="admin-nav-section-title">Tong Quan</div>
+          <div class="admin-nav-section-title">Tổng Quan</div>
           <a class="admin-nav-item ${active === "dashboard" ? "active" : ""}" onclick="Router.navigate('/admin')"><i class="fas fa-chart-line"></i> Dashboard</a>
-          <a class="admin-nav-item ${active === "reports" ? "active" : ""}" onclick="Router.navigate('/admin/reports')"><i class="fas fa-chart-bar"></i> Bao Cao</a>
+          <a class="admin-nav-item ${active === "reports" ? "active" : ""}" onclick="Router.navigate('/admin/reports')"><i class="fas fa-chart-bar"></i> Báo Cáo</a>
         </div>
         <div class="admin-nav-section">
-          <div class="admin-nav-section-title">Quan Ly</div>
+          <div class="admin-nav-section-title">Quản Lý</div>
           <a class="admin-nav-item ${active === "movies" ? "active" : ""}" onclick="Router.navigate('/admin/movies')"><i class="fas fa-film"></i> Phim</a>
-          <a class="admin-nav-item ${active === "cinemas" ? "active" : ""}" onclick="Router.navigate('/admin/cinemas')"><i class="fas fa-building"></i> Rap Chieu</a>
-          <a class="admin-nav-item ${active === "rooms" ? "active" : ""}" onclick="Router.navigate('/admin/rooms')"><i class="fas fa-door-open"></i> Phong Chieu</a>
-          <a class="admin-nav-item ${active === "showtimes" ? "active" : ""}" onclick="Router.navigate('/admin/showtimes')"><i class="fas fa-calendar-alt"></i> Lich Chieu</a>
-          <a class="admin-nav-item ${active === "bookings" ? "active" : ""}" onclick="Router.navigate('/admin/bookings')"><i class="fas fa-ticket-alt"></i> Dat Ve</a>
+          <a class="admin-nav-item ${active === "cinemas" ? "active" : ""}" onclick="Router.navigate('/admin/cinemas')"><i class="fas fa-building"></i> Rạp Chiếu</a>
+          <a class="admin-nav-item ${active === "rooms" ? "active" : ""}" onclick="Router.navigate('/admin/rooms')"><i class="fas fa-door-open"></i> Phòng Chiếu</a>
+          <a class="admin-nav-item ${active === "showtimes" ? "active" : ""}" onclick="Router.navigate('/admin/showtimes')"><i class="fas fa-calendar-alt"></i> Lịch Chiếu</a>
+          <a class="admin-nav-item ${active === "bookings" ? "active" : ""}" onclick="Router.navigate('/admin/bookings')"><i class="fas fa-ticket-alt"></i> Đặt Vé</a>
           <a class="admin-nav-item ${active === "concessions" ? "active" : ""}" onclick="Router.navigate('/admin/concessions')"><i class="fas fa-shopping-basket"></i> Combo</a>
-          <a class="admin-nav-item ${active === "users" ? "active" : ""}" onclick="Router.navigate('/admin/users')"><i class="fas fa-users"></i> Nguoi Dung</a>
-          <a class="admin-nav-item ${active === "promotions" ? "active" : ""}" onclick="Router.navigate('/admin/promotions')"><i class="fas fa-tags"></i> Khuyen Mai</a>
+          <a class="admin-nav-item ${active === "users" ? "active" : ""}" onclick="Router.navigate('/admin/users')"><i class="fas fa-users"></i> Người Dùng</a>
+          <a class="admin-nav-item ${active === "promotions" ? "active" : ""}" onclick="Router.navigate('/admin/promotions')"><i class="fas fa-tags"></i> Khuyến Mãi</a>
         </div>
       </nav>
       <div class="admin-sidebar-footer">
@@ -244,11 +244,11 @@ const UserView = {
           <div class="admin-user-avatar">${(State.get("currentUser") || { name: "A" }).name.charAt(0)}</div>
           <div>
             <div class="admin-user-name">${Helpers.escapeHtml((State.get("currentUser") || { name: "Admin" }).name)}</div>
-            <div class="admin-user-role">Quan Tri Vien</div>
+            <div class="admin-user-role">Quản Trị Viên</div>
           </div>
         </div>
         <button class="admin-logout-btn" onclick="AuthController.handleLogout()">
-          <i class="fas fa-sign-out-alt"></i> Dang Xuat
+          <i class="fas fa-sign-out-alt"></i> Đăng Xuất
         </button>
       </div>
     </aside>`;
@@ -263,7 +263,7 @@ const UserView = {
         <span class="breadcrumb-current">${title}</span>
       </div>
       <div class="admin-topbar-actions">
-        <button class="home-link-btn" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chu</button>
+        <button class="home-link-btn" onclick="Router.navigate('/')"><i class="fas fa-home"></i> Trang Chủ</button>
       </div>
     </div>`;
   },

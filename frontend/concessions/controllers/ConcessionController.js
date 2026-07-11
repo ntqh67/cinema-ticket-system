@@ -12,7 +12,7 @@ const ConcessionController = {
     };
 
     if (!data.name || data.price <= 0) {
-      Toast.error('Vui long nhap ten combo va gia hop le');
+      Toast.error('Vui lòng nhập tên combo và giá hợp lệ');
       return;
     }
 
@@ -23,22 +23,22 @@ const ConcessionController = {
         await API.createAdminConcessionCombo(data);
       }
       Modal.close();
-      Toast.success('Da luu combo');
+      Toast.success('Đã lưu combo');
       ConcessionView.renderAdmin();
     } catch (error) {
-      Toast.error(error.message || 'Khong the luu combo');
+      Toast.error(error.message || 'Không thể lưu combo');
     }
   },
 
   async handleDelete(comboId) {
-    const ok = await Modal.confirm('An combo nay khoi danh sach dang ban?', 'Xac Nhan', 'danger');
+    const ok = await Modal.confirm('Ẩn combo này khỏi danh sách đang bán?', 'Xác Nhận', 'danger');
     if (!ok) return;
     try {
       await API.deleteAdminConcessionCombo(comboId);
-      Toast.success('Da an combo');
+      Toast.success('Đã ẩn combo');
       ConcessionView.renderAdmin();
     } catch (error) {
-      Toast.error(error.message || 'Khong the an combo');
+      Toast.error(error.message || 'Không thể ẩn combo');
     }
   },
 };

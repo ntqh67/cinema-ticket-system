@@ -13,12 +13,12 @@ const BookingController = {
   },
 
   handleCancel(id) {
-    Modal.confirm('Ban co chac muon huy dat ve nay?', 'Huy Dat Ve', 'danger').then((ok) => {
+    Modal.confirm('Bạn có chắc muốn hủy đặt vé này?', 'Hủy Đặt Vé', 'danger').then((ok) => {
       if (!ok) return;
 
       BookingModel.cancel(id)
         .then(() => {
-          Toast.success('Da huy dat ve');
+          Toast.success('Đã hủy đặt vé');
           if (location.hash.includes('/admin/bookings')) {
             BookingView.renderAdmin();
           } else {
@@ -26,7 +26,7 @@ const BookingController = {
           }
         })
         .catch((error) => {
-          Toast.error(error.message || 'Khong the huy dat ve');
+          Toast.error(error.message || 'Không thể hủy đặt vé');
         });
     });
   },
