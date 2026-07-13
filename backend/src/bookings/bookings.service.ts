@@ -64,6 +64,34 @@ export class BookingsService {
     private readonly seatHoldsService: SeatHoldsService,
   ) {}
 
+  getPaymentMethods() {
+    const sepayEnabled = Boolean(
+      process.env.SEPAY_BANK_ACCOUNT?.trim() &&
+        process.env.SEPAY_BANK_CODE?.trim(),
+    );
+    const vnpayDemo = this.isVnpayDemoMode();
+    const vnpayConfigured = Boolean(
+      process.env.VNPAY_TMN_CODE?.trim() &&
+        process.env.VNPAY_HASH_SECRET?.trim() &&
+        !process.env.VNPAY_TMN_CODE?.startsWith('YOUR_') &&
+        !process.env.VNPAY_HASH_SECRET?.startsWith('YOUR_'),
+    );
+
+    return {
+      methods: [
+        { id: 'sepay', enabled: sepayEnabled, mode: 'live' },
+        {
+          id: 'vnpay',
+          enabled: vnpayDemo || vnpayConfigured,
+          mode: vnpayDemo ? 'demo' : 'live',
+        },
+        { id: 'momo', enabled: true, mode: 'demo' },
+        { id: 'zalopay', enabled: true, mode: 'demo' },
+        { id: 'card', enabled: true, mode: 'demo' },
+      ],
+    };
+  }
+
   async create(createBookingDto: CreateBookingDto) {
     const { userId, showtimeId } = createBookingDto;
     const showtimeSeatIds = [...new Set(createBookingDto.showtimeSeatIds)];

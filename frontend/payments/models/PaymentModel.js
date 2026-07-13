@@ -16,6 +16,17 @@ const PaymentModel = {
       return { success: true, sepay: true, payment: sepay, booking: bookingData };
     }
 
+    if (bookingData.paymentMethod === 'vnpay') {
+      const vnpay = await API.createVnpayPayment(bookingData.backendBookingId);
+      return {
+        success: true,
+        redirect: true,
+        paymentUrl: vnpay.paymentUrl,
+        payment: vnpay,
+        booking: bookingData,
+      };
+    }
+
     const paid = await API.onlineDemoPay(
       bookingData.backendBookingId,
       bookingData.paymentMethod

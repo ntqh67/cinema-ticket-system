@@ -31,6 +31,11 @@ export class BookingsController {
     return this.bookingsService.expirePendingBookings();
   }
 
+  @Get('payment-methods')
+  getPaymentMethods() {
+    return this.bookingsService.getPaymentMethods();
+  }
+
   @Get('vnpay-return')
   async handleVnpayReturn(
     @Query() query: Record<string, string>,

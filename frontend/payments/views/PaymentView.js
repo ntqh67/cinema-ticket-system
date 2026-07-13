@@ -1,8 +1,9 @@
 /* CineTicket - Payment View */
 const PaymentView = {
-  _selectedMethod: 'sepay',
+  _selectedMethod: null,
   _processing: false,
   _holdTimer: null,
+  _methodAvailability: {},
 
   async render() {
     if (!AuthController.checkAuth()) return;
@@ -13,10 +14,32 @@ const PaymentView = {
       Router.navigate('/');
       return;
     }
+    if (booking.backendBookingId) {
+      try {
+        const persistedBooking = await API.getAdminBookingDetail(booking.backendBookingId);
+        if (persistedBooking.status === 'PAID') {
+          State.set('currentBooking', null);
+          SeatController.selectedSeats = [];
+          Router.navigate(`/ticket/${booking.backendBookingId}`);
+          Toast.info('Đơn hàng đã được thanh toán. Đang mở vé của bạn.');
+          return;
+        }
+        if (['CANCELLED', 'EXPIRED'].includes(persistedBooking.status)) {
+          State.set('currentBooking', null);
+          SeatController.selectedSeats = [];
+          Toast.error('Đơn hàng không còn hiệu lực. Vui lòng chọn ghế lại.');
+          Router.navigate(booking.showtimeId ? `/seats/${booking.showtimeId}` : '/movies');
+          return;
+        }
+      } catch (error) {
+        console.warn('Could not refresh booking status:', error);
+      }
+    }
 
     const movie = MovieModel.getById(booking.movieId);
     const showtime = ShowtimeModel.getById(booking.showtimeId);
     const cinema = showtime ? CinemaModel.getById(showtime.cinemaId) : null;
+    await this._loadPaymentMethods();
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
     if (!main) return;
@@ -53,10 +76,10 @@ const PaymentView = {
                 <form id="payment-form" onsubmit="PaymentController.handleSubmit(event, PaymentView._selectedMethod)">
                   <div class="payment-methods">
                     ${this._methodOption('sepay', 'fas fa-qrcode', 'sepay', 'SePay QR', 'Chuyển khoản ngân hàng, tự động xác nhận')}
-                    ${this._methodOption('card', 'fas fa-credit-card', 'card', 'Thẻ tín dụng / ghi nợ', 'Visa, MasterCard, JCB')}
-                    ${this._methodOption('momo', 'fas fa-mobile-alt', 'momo', 'MoMo', 'Thanh toán qua ví MoMo')}
                     ${this._methodOption('vnpay', 'fas fa-qrcode', 'vnpay', 'VNPay', 'Thanh toán qua VNPay QR')}
+                    ${this._methodOption('momo', 'fas fa-mobile-alt', 'momo', 'MoMo', 'Thanh toán qua ví MoMo')}
                     ${this._methodOption('zalopay', 'fas fa-wallet', 'zalopay', 'ZaloPay', 'Thanh toán qua ví ZaloPay')}
+                    ${this._methodOption('card', 'fas fa-credit-card', 'card', 'Thẻ tín dụng / ghi nợ', 'Visa, MasterCard, JCB')}
                   </div>
 
                   <div class="card-form" id="card-form">
@@ -133,6 +156,7 @@ const PaymentView = {
 
     document.querySelectorAll('.payment-method-option').forEach((option) => {
       option.addEventListener('click', () => {
+        if (option.classList.contains('disabled')) return;
         this._selectedMethod = option.dataset.method;
         document.querySelectorAll('.payment-method-option').forEach((item) => item.classList.remove('selected'));
         option.classList.add('selected');
@@ -141,6 +165,31 @@ const PaymentView = {
       });
     });
     this._startHoldCountdown(booking.expiresAt, booking.showtimeId);
+  },
+
+  async _loadPaymentMethods() {
+    let methods;
+    try {
+      const response = await API.getPaymentMethods();
+      methods = response.methods;
+    } catch (error) {
+      console.warn('Could not load payment method availability:', error);
+      methods = [
+        { id: 'sepay', enabled: false, mode: 'live' },
+        { id: 'vnpay', enabled: false, mode: 'live' },
+        { id: 'momo', enabled: true, mode: 'demo' },
+        { id: 'zalopay', enabled: true, mode: 'demo' },
+        { id: 'card', enabled: true, mode: 'demo' },
+      ];
+    }
+
+    this._methodAvailability = Object.fromEntries(
+      methods.map((method) => [method.id, method]),
+    );
+    const selected = this._methodAvailability[this._selectedMethod];
+    if (!selected?.enabled) {
+      this._selectedMethod = methods.find((method) => method.enabled)?.id || null;
+    }
   },
 
   _comboSummary(comboItems) {
@@ -194,12 +243,17 @@ const PaymentView = {
   },
 
   _methodOption(method, iconClass, iconType, label, desc) {
+    const availability = this._methodAvailability[method] || { enabled: false, mode: 'live' };
+    const selected = availability.enabled && method === this._selectedMethod;
+    const status = availability.enabled
+      ? availability.mode === 'demo' ? '<span class="payment-method-badge">Demo</span>' : ''
+      : '<span class="payment-method-badge unavailable">Chưa cấu hình</span>';
     return `
-    <label class="payment-method-option ${method === this._selectedMethod ? 'selected' : ''}" data-method="${method}">
-      <input type="radio" name="payment-method" value="${method}" ${method === this._selectedMethod ? 'checked' : ''} />
+    <label class="payment-method-option ${selected ? 'selected' : ''} ${availability.enabled ? '' : 'disabled'}" data-method="${method}">
+      <input type="radio" name="payment-method" value="${method}" ${selected ? 'checked' : ''} ${availability.enabled ? '' : 'disabled'} />
       <div class="payment-method-icon ${iconType}"><i class="${iconClass}"></i></div>
-      <div>
-        <div class="payment-method-label">${label}</div>
+      <div class="payment-method-copy">
+        <div class="payment-method-title"><div class="payment-method-label">${label}</div>${status}</div>
         <div class="payment-method-desc">${desc}</div>
       </div>
     </label>`;

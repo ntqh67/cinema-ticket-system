@@ -222,6 +222,8 @@
 }
 .payment-method-option:hover { border-color: var(--color-border-light); }
 .payment-method-option.selected { border-color: var(--color-primary); background: rgba(229,9,20,0.06); }
+.payment-method-option.disabled { cursor: not-allowed; opacity: 0.55; }
+.payment-method-option.disabled:hover { border-color: var(--color-border); }
 .payment-method-option input[type="radio"] { accent-color: var(--color-primary); width: 18px; height: 18px; flex-shrink: 0; }
 .payment-method-icon {
   width: 44px; height: 44px;
@@ -235,8 +237,20 @@
 .payment-method-icon.momo { background: rgba(168,12,92,0.15); color: #a80c5c; }
 .payment-method-icon.vnpay { background: rgba(0,99,184,0.15); color: #0063b8; }
 .payment-method-icon.zalopay { background: rgba(0,136,204,0.15); color: #0088cc; }
+.payment-method-copy { min-width: 0; flex: 1; }
+.payment-method-title { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-3); }
 .payment-method-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-text); }
 .payment-method-desc { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: 2px; }
+.payment-method-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255,193,7,0.14);
+  color: var(--color-warning);
+  font-size: 0.68rem;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+.payment-method-badge.unavailable { background: rgba(255,255,255,0.08); color: var(--color-text-muted); }
 
 /* Card Form */
 .card-form { margin-top: var(--spacing-5); display: none; }

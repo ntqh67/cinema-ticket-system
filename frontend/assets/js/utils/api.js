@@ -489,6 +489,10 @@ const API = {
     });
   },
 
+  getPaymentMethods() {
+    return this.backendRequest('/bookings/payment-methods');
+  },
+
   payBooking(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}/pay`, {
       method: 'POST'
