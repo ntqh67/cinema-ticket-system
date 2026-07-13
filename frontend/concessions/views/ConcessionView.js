@@ -65,7 +65,7 @@ const ConcessionView = {
             <div class="order-panel-body">
               <div class="order-line">
                 <span class="order-line-label">Tiền ghế</span>
-                <span class="order-line-value">${Helpers.formatCurrency(booking.seatSubtotal || booking.totalPrice || 0)}</span>
+                <span class="order-line-value">${Helpers.formatCurrency(booking.seatSubtotal ?? booking.totalPrice ?? 0)}</span>
               </div>
               <div class="order-line">
                 <span class="order-line-label">Tiền combo</span>
@@ -74,7 +74,7 @@ const ConcessionView = {
               <div id="concession-combo-summary"></div>
               <div class="order-final">
                 <span>Tổng cộng</span>
-                <span class="order-final-amount" id="concession-total">${Helpers.formatCurrency(booking.totalPrice || 0)}</span>
+                <span class="order-final-amount" id="concession-total">${Helpers.formatCurrency(booking.totalPrice ?? 0)}</span>
               </div>
               <div class="concession-actions">
                 <button class="btn btn-outline btn-block" onclick="ConcessionView.skipCheckout()">Bỏ qua</button>
@@ -169,7 +169,7 @@ const ConcessionView = {
     // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (subtotal) subtotal.textContent = Helpers.formatCurrency(comboSubtotal);
     // Kiểm tra trạng thái ghế và lượt giữ ghế trước khi cập nhật lựa chọn.
-    if (total) total.textContent = Helpers.formatCurrency((booking.seatSubtotal || booking.totalPrice || 0) + comboSubtotal);
+    if (total) total.textContent = Helpers.formatCurrency((booking.seatSubtotal ?? booking.totalPrice ?? 0) + comboSubtotal);
   },
 
   // Kiểm tra điều kiện nghiệp vụ trong khối skipCheckout trước khi tiếp tục.
@@ -231,51 +231,49 @@ const ConcessionView = {
           <div class="admin-page-header">
             <div>
               <h1 class="admin-page-title">Combo Bắp Nước</h1>
-              <p class="admin-page-subtitle">${combos.length} combo trong he thong</p>
+              <p class="admin-page-subtitle">${combos.filter(combo => combo.isActive).length} đang bán · ${combos.length} combo trong hệ thống</p>
             </div>
             <button class="btn btn-primary" onclick="ConcessionView.showForm()"><i class="fas fa-plus"></i> Thêm Combo</button>
           </div>
-          <div class="data-table-wrap">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Combo</th>
-                  <th>Mô Tả</th>
-                  <th>Giá</th>
-                  <th>Trạng Thái</th>
-                  <th>Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${combos.map((combo) => this._row(combo)).join('') || '<tr><td colspan="5" class="empty-cell">Chưa có combo</td></tr>'}
-              </tbody>
-            </table>
+          <section class="admin-combo-toolbar">
+            <div><i class="fas fa-ticket-alt"></i><span>Danh sách combo được trình bày giống thẻ vé phim</span></div>
+            <div class="admin-combo-toolbar-count"><b>${combos.filter(combo => combo.isActive).length}</b> đang bán</div>
+          </section>
+          <div class="admin-combo-grid">
+            ${combos.map((combo) => this._adminCard(combo)).join('') || '<div class="admin-table-empty">Chưa có combo</div>'}
           </div>
         </div>
       </div>
     </div>`;
   },
 
-  // Dựng phần giao diện tương ứng trong khối _row.
-  _row(combo) {
+  _adminCard(combo) {
     return `
-      <tr>
-        <td>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <img src="${Helpers.escapeHtml(combo.imageUrl || API.moviePosterFallback)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;" onerror="this.src=API.moviePosterFallback" />
-            <strong>${Helpers.escapeHtml(combo.name)}</strong>
+      <article class="admin-combo-card ${combo.isActive ? '' : 'is-hidden'}">
+        <div class="admin-combo-poster-wrap">
+          <img class="admin-combo-poster" src="${Helpers.escapeHtml(combo.imageUrl || API.moviePosterFallback)}" alt="${Helpers.escapeHtml(combo.name)}" onerror="this.src=API.moviePosterFallback" />
+          <span class="admin-combo-status ${combo.isActive ? 'active' : 'hidden'}">${combo.isActive ? 'Đang bán' : 'Đã ẩn'}</span>
+          <span class="admin-combo-ticket-mark"><i class="fas fa-ticket-alt"></i></span>
+        </div>
+        <div class="admin-combo-card-body">
+          <div>
+            <h3>${Helpers.escapeHtml(combo.name)}</h3>
+            <p>${Helpers.escapeHtml(combo.description || 'Combo bắp nước dành cho buổi xem phim.')}</p>
           </div>
-        </td>
-        <td>${Helpers.escapeHtml(combo.description || '')}</td>
-        <td>${Helpers.formatCurrency(Number(combo.price))}</td>
-        <td><span class="badge ${combo.isActive ? 'badge-success' : 'badge-secondary'}">${combo.isActive ? 'Đang bán' : 'Đã ẩn'}</span></td>
-        <td>
-          <div class="table-actions">
-            <button class="action-btn edit" onclick="ConcessionView.showFormById('${combo.id}')"><i class="fas fa-edit"></i></button>
-            <button class="action-btn delete" onclick="ConcessionController.handleDelete('${combo.id}')"><i class="fas fa-trash"></i></button>
+          <div class="admin-combo-price"><small>Giá combo</small><strong>${Helpers.formatCurrency(Number(combo.price))}</strong></div>
+          <div class="admin-combo-actions">
+            <button class="btn btn-outline btn-sm" onclick="ConcessionView.showDetailById('${combo.id}')" title="Xem combo"><i class="fas fa-eye"></i></button>
+            <button class="btn btn-primary btn-sm" onclick="ConcessionView.showFormById('${combo.id}')"><i class="fas fa-edit"></i> Chỉnh Sửa</button>
+            <button class="btn btn-outline btn-sm" onclick="ConcessionController.handleDelete('${combo.id}')" title="Ẩn combo" ${combo.isActive ? '' : 'disabled'}><i class="fas fa-trash"></i></button>
           </div>
-        </td>
-      </tr>`;
+        </div>
+      </article>`;
+  },
+
+  showDetailById(comboId) {
+    const combo = this._combos.find(item => item.id === comboId);
+    if (!combo) return;
+    Modal.show('Chi Tiết Combo', `<div class="admin-combo-detail"><img src="${Helpers.escapeHtml(combo.imageUrl || API.moviePosterFallback)}" onerror="this.src=API.moviePosterFallback" alt="${Helpers.escapeHtml(combo.name)}"><div><span class="badge ${combo.isActive ? 'badge-success' : 'badge-secondary'}">${combo.isActive ? 'Đang bán' : 'Đã ẩn'}</span><h2>${Helpers.escapeHtml(combo.name)}</h2><p>${Helpers.escapeHtml(combo.description || '')}</p><small>Giá bán</small><strong>${Helpers.formatCurrency(Number(combo.price))}</strong><button class="btn btn-primary" onclick="Modal.close();ConcessionView.showFormById('${combo.id}')"><i class="fas fa-edit"></i> Chỉnh Sửa Combo</button></div></div>`, { size: 'lg' });
   },
 
   // Dựng phần giao diện tương ứng trong khối showFormById.
@@ -303,7 +301,22 @@ const ConcessionView = {
         </div>
         <div class="form-group">
           <label class="form-label">Ảnh Combo</label>
-          <input class="form-control" id="combo-image" value="${Helpers.escapeHtml(combo?.imageUrl || '')}" />
+          <input type="hidden" id="combo-image" value="${Helpers.escapeHtml(combo?.imageUrl || '')}" />
+          <div class="combo-image-upload">
+            <img id="combo-image-preview" src="${Helpers.escapeHtml(combo?.imageUrl || API.moviePosterFallback)}" onerror="this.src=API.moviePosterFallback" alt="Xem trước ảnh combo" />
+            <div class="combo-image-upload-actions">
+              <label class="btn btn-primary btn-sm" for="combo-image-file"><i class="fas fa-upload"></i> Tải Ảnh Từ Máy</label>
+              <input id="combo-image-file" type="file" accept="image/jpeg,image/png,image/webp" onchange="ConcessionView.handleComboImageFile(this)" />
+              <small>JPG, PNG hoặc WebP · tối đa 2 MB</small>
+              <select class="form-control" onchange="if(this.value) ConcessionView.setComboImage(this.value)">
+                <option value="">Hoặc chọn ảnh có sẵn</option>
+                <option value="/assets/images/combos/my_combo.jpg">My Combo</option>
+                <option value="/assets/images/combos/double_combo.jpg">Double Combo</option>
+                <option value="/assets/images/combos/hattrick_combo.jpg">Hattrick Combo</option>
+                <option value="/assets/images/combos/poker_combo.jpg">Poker Combo</option>
+              </select>
+            </div>
+          </div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;">
           <input type="checkbox" id="combo-active" ${combo?.isActive === false ? '' : 'checked'} />
@@ -312,5 +325,31 @@ const ConcessionView = {
         <button type="submit" class="btn btn-primary btn-block" style="margin-top:18px;">Lưu Combo</button>
       </form>`;
     Modal.show(isEdit ? 'Sửa Combo' : 'Thêm Combo', content, { size: 'md' });
+  },
+
+  setComboImage(value) {
+    const field = document.getElementById('combo-image');
+    const preview = document.getElementById('combo-image-preview');
+    if (field) field.value = value || '';
+    if (preview) preview.src = value || API.moviePosterFallback;
+  },
+
+  handleComboImageFile(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      Toast.error('Chỉ chấp nhận ảnh JPG, PNG hoặc WebP');
+      input.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      Toast.error('Ảnh combo không được vượt quá 2 MB');
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => this.setComboImage(String(reader.result || ''));
+    reader.onerror = () => Toast.error('Không thể đọc ảnh đã chọn');
+    reader.readAsDataURL(file);
   },
 };

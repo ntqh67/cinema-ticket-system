@@ -158,7 +158,13 @@ const RoomView = {
       await API.updateAdminRoom(roomId, payload);
       Modal.close();
       Toast.success('ÄÃ£ cáº­p nháº­t phÃ²ng chiáº¿u');
-      this.renderAdmin();
+      const returnCinemaId = this._returnCinemaId;
+      this._returnCinemaId = null;
+      if (returnCinemaId) {
+        CinemaView.renderAdminDetail({ id: returnCinemaId });
+      } else {
+        this.renderAdmin();
+      }
     } catch (error) {
       Toast.error(error.message || 'KhÃ´ng thá»ƒ cáº­p nháº­t phÃ²ng chiáº¿u');
     }

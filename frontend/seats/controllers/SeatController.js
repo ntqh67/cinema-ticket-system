@@ -113,6 +113,16 @@ const SeatController = {
         showtimeSeatIds: this.selectedSeats.map((seat) => seat.showtimeSeatId),
         sessionId: API.getSeatHoldSessionId(),
       });
+      const bookingItems = new Map(
+        (booking.items || []).map(item => [item.showtimeSeatId, item]),
+      );
+      const pricedSeats = this.selectedSeats.map(seat => ({
+        ...seat,
+        originalPrice: seat.price,
+        price: bookingItems.has(seat.showtimeSeatId)
+          ? bookingItems.get(seat.showtimeSeatId).unitPrice
+          : seat.price,
+      }));
 
       State.set('currentBooking', {
         backendBookingId: booking.id,
@@ -120,8 +130,11 @@ const SeatController = {
         movieId: this.currentShowtime.movieId,
         cinemaId: this.currentShowtime.cinemaId,
         roomId: this.currentShowtime.roomId,
-        seats: this.selectedSeats,
-        totalPrice: booking.totalAmount || this.getTotalPrice(),
+        seats: pricedSeats,
+        totalPrice: booking.totalAmount ?? this.getTotalPrice(),
+        seatSubtotal: booking.seatSubtotal ?? booking.totalAmount ?? 0,
+        accountRole: booking.accountRole,
+        ticketDiscountPercent: booking.ticketDiscountPercent || 0,
         expiresAt: booking.expiresAt,
       });
 

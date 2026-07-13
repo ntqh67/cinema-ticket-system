@@ -60,7 +60,12 @@ export class UsersService {
       username: user.username,
       name: name || user.email,
       phone: user.phone || '',
-      role: user.role === Role.ADMIN ? 'admin' : 'user',
+      role:
+        user.role === Role.ADMIN
+          ? 'admin'
+          : user.role === Role.STAFF
+            ? 'staff'
+            : 'user',
       isActive: user.isActive,
       createdAt: user.createdAt,
     };

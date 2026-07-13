@@ -17,6 +17,11 @@ const PaymentView = {
     const movie = MovieModel.getById(booking.movieId);
     const showtime = ShowtimeModel.getById(booking.showtimeId);
     const cinema = showtime ? CinemaModel.getById(showtime.cinemaId) : null;
+    const isFreeBooking = Number(booking.totalPrice || 0) === 0;
+    const ticketDiscount = (booking.seats || []).reduce(
+      (sum, seat) => sum + Math.max(0, Number(seat.originalPrice || seat.price || 0) - Number(seat.price || 0)),
+      0,
+    );
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
     if (!main) return;
@@ -51,13 +56,13 @@ const PaymentView = {
               </div>
               <div class="booking-card-body">
                 <form id="payment-form" onsubmit="PaymentController.handleSubmit(event, PaymentView._selectedMethod)">
-                  <div class="payment-methods">
+                  ${isFreeBooking ? `<div class="alert alert-info"><i class="fas fa-shield-alt"></i> Vé dành cho tài khoản Admin có giá 0 ₫. Hãy xác nhận để phát hành vé.</div>` : `<div class="payment-methods">
                     ${this._methodOption('sepay', 'fas fa-qrcode', 'sepay', 'SePay QR', 'Chuyển khoản ngân hàng, tự động xác nhận')}
                     ${this._methodOption('card', 'fas fa-credit-card', 'card', 'Thẻ tín dụng / ghi nợ', 'Visa, MasterCard, JCB')}
                     ${this._methodOption('momo', 'fas fa-mobile-alt', 'momo', 'MoMo', 'Thanh toán qua ví MoMo')}
                     ${this._methodOption('vnpay', 'fas fa-qrcode', 'vnpay', 'VNPay', 'Thanh toán qua VNPay QR')}
                     ${this._methodOption('zalopay', 'fas fa-wallet', 'zalopay', 'ZaloPay', 'Thanh toán qua ví ZaloPay')}
-                  </div>
+                  </div>`}
 
                   <div class="card-form" id="card-form">
                     <div class="form-group">
@@ -82,7 +87,7 @@ const PaymentView = {
                   </div>
 
                   <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:24px;" id="pay-btn">
-                    <i class="fas fa-lock"></i> Xác Nhận Thanh Toán
+                    <i class="fas fa-${isFreeBooking ? 'ticket-alt' : 'lock'}"></i> ${isFreeBooking ? 'Xác Nhận Vé 0 ₫' : 'Xác Nhận Thanh Toán'}
                   </button>
                 </form>
               </div>
@@ -107,6 +112,7 @@ const PaymentView = {
               <div class="order-line"><span class="order-line-label">Ghế</span><span class="order-line-value" style="font-size:0.85rem;">${Helpers.escapeHtml(seatNames)}</span></div>
               <div class="order-line"><span class="order-line-label">Giữ ghế còn lại</span><span class="order-line-value" id="booking-hold-countdown">--:--</span></div>
               ${seatDetails}
+              ${booking.ticketDiscountPercent ? `<div class="order-row"><span class="order-row-label" style="color:var(--color-success);">Ưu đãi ${booking.accountRole === 'ADMIN' ? 'Admin' : 'Nhân viên'} (${booking.ticketDiscountPercent}%)</span><span class="order-row-value" style="color:var(--color-success);">- ${Helpers.formatCurrency(ticketDiscount)}</span></div>` : ''}
               ${this._comboSummary(booking.comboItems || [])}
               <div class="order-line" id="discount-line" style="display:none;">
                 <span class="order-line-label" style="color:var(--color-success);">Giảm Giá</span>

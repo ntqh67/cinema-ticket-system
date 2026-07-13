@@ -40,6 +40,8 @@ const AuthController = {
       // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
       if (result.user.role === 'admin') {
         Router.navigate('/admin');
+      } else if (result.user.role === 'staff') {
+        Router.navigate('/staff/attendance');
       } else {
         const returnRoute = sessionStorage.getItem('post_login_route');
         sessionStorage.removeItem('post_login_route');

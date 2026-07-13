@@ -7,5 +7,9 @@ const ReportController = {
   // Đọc và lọc dữ liệu cần thiết trong khối getSummary.
   async getSummary() {
     return ReportModel.getSummary();
+  },
+
+  async getRevenue(days = 30) {
+    return API.getAdminRevenue(days);
   }
 };

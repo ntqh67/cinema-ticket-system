@@ -1,8 +1,8 @@
 /**
  * Mục đích: Tiếp nhận yêu cầu HTTP cho miền quản trị và chuyển xử lý sang service.
  */
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import {
   CreateCinemaDto,
@@ -11,11 +11,11 @@ import {
   CreateGenreDto,
   CreateMovieFromTmdbDto,
   CreateMovieDto,
-  ImportUpcomingMoviesFromTmdbDto,
   RoomAvailableSlotsQueryDto,
   CreateRoomDto,
   CreateSeatDto,
   CreateShowtimeDto,
+  CreateStaffDto,
   GenerateSeatsDto,
   UpdateCinemaDto,
   UpdateConcessionComboDto,
@@ -27,14 +27,23 @@ import {
   UpdateShowtimeDto,
   UpsertCinemaTicketPriceDto,
 } from './dto/admin.dto';
+import { AdminGuard } from './admin.guard';
 
 @ApiTags('admin')
+@ApiBearerAuth()
+@UseGuards(AdminGuard)
 @Controller('admin')
 // Lớp AdminController nhận thao tác từ HTTP hoặc giao diện và chuyển chúng tới lớp nghiệp vụ phù hợp.
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('dashboard') getDashboard() { return this.adminService.getDashboard(); }
+  @Get('dashboard/showtimes') getDashboardShowtimes(@Query('date') date: string) { return this.adminService.getDashboardShowtimes(date); }
+  @Get('revenue') getRevenueReport(@Query('days') days?: string) { return this.adminService.getRevenueReport(days); }
+  @Get('users') listUsers(@Query('role') role?: string) { return this.adminService.listUsers(role); }
+  @Post('staff') createStaff(@Body() dto: CreateStaffDto) { return this.adminService.createStaff(dto); }
+  @Get('staff/:id') getStaffDetail(@Param('id') id: string) { return this.adminService.getStaffDetail(id); }
+  @Delete('staff/:id') removeStaff(@Param('id') id: string) { return this.adminService.removeStaff(id); }
 
   @Get('genres') listGenres() { return this.adminService.listGenres(); }
   @Post('genres') createGenre(@Body() dto: CreateGenreDto) { return this.adminService.createGenre(dto); }
@@ -42,8 +51,8 @@ export class AdminController {
   @Delete('genres/:id') deleteGenre(@Param('id') id: string) { return this.adminService.deleteGenre(id); }
 
   @Get('movies') listMovies() { return this.adminService.listMovies(); }
+  @Get('movies/:id/sales') getMovieSales(@Param('id') id: string) { return this.adminService.getMovieSales(id); }
   @Post('movies/tmdb') createMovieFromTmdb(@Body() dto: CreateMovieFromTmdbDto) { return this.adminService.createMovieFromTmdb(dto); }
-  @Post('movies/tmdb/upcoming') importUpcomingMoviesFromTmdb(@Body() dto: ImportUpcomingMoviesFromTmdbDto) { return this.adminService.importUpcomingMoviesFromTmdb(dto); }
   @Post('movies') createMovie(@Body() dto: CreateMovieDto) { return this.adminService.createMovie(dto); }
   @Patch('movies/:id') updateMovie(@Param('id') id: string, @Body() dto: UpdateMovieDto) { return this.adminService.updateMovie(id, dto); }
   @Delete('movies/:id') deleteMovie(@Param('id') id: string) { return this.adminService.deleteMovie(id); }
@@ -54,6 +63,8 @@ export class AdminController {
   @Delete('cinema-chains/:id') deleteCinemaChain(@Param('id') id: string) { return this.adminService.deleteCinemaChain(id); }
 
   @Get('cinemas') listCinemas() { return this.adminService.listCinemas(); }
+  @Get('cinemas/:id/overview') getCinemaOverview(@Param('id') id: string) { return this.adminService.getCinemaOverview(id); }
+  @Get('cinemas/:id/detail') getCinemaDetail(@Param('id') id: string) { return this.adminService.getCinemaDetail(id); }
   @Post('cinemas') createCinema(@Body() dto: CreateCinemaDto) { return this.adminService.createCinema(dto); }
   @Patch('cinemas/:id') updateCinema(@Param('id') id: string, @Body() dto: UpdateCinemaDto) { return this.adminService.updateCinema(id, dto); }
   @Delete('cinemas/:id') deleteCinema(@Param('id') id: string) { return this.adminService.deleteCinema(id); }
@@ -69,6 +80,7 @@ export class AdminController {
 
   @Get('rooms') listRooms() { return this.adminService.listRooms(); }
   @Post('rooms') createRoom(@Body() dto: CreateRoomDto) { return this.adminService.createRoom(dto); }
+  @Get('rooms/:id/history') getRoomHistory(@Param('id') id: string) { return this.adminService.getRoomHistory(id); }
   @Get('rooms/:id/available-slots') getRoomAvailableSlots(@Param('id') id: string, @Query() query: RoomAvailableSlotsQueryDto) { return this.adminService.getRoomAvailableSlots(id, query); }
   @Patch('rooms/:id') updateRoom(@Param('id') id: string, @Body() dto: UpdateRoomDto) { return this.adminService.updateRoom(id, dto); }
   @Delete('rooms/:id') deleteRoom(@Param('id') id: string) { return this.adminService.deleteRoom(id); }

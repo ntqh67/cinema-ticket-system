@@ -299,61 +299,88 @@ const ShowtimeView = {
   },
 
   // Tạo dữ liệu mới trong khối _showAddForm và trả về kết quả đã chuẩn hóa.
-  _showAddForm() {
-    const movies = MovieModel.getAll();
+  _showAddForm(options = {}) {
+    const movies = MovieModel.getAll().filter(movie => ['nowShowing', 'comingSoon'].includes(movie.status));
     const cinemas = CinemaModel.getAll().sort((a, b) => this._compareCinema(a, b));
     const today = Helpers.getDateString(new Date());
+    const selectedMovie = options.movie || (options.movieId
+      ? movies.find(movie => movie.id === options.movieId)
+      : null);
+    const selectedCinema = options.cinema || (options.cinemaId
+      ? cinemas.find(cinema => cinema.id === options.cinemaId)
+      : null);
+    const selectedRoom = options.room || (options.roomId
+      ? RoomModel.getById(options.roomId)
+      : null);
+    const fixedRoom = Boolean(selectedCinema && selectedRoom);
+    const useAvailableSlots = options.availableSlots === true;
+    const releaseDate = selectedMovie?.releaseDate
+      ? Helpers.getDateString(new Date(selectedMovie.releaseDate))
+      : today;
+    const firstScheduleDate = releaseDate > today ? releaseDate : today;
+    const lastScheduleDate = selectedMovie?.endDate
+      ? Helpers.getDateString(new Date(selectedMovie.endDate))
+      : '';
+    this._returnCinemaId = options.returnCinemaId || null;
+    this._returnView = options.returnView || null;
     const content = `
       <form onsubmit="ShowtimeController.handleCreate(event)">
         <div class="admin-form-grid">
-          <div class="form-group form-full">
+          ${selectedMovie ? `<div class="admin-showtime-selected-movie form-full">
+            <img src="${Helpers.escapeHtml(selectedMovie.poster || API.moviePosterFallback)}" onerror="this.src=API.moviePosterFallback" alt="${Helpers.escapeHtml(selectedMovie.title)}" />
+            <div><span>Phim đã chọn</span><strong>${Helpers.escapeHtml(selectedMovie.title)}</strong><small>${Helpers.formatDuration(selectedMovie.duration)} · ${selectedMovie.status === 'comingSoon' ? 'Sắp chiếu' : 'Đang chiếu'}</small></div>
+          </div>` : ''}
+          <div class="form-group form-full" ${selectedMovie ? 'style="display:none;"' : ''}>
             <label class="form-label">Phim</label>
             <select class="form-control" id="showtime-movie-id" required>
-              <option value="">Chọn phim</option>
-              ${movies.map((movie) => `<option value="${movie.id}">${Helpers.escapeHtml(movie.title)} (${movie.status === 'comingSoon' ? 'Sắp chiếu' : 'Đang chiếu'})</option>`).join('')}
+              <option value="">${movies.length ? 'Chọn phim' : 'Chưa có phim đang chiếu'}</option>
+              ${movies.map((movie) => `<option value="${movie.id}" ${selectedMovie?.id === movie.id ? 'selected' : ''}>${Helpers.escapeHtml(movie.title)} (${movie.status === 'comingSoon' ? 'Sắp chiếu' : 'Đang chiếu'})</option>`).join('')}
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" ${fixedRoom ? 'style="display:none;"' : ''}>
             <label class="form-label">Rạp / Chi nhánh</label>
-            <select class="form-control" id="showtime-cinema-id" onchange="ShowtimeView._updateRoomOptions()" required>
-              <option value="">Chọn rạp</option>
-              ${cinemas.map((cinema) => `<option value="${cinema.id}">${Helpers.escapeHtml(cinema.name)}</option>`).join('')}
+            <select class="form-control" id="showtime-cinema-id" onchange="ShowtimeView._updateRoomOptions()" ${fixedRoom ? 'disabled' : ''} required>
+              ${fixedRoom
+                ? `<option value="${selectedCinema.id}" selected>${Helpers.escapeHtml(selectedCinema.name)}</option>`
+                : `<option value="">Chọn rạp</option>${cinemas.map((cinema) => `<option value="${cinema.id}">${Helpers.escapeHtml(cinema.name)}</option>`).join('')}`}
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" ${fixedRoom ? 'style="display:none;"' : ''}>
             <label class="form-label">Phòng</label>
-            <select class="form-control" id="showtime-room-id" onchange="ShowtimeView._loadAvailableSlots()" required>
-              <option value="">Chọn phòng</option>
+            <select class="form-control" id="showtime-room-id" onchange="ShowtimeView._handleScheduleSelectionChange()" ${fixedRoom ? 'disabled' : ''} required>
+              ${fixedRoom
+                ? `<option value="${selectedRoom.id}" selected>${Helpers.escapeHtml(selectedRoom.name)} (${selectedRoom.capacity || selectedRoom.seatCount || 0} ghế)</option>`
+                : '<option value="">Chọn phòng</option>'}
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Ngày chiếu</label>
-            <input class="form-control" id="showtime-date" type="date" min="${today}" value="${today}" onchange="ShowtimeView._loadAvailableSlots()" required />
+            <input class="form-control" id="showtime-date" type="date" min="${firstScheduleDate}" ${lastScheduleDate ? `max="${lastScheduleDate}"` : ''} value="${firstScheduleDate}" onchange="ShowtimeView._handleScheduleSelectionChange()" required />
           </div>
           <div class="form-group">
-            <label class="form-label">Giờ bắt đầu</label>
-            <select class="form-control" id="showtime-time" required>
-              <option value="">Chọn phim, phòng và ngày trước</option>
-            </select>
+            <label class="form-label">${useAvailableSlots ? 'Giờ còn trống' : 'Giờ bắt đầu'}</label>
+            ${useAvailableSlots
+              ? '<select class="form-control" id="showtime-time" onchange="ShowtimeView._updateManualShowtimeHelper()" required><option value="">Chọn rạp và phòng trước</option></select>'
+              : '<input class="form-control" id="showtime-time" type="time" step="60" onchange="ShowtimeView._updateManualShowtimeHelper()" required />'}
           </div>
-          <div class="form-group">
-            <label class="form-label">Giá ghế thường</label>
-            <input class="form-control" id="showtime-base-price" type="number" min="0" step="1000" value="80000" required />
-          </div>
-          <div class="form-group form-full">
-            <div class="alert alert-info" style="margin:0;">Hệ thống tự tính giờ kết thúc theo thời lượng phim và tự tạo ghế cho suất chiếu.</div>
+          <input id="showtime-base-price" type="hidden" value="0" />
+          <div class="form-group form-full" ${useAvailableSlots ? 'style="display:none;"' : ''}>
+            <div class="alert alert-info" style="margin:0;">Hệ thống tự tính giờ kết thúc theo thời lượng phim, áp dụng bảng giá của rạp và tự tạo ghế cho suất chiếu.</div>
           </div>
           <div class="form-group form-full">
-            <div id="showtime-slot-helper" class="alert alert-info" style="margin:0;">Chọn phim, rạp, phòng và ngày để xem giờ còn trống. Hệ thống tự chừa 30 phút dọn phòng sau mỗi suất.</div>
+            <div id="showtime-slot-helper" class="alert alert-info" style="margin:0;">${useAvailableSlots ? 'Chọn rạp và phòng để hệ thống tải các giờ còn trống từ PostgreSQL.' : 'Có thể nhập bất kỳ giờ bắt đầu nào, kể cả 04:00. Khi lưu, hệ thống sẽ kiểm tra trùng lịch và 30 phút dọn phòng.'}</div>
           </div>
         </div>
         <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
           <button type="button" class="btn btn-secondary" onclick="Modal.close()">Hủy</button>
-          <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tạo Lịch Chiếu</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> ${useAvailableSlots ? 'OK · Tạo Lịch Chiếu' : 'Tạo Lịch Chiếu'}</button>
         </div>
       </form>`;
-    Modal.show('Thêm Lịch Chiếu', content, { size: 'lg' });
-    document.getElementById('showtime-movie-id')?.addEventListener('change', () => this._loadAvailableSlots());
+    Modal.show(selectedMovie ? `Xếp Lịch · ${selectedMovie.title}` : (fixedRoom ? `Xếp Lịch · ${selectedRoom.name}` : 'Thêm Lịch Chiếu'), content, { size: 'lg' });
+    const form = document.getElementById('showtime-movie-id')?.form;
+    if (form) form.dataset.slotMode = useAvailableSlots ? 'available' : 'manual';
+    document.getElementById('showtime-movie-id')?.addEventListener('change', () => this._handleScheduleSelectionChange());
+    if (fixedRoom && useAvailableSlots) this._loadAvailableSlots();
   },
 
   // Cập nhật trạng thái hoặc dữ liệu trong khối _updateRoomOptions.
@@ -364,7 +391,34 @@ const ShowtimeView = {
     if (!roomSelect) return;
     const rooms = cinemaId ? RoomModel.getByCinema(cinemaId) : [];
     roomSelect.innerHTML = `<option value="">Chọn phòng</option>${rooms.map((room) => `<option value="${room.id}">${Helpers.escapeHtml(room.name)} (${room.capacity || 0} ghế)</option>`).join('')}`;
-    this._loadAvailableSlots();
+    this._handleScheduleSelectionChange();
+  },
+
+  _handleScheduleSelectionChange() {
+    const form = document.getElementById('showtime-movie-id')?.form;
+    if (form?.dataset.slotMode === 'available') {
+      this._loadAvailableSlots();
+      return;
+    }
+    this._updateManualShowtimeHelper();
+  },
+
+  _updateManualShowtimeHelper() {
+    const movieId = document.getElementById('showtime-movie-id')?.value;
+    const date = document.getElementById('showtime-date')?.value;
+    const time = document.getElementById('showtime-time')?.value;
+    const helper = document.getElementById('showtime-slot-helper');
+    if (!helper) return;
+    const movie = MovieModel.getById(movieId);
+    if (!movie || !date || !time) {
+      helper.className = 'alert alert-info';
+      helper.textContent = 'Có thể nhập bất kỳ giờ bắt đầu nào, kể cả 04:00. Khi lưu, hệ thống sẽ kiểm tra trùng lịch và 30 phút dọn phòng.';
+      return;
+    }
+    const startAt = new Date(`${date}T${time}:00+07:00`);
+    const endAt = new Date(startAt.getTime() + Number(movie.duration || 0) * 60000);
+    helper.className = 'alert alert-info';
+    helper.textContent = `Dự kiến kết thúc lúc ${endAt.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' })} ngày ${endAt.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}. Backend sẽ kiểm tra trùng lịch trước khi tạo.`;
   },
 
   // Đọc và lọc dữ liệu cần thiết trong khối _loadAvailableSlots.

@@ -5,10 +5,14 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { json, urlencoded } from 'express';
 
 // Khởi tạo luồng bootstrap và chuẩn bị các phụ thuộc cần thiết.
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  app.use(json({ limit: '3mb' }));
+  app.use(urlencoded({ extended: true, limit: '3mb' }));
 
   app.setGlobalPrefix('api');
   app.enableCors({

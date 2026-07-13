@@ -1,0 +1,161 @@
+CHẠY DỰ ÁN CINEMA TICKET SYSTEM
+================================
+
+Nhánh sử dụng: merge-main-db-safe
+Database: cinema_ticket_system tại localhost:5432
+Redis: localhost:6379
+
+
+I. MỖI LẦN BẬT MÁY
+===================
+
+1. BẬT POSTGRESQL VÀ REDIS
+--------------------------
+
+Mở terminal và chạy:
+
+sudo systemctl start postgresql
+sudo systemctl start redis-server
+
+Kiểm tra:
+
+pg_isready -h localhost -p 5432
+redis-cli -h localhost -p 6379 ping
+
+Kết quả đúng:
+
+localhost:5432 - accepting connections
+PONG
+
+
+2. CHẠY BACKEND - TERMINAL 1
+----------------------------
+
+cd ~/Desktop/Project/cinema-ticket-system/backend
+npm run start:dev
+
+Địa chỉ:
+
+API:     http://localhost:3000/api
+Health:  http://localhost:3000/api/health
+Swagger: http://localhost:3000/api/docs
+
+
+3. CHẠY FRONTEND - TERMINAL 2
+-----------------------------
+
+cd ~/Desktop/Project/cinema-ticket-system/frontend
+npx vite --host 0.0.0.0 --port 5173
+
+Mở trình duyệt:
+
+http://localhost:5173
+
+
+4. TÀI KHOẢN DEMO
+-----------------
+
+Admin:
+admin@cinema.test
+admin123
+
+User:
+hung@example.com
+user123
+
+
+II. CHỈ CẤU HÌNH MỘT LẦN
+========================
+
+1. Cho PostgreSQL và Redis tự khởi động cùng máy:
+
+sudo systemctl enable postgresql
+sudo systemctl enable redis-server
+
+2. Cài dependency:
+
+cd ~/Desktop/Project/cinema-ticket-system
+npm install
+npm --prefix backend install
+npx prisma generate
+
+
+III. IMPORT ĐÚNG DATABASE CỦA NHÁNH
+===================================
+
+CẢNH BÁO:
+Lệnh dưới đây xóa dữ liệu database hiện tại và thay bằng dữ liệu trong
+database/cinema_ticket_system_dump.sql.
+Chỉ chạy khi cần khôi phục database hoặc vừa kéo nhánh về máy.
+
+cd ~/Desktop/Project/cinema-ticket-system
+
+set -a
+source .env
+set +a
+
+DB_URL="${DATABASE_URL%%\?*}"
+
+sed '1s/^\xEF\xBB\xBF//' database/cinema_ticket_system_dump.sql \
+  | psql "$DB_URL" -v ON_ERROR_STOP=1
+
+redis-cli -h localhost -p 6379 FLUSHDB
+npx prisma generate
+
+Sau khi import dump:
+
+KHÔNG chạy: npx prisma migrate dev
+KHÔNG chạy: npx prisma db seed
+
+Hai lệnh trên sẽ làm dữ liệu không còn giống dump của nhánh.
+
+
+IV. CẬP NHẬT CODE TỪ NHÁNH
+==========================
+
+Chỉ chạy khi muốn lấy code mới:
+
+cd ~/Desktop/Project/cinema-ticket-system
+git switch merge-main-db-safe
+git pull --ff-only origin merge-main-db-safe
+
+Sau khi package.json thay đổi:
+
+npm install
+npm --prefix backend install
+npx prisma generate
+
+
+V. DỪNG DỰ ÁN
+==============
+
+Nhấn Ctrl + C trong terminal backend và frontend.
+
+Không cần dừng PostgreSQL và Redis sau mỗi lần code.
+
+Nếu muốn dừng:
+
+sudo systemctl stop postgresql
+sudo systemctl stop redis-server
+
+
+VI. XỬ LÝ LỖI NHANH
+===================
+
+1. Lỗi Prisma không nhận trường mới:
+
+cd ~/Desktop/Project/cinema-ticket-system
+npx prisma generate
+
+2. Lỗi cổng 3000 hoặc 5173 đang được sử dụng:
+
+ss -ltnp | grep -E ':3000|:5173'
+
+3. Giao diện còn dữ liệu cũ:
+
+Nhấn Ctrl + F5 hoặc xóa localStorage trong DevTools.
+
+4. Backend không kết nối database:
+
+pg_isready -h localhost -p 5432
+cat ~/Desktop/Project/cinema-ticket-system/.env

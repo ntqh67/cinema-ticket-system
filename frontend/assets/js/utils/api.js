@@ -318,6 +318,7 @@ const API = {
       cast: [],
       director: movie.director || 'Dang cap nhat',
       releaseDate: movie.releaseDate || new Date().toISOString(),
+      endDate: movie.endDate || null,
       status: movie.status || 'nowShowing',
       trailer: movie.trailer || '',
       ageRating: movie.ageRating || 'P',
@@ -392,9 +393,14 @@ const API = {
   },
 
   async backendRequest(path, options = {}) {
+    const currentUser = typeof State !== 'undefined' && State.get ? State.get('currentUser') : null;
+    const authorization = currentUser?.accessToken
+      ? { Authorization: `Bearer ${currentUser.accessToken}` }
+      : {};
     const response = await fetch(`${this.backendBaseUrl}${path}`, {
       headers: {
         'Content-Type': 'application/json',
+        ...authorization,
         ...(options.headers || {})
       },
       ...options
@@ -547,8 +553,70 @@ const API = {
     return this.backendRequest('/admin/dashboard');
   },
 
+  getAdminDashboardShowtimes(date) {
+    return this.backendRequest(`/admin/dashboard/showtimes?date=${encodeURIComponent(date)}`);
+  },
+
+  getAdminRevenue(days = 30) {
+    return this.backendRequest(`/admin/revenue?days=${encodeURIComponent(days)}`);
+  },
+
+  getAdminUsers(role) {
+    const query = role ? `?role=${encodeURIComponent(role)}` : '';
+    return this.backendRequest(`/admin/users${query}`);
+  },
+
+  createAdminStaff(data) {
+    return this.backendRequest('/admin/staff', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  getAdminStaffDetail(staffId) {
+    return this.backendRequest(`/admin/staff/${encodeURIComponent(staffId)}`);
+  },
+
+  removeAdminStaff(staffId) {
+    return this.backendRequest(`/admin/staff/${encodeURIComponent(staffId)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getMyStaffAttendance(month) {
+    const query = month ? `?month=${encodeURIComponent(month)}` : '';
+    return this.backendRequest(`/staff/attendance${query}`);
+  },
+
+  staffCheckIn(shiftCode) {
+    return this.backendRequest('/staff/attendance/check-in', {
+      method: 'POST',
+      body: JSON.stringify({ shiftCode }),
+    });
+  },
+
+  staffCheckOut() {
+    return this.backendRequest('/staff/attendance/check-out', { method: 'POST' });
+  },
+
+  getAdminMovies() {
+    return this.backendRequest('/admin/movies');
+  },
+
+  getAdminMovieSales(movieId) {
+    return this.backendRequest(`/admin/movies/${movieId}/sales`);
+  },
+
   getAdminCinemas() {
     return this.backendRequest('/admin/cinemas');
+  },
+
+  getAdminCinemaOverview(cinemaId) {
+    return this.backendRequest(`/admin/cinemas/${cinemaId}/overview`);
+  },
+
+  getAdminCinemaDetail(cinemaId) {
+    return this.backendRequest(`/admin/cinemas/${cinemaId}/detail`);
   },
 
   updateAdminCinema(id, data) {
@@ -560,6 +628,14 @@ const API = {
 
   getAdminRooms() {
     return this.backendRequest('/admin/rooms');
+  },
+
+  getAdminRoomHistory(roomId) {
+    return this.backendRequest(`/admin/rooms/${roomId}/history`);
+  },
+
+  getAdminSeats() {
+    return this.backendRequest('/admin/seats');
   },
 
   updateAdminRoom(id, data) {
@@ -620,10 +696,10 @@ const API = {
     });
   },
 
-  createAdminMovieFromTmdb(tmdbId, status = 'NOW_SHOWING') {
+  createAdminMovieFromTmdb(tmdbId, releaseDate, endDate) {
     return this.backendRequest('/admin/movies/tmdb', {
       method: 'POST',
-      body: JSON.stringify({ tmdbId, status })
+      body: JSON.stringify({ tmdbId, releaseDate, endDate })
     });
   },
 
@@ -637,13 +713,6 @@ const API = {
   deleteAdminMovie(movieId) {
     return this.backendRequest(`/admin/movies/${movieId}`, {
       method: 'DELETE'
-    });
-  },
-
-  importUpcomingMoviesFromTmdb({ page = 1, limit = 10 } = {}) {
-    return this.backendRequest('/admin/movies/tmdb/upcoming', {
-      method: 'POST',
-      body: JSON.stringify({ page, limit })
     });
   },
 

@@ -9,7 +9,7 @@ const AuthModel = {
     // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       const data = await API.login({ identifier, password });
-      return { success: true, user: this._mapBackendUser(data.user) };
+      return { success: true, user: this._mapBackendUser(data.user, data.accessToken) };
     } catch (error) {
       return { success: false, error: error.message || 'Email hoac mat khau khong dung' };
     }
@@ -19,7 +19,7 @@ const AuthModel = {
   async register(userData) {
     try {
       const data = await API.register(userData);
-      const backendUser = this._mapBackendUser(data.user);
+      const backendUser = this._mapBackendUser(data.user, data.accessToken);
       return { success: true, user: backendUser };
     } catch (error) {
       return {
@@ -30,7 +30,7 @@ const AuthModel = {
   },
 
   // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối _mapBackendUser.
-  _mapBackendUser(user) {
+  _mapBackendUser(user, accessToken) {
     return {
       id: user.id,
       backendUserId: user.backendUserId || user.id,
@@ -41,6 +41,7 @@ const AuthModel = {
       avatar: null,
       createdAt: user.createdAt || new Date().toISOString(),
       isActive: user.isActive !== false,
+      accessToken: accessToken || null,
     };
   },
 

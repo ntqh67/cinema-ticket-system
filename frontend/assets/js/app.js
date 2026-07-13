@@ -23,6 +23,7 @@ const App = {
     Router.register('/login', () => AuthView.render());
     Router.register('/profile', () => UserView.renderProfile());
     Router.register('/history', () => UserView.renderHistory());
+    Router.register('/staff/attendance', () => UserView.renderStaffAttendance());
     Router.register('/seats/:id', (params) => SeatView.render(params));
     Router.register('/concessions', () => ConcessionView.renderCheckout());
     Router.register('/payment', () => PaymentView.render());
@@ -39,6 +40,7 @@ const App = {
     Router.register('/admin/bookings', () => BookingView.renderAdmin());
     Router.register('/admin/concessions', () => ConcessionView.renderAdmin());
     Router.register('/admin/users', () => UserView.renderAdmin());
+    Router.register('/admin/staff', () => UserView.renderAdminStaff());
   },
 
   // Dựng phần giao diện tương ứng trong khối renderHome.

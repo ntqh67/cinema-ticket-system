@@ -27,6 +27,7 @@ const Navbar = {
             <div class="user-dropdown-item" onclick="Router.navigate('/history');Navbar.closeDropdowns()">
               <i class="fas fa-ticket-alt"></i> Lịch Sử Đặt Vé
             </div>
+            ${user.role === 'staff' ? `<div class="user-dropdown-item" onclick="Router.navigate('/staff/attendance');Navbar.closeDropdowns()"><i class="fas fa-calendar-check"></i> Chấm Công</div>` : ''}
             ${user.role === 'admin' ? `
             <div class="user-dropdown-divider"></div>
             <div class="user-dropdown-item" onclick="Router.navigate('/admin');Navbar.closeDropdowns()">
@@ -80,6 +81,7 @@ const Navbar = {
           <div style="height:1px;background:var(--color-border);margin:8px 0;"></div>
           <div class="mobile-nav-link" onclick="Router.navigate('/profile');Navbar.closeMobileMenu()"><i class="fas fa-user"></i> Tài Khoản</div>
           <div class="mobile-nav-link" onclick="Router.navigate('/history');Navbar.closeMobileMenu()"><i class="fas fa-ticket-alt"></i> Lịch Sử Đặt Vé</div>
+          ${user.role === 'staff' ? `<div class="mobile-nav-link" onclick="Router.navigate('/staff/attendance');Navbar.closeMobileMenu()"><i class="fas fa-calendar-check"></i> Chấm Công</div>` : ''}
           ${user.role === 'admin' ? `<div class="mobile-nav-link" onclick="Router.navigate('/admin');Navbar.closeMobileMenu()"><i class="fas fa-shield-alt"></i> Quản Trị</div>` : ''}
           <div class="mobile-nav-link" style="color:var(--color-danger);" onclick="AuthController.handleLogout()"><i class="fas fa-sign-out-alt"></i> Đăng Xuất</div>
           ` : `

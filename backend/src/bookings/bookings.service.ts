@@ -20,6 +20,10 @@ import {
   ONLINE_DEMO_PAYMENT_PROVIDERS,
   type OnlineDemoPaymentProvider,
 } from './dto/online-demo-payment.dto';
+import {
+  ticketDiscountPercent,
+  ticketPriceForRole,
+} from '../common/ticket-discount';
 
 const BOOKING_HOLD_MINUTES = 5;
 const BOOKING_QR_PREFIX = 'CINETICKET:BOOKING:';
@@ -117,7 +121,7 @@ export class BookingsService {
     const [user, showtime] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true },
+        select: { id: true, role: true },
       }),
       this.prisma.showtime.findUnique({
         where: { id: showtimeId },
@@ -173,8 +177,12 @@ export class BookingsService {
 
     await this.validateNoOrphanStandardSeat(showtimeId, showtimeSeats);
 
-    const totalAmount = showtimeSeats.reduce(
-      (sum, showtimeSeat) => sum + Number(showtimeSeat.price),
+    const pricedSeats = showtimeSeats.map((showtimeSeat) => ({
+      showtimeSeat,
+      unitPrice: ticketPriceForRole(Number(showtimeSeat.price), user.role),
+    }));
+    const totalAmount = pricedSeats.reduce(
+      (sum, item) => sum + item.unitPrice,
       0,
     );
     const expiresAt = new Date(Date.now() + BOOKING_HOLD_MINUTES * 60 * 1000);
@@ -196,9 +204,9 @@ export class BookingsService {
           currency: 'VND',
           expiresAt,
           bookingItems: {
-            create: showtimeSeats.map((showtimeSeat) => ({
+            create: pricedSeats.map(({ showtimeSeat, unitPrice }) => ({
               showtimeSeatId: showtimeSeat.id,
-              unitPrice: showtimeSeat.price,
+              unitPrice,
             })),
           },
         },
@@ -238,6 +246,8 @@ export class BookingsService {
       totalAmount: Number(booking.totalAmount),
       seatSubtotal: Number(booking.totalAmount),
       comboSubtotal: 0,
+      accountRole: user.role,
+      ticketDiscountPercent: ticketDiscountPercent(user.role),
       currency: booking.currency,
       expiresAt: booking.expiresAt,
       comboItems: [],

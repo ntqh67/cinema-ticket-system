@@ -48,36 +48,32 @@ const MovieController = {
     const rawTmdbValue = form.querySelector('#tmdb-movie-id').value.trim();
     const tmdbMatch = rawTmdbValue.match(/(?:movie\/)?(\d+)/);
     const tmdbId = tmdbMatch ? parseInt(tmdbMatch[1], 10) : 0;
-    const status = form.querySelector('#tmdb-movie-status').value;
+    const releaseDate = form.querySelector('#tmdb-movie-release').value;
+    const endDate = form.querySelector('#tmdb-movie-end').value;
 
     // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!tmdbId) {
       Toast.error('Vui lòng nhập TMDB ID hợp lệ');
       return;
     }
+    if (!releaseDate || !endDate) {
+      Toast.error('Vui lòng chọn ngày bắt đầu và ngày kết thúc');
+      return;
+    }
+    if (endDate < releaseDate) {
+      Toast.error('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu');
+      return;
+    }
 
     // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
-      await API.createAdminMovieFromTmdb(tmdbId, status);
+      await API.createAdminMovieFromTmdb(tmdbId, releaseDate, endDate);
       await API.syncBackendCatalog();
       Modal.close();
       Toast.success('Đã thêm/cập nhật phim từ TMDB');
       MovieView.renderAdmin();
     } catch (error) {
       Toast.error(error.message || 'Không thể lấy phim từ TMDB');
-    }
-  },
-
-  // Điều phối sự kiện và phản hồi người dùng trong khối handleImportUpcomingFromTmdb.
-  async handleImportUpcomingFromTmdb() {
-    try {
-      Toast.info('Dang cap nhat phim sap chieu tu TMDB...');
-      const result = await API.importUpcomingMoviesFromTmdb({ page: 1, limit: 10 });
-      await API.syncBackendCatalog();
-      Toast.success(`Da cap nhat ${result.importedCount || 0} phim sap chieu`);
-      MovieView.renderAdmin();
-    } catch (error) {
-      Toast.error(error.message || 'Khong the cap nhat phim sap chieu');
     }
   },
 

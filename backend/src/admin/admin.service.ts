@@ -4,7 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PaymentStatus, MovieStatus, Prisma } from '@prisma/client';
+import { PaymentStatus, MovieStatus, Prisma, Role } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCinemaDto,
@@ -13,11 +14,11 @@ import {
   CreateGenreDto,
   CreateMovieFromTmdbDto,
   CreateMovieDto,
-  ImportUpcomingMoviesFromTmdbDto,
   RoomAvailableSlotsQueryDto,
   CreateRoomDto,
   CreateSeatDto,
   CreateShowtimeDto,
+  CreateStaffDto,
   GenerateSeatsDto,
   UpdateCinemaDto,
   UpdateConcessionComboDto,
@@ -30,6 +31,11 @@ import {
   UpsertCinemaTicketPriceDto,
 } from './dto/admin.dto';
 import { normalizeGenreName } from '../common/genre-map';
+import { formatDateInDaNang } from '../common/danang-date';
+import { MovieStatusService } from '../movies/movie-status.service';
+import { ticketPriceForRole } from '../common/ticket-discount';
+import { calculateStaffPay } from '../common/staff-pay';
+import { resolveStaffAttendanceStatus } from '../common/staff-shifts';
 
 const CLEANUP_MINUTES = 30;
 const SHOWTIME_DAY_OPEN = '08:00';
@@ -38,10 +44,44 @@ const SHOWTIME_LAST_START = '23:45';
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL =
   process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
+const ADMIN_ROOM_INCLUDE = {
+  cinema: { include: { chain: true } },
+  seats: true,
+  _count: { select: { seats: true, showtimes: true } },
+} satisfies Prisma.RoomInclude;
+type AdminRoomWithDetails = Prisma.RoomGetPayload<{
+  include: typeof ADMIN_ROOM_INCLUDE;
+}>;
+const DASHBOARD_SHOWTIME_INCLUDE = {
+  movie: { select: { id: true, title: true, posterUrl: true } },
+  room: {
+    select: {
+      id: true,
+      name: true,
+      cinema: { select: { id: true, name: true } },
+    },
+  },
+  showtimeSeats: { select: { status: true } },
+} satisfies Prisma.ShowtimeInclude;
+type DashboardShowtime = Prisma.ShowtimeGetPayload<{
+  include: typeof DASHBOARD_SHOWTIME_INCLUDE;
+}>;
+type StaffAttendanceRow = {
+  id: string;
+  workDate: Date;
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+  shiftCode: string | null;
+  status: 'PRESENT' | 'LATE' | 'ABSENT' | 'LEAVE';
+  note: string | null;
+};
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly movieStatusService: MovieStatusService,
+  ) {}
 
   listGenres() {
     return this.prisma.genre.findMany({ orderBy: { name: 'asc' } });
@@ -60,7 +100,36 @@ export class AdminService {
   }
 
   async getDashboard() {
-    const [movies, cinemas, showtimes, users, paidBookings, revenue] =
+    await this.movieStatusService.synchronizeStatuses();
+    const now = new Date();
+    const today = formatDateInDaNang(now);
+    const todayStart = new Date(`${today}T00:00:00.000+07:00`);
+    const tomorrowStart = this.addMinutes(todayStart, 24 * 60);
+    const trendStart = this.addMinutes(todayStart, -7 * 24 * 60);
+    const [year, month] = today.split('-').map(Number);
+    const monthStart = new Date(
+      `${year}-${String(month).padStart(2, '0')}-01T00:00:00.000+07:00`,
+    );
+    const nextMonthStart = new Date(
+      `${month === 12 ? year + 1 : year}-${String((month % 12) + 1).padStart(2, '0')}-01T00:00:00.000+07:00`,
+    );
+
+    const [
+      movies,
+      cinemas,
+      showtimes,
+      users,
+      paidBookings,
+      revenue,
+      nowShowingMovies,
+      rooms,
+      seats,
+      todayShowtimeCount,
+      activeShowtimeCount,
+      todaySchedules,
+      trendPayments,
+      monthShowtimes,
+    ] =
       await Promise.all([
         this.prisma.movie.count(),
         this.prisma.cinema.count({ where: { city: 'Đà Nẵng' } }),
@@ -71,7 +140,51 @@ export class AdminService {
           where: { status: PaymentStatus.SUCCESS },
           _sum: { amount: true },
         }),
+        this.prisma.movie.count({ where: { status: MovieStatus.NOW_SHOWING } }),
+        this.prisma.room.count({ where: { cinema: { city: 'Đà Nẵng' } } }),
+        this.prisma.seat.count({ where: { room: { cinema: { city: 'Đà Nẵng' } } } }),
+        this.prisma.showtime.count({
+          where: { startAt: { gte: todayStart, lt: tomorrowStart } },
+        }),
+        this.prisma.showtime.count({
+          where: { startAt: { lte: now }, endAt: { gt: now } },
+        }),
+        this.prisma.showtime.findMany({
+          where: { startAt: { gte: todayStart, lt: tomorrowStart } },
+          orderBy: { startAt: 'asc' },
+          take: 20,
+          include: DASHBOARD_SHOWTIME_INCLUDE,
+        }),
+        this.prisma.payment.findMany({
+          where: {
+            status: PaymentStatus.SUCCESS,
+            OR: [
+              { paidAt: { gte: trendStart } },
+              { paidAt: null, createdAt: { gte: trendStart } },
+            ],
+          },
+          select: { amount: true, paidAt: true, createdAt: true },
+        }),
+        this.prisma.showtime.findMany({
+          where: { startAt: { gte: monthStart, lt: nextMonthStart } },
+          select: { startAt: true },
+        }),
       ]);
+
+    const revenueTotals = new Map<string, { revenue: number; invoices: number }>();
+    trendPayments.forEach((payment) => {
+      const date = formatDateInDaNang(payment.paidAt || payment.createdAt);
+      const current = revenueTotals.get(date) || { revenue: 0, invoices: 0 };
+      current.revenue += Number(payment.amount);
+      current.invoices += 1;
+      revenueTotals.set(date, current);
+    });
+    const revenueByDate = Array.from({ length: 15 }, (_, index) => {
+      const dateValue = this.addMinutes(trendStart, index * 24 * 60);
+      const date = formatDateInDaNang(dateValue);
+      return { date, ...(revenueTotals.get(date) || { revenue: 0, invoices: 0 }) };
+    });
+    const todayFinance = revenueTotals.get(today) || { revenue: 0, invoices: 0 };
 
     return {
       movies,
@@ -81,14 +194,458 @@ export class AdminService {
       bookings: paidBookings,
       revenue: Number(revenue._sum.amount || 0),
       currency: 'VND',
+      nowShowingMovies,
+      rooms,
+      seats,
+      todayShowtimes: todayShowtimeCount,
+      activeShowtimes: activeShowtimeCount,
+      todayRevenue: todayFinance.revenue,
+      todayPaidInvoices: todayFinance.invoices,
+      revenueByDate,
+      showtimeDates: [
+        ...new Set(monthShowtimes.map((showtime) => formatDateInDaNang(showtime.startAt))),
+      ],
+      todaySchedules: todaySchedules.map((showtime) =>
+        this.dashboardShowtimeData(showtime),
+      ),
+      date: today,
     };
   }
 
-  listMovies() {
+  async getDashboardShowtimes(date: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+      throw new BadRequestException('Ngày chiếu không hợp lệ');
+    }
+    const startAt = new Date(`${date}T00:00:00.000+07:00`);
+    if (Number.isNaN(startAt.getTime())) {
+      throw new BadRequestException('Ngày chiếu không hợp lệ');
+    }
+    const endAt = this.addMinutes(startAt, 24 * 60);
+    const showtimes = await this.prisma.showtime.findMany({
+      where: { startAt: { gte: startAt, lt: endAt } },
+      orderBy: { startAt: 'asc' },
+      include: DASHBOARD_SHOWTIME_INCLUDE,
+    });
+    return {
+      date,
+      count: showtimes.length,
+      showtimes: showtimes.map((showtime) =>
+        this.dashboardShowtimeData(showtime),
+      ),
+    };
+  }
+
+  async getRevenueReport(daysValue?: string) {
+    const days = Number(daysValue || 30);
+    if (![7, 30, 90, 365].includes(days)) {
+      throw new BadRequestException('Khoảng thời gian doanh thu không hợp lệ');
+    }
+    const today = formatDateInDaNang(new Date());
+    const todayStart = new Date(`${today}T00:00:00.000+07:00`);
+    const periodEnd = this.addMinutes(todayStart, 24 * 60);
+    const periodStart = this.addMinutes(todayStart, -(days - 1) * 24 * 60);
+    const previousStart = this.addMinutes(periodStart, -days * 24 * 60);
+    const paymentInclude = {
+      booking: {
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true } },
+          bookingItems: { select: { id: true } },
+          showtime: {
+            include: {
+              movie: { select: { id: true, title: true, posterUrl: true } },
+              room: {
+                include: {
+                  cinema: { select: { id: true, name: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    } satisfies Prisma.PaymentInclude;
+    const paymentWhere = (start: Date, end: Date) => ({
+      status: PaymentStatus.SUCCESS,
+      OR: [
+        { paidAt: { gte: start, lt: end } },
+        { paidAt: null, createdAt: { gte: start, lt: end } },
+      ],
+    }) satisfies Prisma.PaymentWhereInput;
+
+    const [payments, previousPayments] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: paymentWhere(periodStart, periodEnd),
+        include: paymentInclude,
+        orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+      }),
+      this.prisma.payment.findMany({
+        where: paymentWhere(previousStart, periodStart),
+        select: { amount: true },
+      }),
+    ]);
+
+    const revenue = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+    const previousRevenue = previousPayments.reduce(
+      (sum, payment) => sum + Number(payment.amount),
+      0,
+    );
+    const tickets = payments.reduce(
+      (sum, payment) => sum + payment.booking.bookingItems.length,
+      0,
+    );
+    const dailyTotals = new Map<string, { revenue: number; invoices: number; tickets: number }>();
+    const movieTotals = new Map<string, { id: string; name: string; posterUrl: string | null; revenue: number; invoices: number; tickets: number }>();
+    const cinemaTotals = new Map<string, { id: string; name: string; revenue: number; invoices: number }>();
+
+    payments.forEach((payment) => {
+      const amount = Number(payment.amount);
+      const paidAt = payment.paidAt || payment.createdAt;
+      const date = formatDateInDaNang(paidAt);
+      const daily = dailyTotals.get(date) || { revenue: 0, invoices: 0, tickets: 0 };
+      daily.revenue += amount;
+      daily.invoices += 1;
+      daily.tickets += payment.booking.bookingItems.length;
+      dailyTotals.set(date, daily);
+
+      const movie = payment.booking.showtime.movie;
+      const movieTotal = movieTotals.get(movie.id) || {
+        id: movie.id,
+        name: movie.title,
+        posterUrl: movie.posterUrl,
+        revenue: 0,
+        invoices: 0,
+        tickets: 0,
+      };
+      movieTotal.revenue += amount;
+      movieTotal.invoices += 1;
+      movieTotal.tickets += payment.booking.bookingItems.length;
+      movieTotals.set(movie.id, movieTotal);
+
+      const cinema = payment.booking.showtime.room.cinema;
+      const cinemaTotal = cinemaTotals.get(cinema.id) || {
+        id: cinema.id,
+        name: cinema.name,
+        revenue: 0,
+        invoices: 0,
+      };
+      cinemaTotal.revenue += amount;
+      cinemaTotal.invoices += 1;
+      cinemaTotals.set(cinema.id, cinemaTotal);
+    });
+
+    const daily = Array.from({ length: days }, (_, index) => {
+      const date = formatDateInDaNang(
+        this.addMinutes(periodStart, index * 24 * 60),
+      );
+      return { date, ...(dailyTotals.get(date) || { revenue: 0, invoices: 0, tickets: 0 }) };
+    });
+    return {
+      period: { days, from: formatDateInDaNang(periodStart), to: today },
+      summary: {
+        revenue,
+        previousRevenue,
+        growthPercent:
+          previousRevenue > 0
+            ? ((revenue - previousRevenue) / previousRevenue) * 100
+            : revenue > 0
+              ? 100
+              : 0,
+        invoices: payments.length,
+        tickets,
+        averageInvoice: payments.length ? revenue / payments.length : 0,
+      },
+      daily,
+      topMovies: [...movieTotals.values()]
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5),
+      topCinemas: [...cinemaTotals.values()]
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5),
+      recentTransactions: payments.slice(0, 8).map((payment) => ({
+        id: payment.id,
+        bookingId: payment.bookingId,
+        amount: Number(payment.amount),
+        paidAt: payment.paidAt || payment.createdAt,
+        provider: payment.provider,
+        customer:
+          [payment.booking.user.firstName, payment.booking.user.lastName]
+            .filter(Boolean)
+            .join(' ') || payment.booking.user.email,
+        movie: payment.booking.showtime.movie.title,
+        cinema: payment.booking.showtime.room.cinema.name,
+        tickets: payment.booking.bookingItems.length,
+      })),
+    };
+  }
+
+  async listUsers(role?: string) {
+    const selectedRole = role?.toUpperCase();
+    if (selectedRole && !['CUSTOMER', 'STAFF', 'ADMIN'].includes(selectedRole)) {
+      throw new BadRequestException('Vai trò người dùng không hợp lệ');
+    }
+    const users = await this.prisma.user.findMany({
+      where: selectedRole ? { role: selectedRole as Role } : undefined,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+        _count: { select: { bookings: true } },
+      },
+    });
+    return users.map((user) => ({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      name:
+        [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email,
+      phone: user.phone || '',
+      role: user.role,
+      bookingCount: user._count.bookings,
+      createdAt: user.createdAt,
+    }));
+  }
+
+  async createStaff(dto: CreateStaffDto) {
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing?.role === Role.ADMIN) {
+      throw new ConflictException('Không thể chuyển tài khoản Admin thành nhân viên');
+    }
+    if (existing?.role === Role.STAFF) {
+      throw new ConflictException('Email này đã là tài khoản nhân viên');
+    }
+
+    const { firstName, lastName } = this.splitPersonName(dto.name);
+    const passwordHash = existing?.passwordHash || (await bcrypt.hash(dto.password, 10));
+    const staff = existing
+      ? await this.prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            firstName,
+            lastName,
+            phone: dto.phone?.trim() || existing.phone,
+            role: Role.STAFF,
+            isActive: true,
+          },
+        })
+      : await this.prisma.user.create({
+          data: {
+            email,
+            firstName,
+            lastName,
+            phone: dto.phone?.trim() || null,
+            passwordHash,
+            role: Role.STAFF,
+          },
+        });
+
+    return this.publicStaff(staff);
+  }
+
+  async getStaffDetail(id: string) {
+    const staff = await this.prisma.user.findFirst({
+      where: { id, role: Role.STAFF },
+      include: {
+        _count: { select: { bookings: true } },
+      },
+    });
+    if (!staff) throw new NotFoundException('Không tìm thấy nhân viên');
+
+    const attendances = await this.prisma.$queryRaw<StaffAttendanceRow[]>(
+      Prisma.sql`SELECT "id", "workDate", "checkInAt", "checkOutAt", "shiftCode", "status", "note"
+                 FROM "staff_attendances"
+                 WHERE "staffId" = ${id}
+                 ORDER BY "workDate" DESC
+                 LIMIT 370`,
+    );
+
+    const attendanceData = attendances.map((item) => {
+      const workDate = formatDateInDaNang(item.workDate);
+      return {
+        id: item.id,
+        workDate,
+        checkInAt: item.checkInAt,
+        checkOutAt: item.checkOutAt,
+        shiftCode: item.shiftCode,
+        status: resolveStaffAttendanceStatus(
+          workDate,
+          item.checkInAt,
+          item.shiftCode,
+          item.status,
+        ),
+        note: item.note || '',
+        pay: calculateStaffPay(item.checkInAt, item.checkOutAt),
+      };
+    });
+    const attendanceSummary = attendanceData.reduce(
+      (summary, item) => {
+        summary[item.status] += 1;
+        return summary;
+      },
+      { PRESENT: 0, LATE: 0, ABSENT: 0, LEAVE: 0 },
+    );
+    return {
+      ...this.publicStaff(staff),
+      bookingCount: staff._count.bookings,
+      attendanceSummary,
+      totalSalary: attendanceData.reduce((sum, item) => sum + item.pay.salary, 0),
+      attendances: attendanceData,
+    };
+  }
+
+  async removeStaff(id: string) {
+    const staff = await this.prisma.user.findFirst({
+      where: { id, role: Role.STAFF },
+      select: { id: true },
+    });
+    if (!staff) throw new NotFoundException('Không tìm thấy nhân viên');
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { role: Role.CUSTOMER },
+    });
+    return {
+      id: user.id,
+      role: user.role,
+      message: 'Đã thu hồi quyền nhân viên; tài khoản khách hàng vẫn được giữ lại',
+    };
+  }
+
+  private splitPersonName(name: string) {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    return {
+      firstName: parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0],
+      lastName: parts.length > 1 ? parts.at(-1) : null,
+    };
+  }
+
+  private publicStaff(staff: {
+    id: string;
+    username: string | null;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    phone: string | null;
+    role: Role;
+    createdAt: Date;
+  }) {
+    return {
+      id: staff.id,
+      username: staff.username,
+      email: staff.email,
+      name:
+        [staff.firstName, staff.lastName].filter(Boolean).join(' ') ||
+        staff.email,
+      phone: staff.phone || '',
+      role: staff.role,
+      createdAt: staff.createdAt,
+    };
+  }
+
+  async listMovies() {
+    await this.movieStatusService.synchronizeStatuses();
     return this.prisma.movie.findMany({
       include: { genres: { include: { genre: true } }, _count: true },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async getMovieSales(id: string) {
+    const movie = await this.prisma.movie.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        posterUrl: true,
+        releaseDate: true,
+        endDate: true,
+        status: true,
+      },
+    });
+    if (!movie) throw new NotFoundException('Movie not found');
+
+    const movieBookingFilter = {
+      showtime: { movieId: id },
+    } satisfies Prisma.BookingWhereInput;
+    const successfulPaymentFilter = {
+      status: PaymentStatus.SUCCESS,
+      booking: movieBookingFilter,
+    } satisfies Prisma.PaymentWhereInput;
+
+    const [successfulPayments, soldTickets] =
+      await Promise.all([
+        this.prisma.payment.findMany({
+          where: successfulPaymentFilter,
+          orderBy: [{ paidAt: 'asc' }, { createdAt: 'asc' }],
+          select: { amount: true, paidAt: true, createdAt: true },
+        }),
+        this.prisma.ticket.count({
+          where: {
+            booking: { ...movieBookingFilter, status: 'PAID' },
+          },
+        }),
+      ]);
+
+    const totalRevenue = successfulPayments.reduce(
+      (sum, payment) => sum + Number(payment.amount),
+      0,
+    );
+    const paidInvoices = successfulPayments.length;
+    const lastPayment = successfulPayments.at(-1);
+    return {
+      movie,
+      revenue: totalRevenue,
+      currency: 'VND',
+      paidInvoices,
+      soldTickets,
+      averageRevenuePerInvoice:
+        paidInvoices > 0 ? totalRevenue / paidInvoices : 0,
+      averageTicketsPerInvoice:
+        paidInvoices > 0 ? soldTickets / paidInvoices : 0,
+      lastPaidAt: lastPayment?.paidAt || lastPayment?.createdAt || null,
+      revenueByDate: this.movieRevenueByDate(
+        movie.releaseDate,
+        successfulPayments,
+      ),
+    };
+  }
+
+  private movieRevenueByDate(
+    releaseDate: Date | null,
+    payments: Array<{ amount: Prisma.Decimal; paidAt: Date | null; createdAt: Date }>,
+  ) {
+    const today = formatDateInDaNang(new Date());
+    const firstPaymentDate = payments[0]
+      ? formatDateInDaNang(payments[0].paidAt || payments[0].createdAt)
+      : today;
+    const startDate = releaseDate
+      ? formatDateInDaNang(releaseDate)
+      : firstPaymentDate;
+    const endDate = startDate > today ? startDate : today;
+    const totals = new Map<string, { revenue: number; invoiceCount: number }>();
+
+    payments.forEach((payment) => {
+      const date = formatDateInDaNang(payment.paidAt || payment.createdAt);
+      const current = totals.get(date) || { revenue: 0, invoiceCount: 0 };
+      current.revenue += Number(payment.amount);
+      current.invoiceCount += 1;
+      totals.set(date, current);
+    });
+
+    const days: Array<{ date: string; revenue: number; invoiceCount: number }> = [];
+    const cursor = new Date(`${startDate}T00:00:00.000Z`);
+    const lastDay = new Date(`${endDate}T00:00:00.000Z`);
+    while (cursor <= lastDay) {
+      const date = cursor.toISOString().slice(0, 10);
+      const total = totals.get(date) || { revenue: 0, invoiceCount: 0 };
+      days.push({ date, ...total });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return days;
   }
 
   createMovie(dto: CreateMovieDto) {
@@ -103,31 +660,27 @@ export class AdminService {
     if (!Number.isInteger(tmdbId) || tmdbId < 1) {
       throw new BadRequestException('TMDB movie ID is invalid');
     }
-    return this.upsertMovieFromTmdb(tmdbId, dto.status || 'NOW_SHOWING');
+    const releaseDate = new Date(dto.releaseDate);
+    const endDate = new Date(dto.endDate);
+    const status = this.movieStatusService.resolveStatus(
+      releaseDate,
+      endDate,
+      MovieStatus.DRAFT,
+    );
+    return this.upsertMovieFromTmdb(
+      tmdbId,
+      releaseDate,
+      endDate,
+      status,
+    );
   }
 
-  async importUpcomingMoviesFromTmdb(dto: ImportUpcomingMoviesFromTmdbDto) {
-    const page = dto.page || 1;
-    const limit = dto.limit || 10;
-    const upcoming = await this.fetchTmdb('/movie/upcoming', {
-      language: 'vi-VN',
-      region: 'VN',
-      page,
-    });
-    const results = (upcoming.results || []).slice(0, limit);
-    const movies: unknown[] = [];
-
-    for (const item of results) {
-      movies.push(await this.upsertMovieFromTmdb(item.id, 'COMING_SOON'));
-    }
-
-    return {
-      importedCount: movies.length,
-      movies,
-    };
-  }
-
-  private async upsertMovieFromTmdb(tmdbId: number, status: string) {
+  private async upsertMovieFromTmdb(
+    tmdbId: number,
+    releaseDate: Date,
+    endDate: Date,
+    status: MovieStatus,
+  ) {
     const detailsVi = await this.fetchTmdb(`/movie/${tmdbId}`, {
       language: 'vi-VN',
     });
@@ -155,13 +708,12 @@ export class AdminService {
         title: details.title || detailsEn.title,
         description: details.overview || detailsEn.overview || null,
         durationMin: details.runtime || detailsEn.runtime || 100,
-        releaseDate: details.release_date
-          ? new Date(`${details.release_date}T00:00:00.000Z`)
-          : null,
+        releaseDate,
+        endDate,
         posterUrl: this.tmdbImageUrl(posterPath, 'w500'),
         trailerUrl,
         ageRating: 'P',
-        status: status as MovieStatus,
+        status,
       };
       const movie = existingMovie
         ? await tx.movie.update({
@@ -195,14 +747,14 @@ export class AdminService {
   }
 
   async updateMovie(id: string, dto: UpdateMovieDto) {
-    await this.ensureMovie(id);
+    const movie = await this.ensureMovie(id);
     return this.prisma.$transaction(async (tx) => {
       if (dto.genreIds) {
         await tx.movieGenre.deleteMany({ where: { movieId: id } });
       }
       return tx.movie.update({
         where: { id },
-        data: this.movieData(dto, id),
+        data: this.movieData(dto, id, movie),
         include: { genres: { include: { genre: true } } },
       });
     });
@@ -240,6 +792,124 @@ export class AdminService {
       include: { chain: true, rooms: true, ticketPrices: true },
       orderBy: [{ code: 'asc' }, { name: 'asc' }],
     });
+  }
+
+  async getCinemaOverview(id: string) {
+    await this.ensureCinema(id);
+    const today = formatDateInDaNang(new Date());
+    const startAt = new Date(`${today}T00:00:00.000+07:00`);
+    const endAt = new Date(startAt.getTime() + 24 * 60 * 60 * 1000);
+    const cinemaBookingFilter = {
+      showtime: { room: { cinemaId: id } },
+    } satisfies Prisma.BookingWhereInput;
+
+    const [rooms, seats, todayShowtimes, revenue] = await Promise.all([
+      this.prisma.room.count({ where: { cinemaId: id } }),
+      this.prisma.seat.count({ where: { room: { cinemaId: id } } }),
+      this.prisma.showtime.count({
+        where: { room: { cinemaId: id }, startAt: { gte: startAt, lt: endAt } },
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          status: PaymentStatus.SUCCESS,
+          booking: cinemaBookingFilter,
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    return {
+      rooms,
+      seats,
+      todayShowtimes,
+      revenue: Number(revenue._sum.amount || 0),
+      currency: 'VND',
+      date: today,
+    };
+  }
+
+  async getCinemaDetail(id: string) {
+    const today = formatDateInDaNang(new Date());
+    const todayStart = new Date(`${today}T00:00:00.000+07:00`);
+    const tomorrowStart = this.addMinutes(todayStart, 24 * 60);
+    const cinemaBookingFilter = {
+      showtime: { room: { cinemaId: id } },
+    } satisfies Prisma.BookingWhereInput;
+
+    const [cinema, rooms, showtimes, revenue] = await Promise.all([
+      this.prisma.cinema.findUnique({
+        where: { id },
+        include: { chain: true, ticketPrices: true },
+      }),
+      this.prisma.room.findMany({
+        where: { cinemaId: id },
+        include: ADMIN_ROOM_INCLUDE,
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.showtime.findMany({
+        where: {
+          room: { cinemaId: id },
+          endAt: { gt: todayStart },
+        },
+        include: {
+          movie: true,
+          room: { include: { cinema: { include: { chain: true } } } },
+          showtimeSeats: { select: { status: true } },
+        },
+        orderBy: { startAt: 'asc' },
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          status: PaymentStatus.SUCCESS,
+          booking: cinemaBookingFilter,
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+    if (!cinema) throw new NotFoundException('Cinema not found');
+
+    const roomData = rooms.map((room) => this.adminRoomData(room));
+    const seats = rooms.flatMap((room) => room.seats);
+    const showtimeData = showtimes.map((showtime) => {
+      const totalSeats = showtime.showtimeSeats.length;
+      const bookedSeats = showtime.showtimeSeats.filter(
+        (seat) => seat.status === 'BOOKED',
+      ).length;
+      return {
+        id: showtime.id,
+        movieId: showtime.movieId,
+        roomId: showtime.roomId,
+        cinemaId: cinema.id,
+        movie: showtime.movie,
+        room: showtime.room,
+        cinema,
+        startAt: showtime.startAt,
+        endAt: showtime.endAt,
+        totalSeats,
+        bookedSeats,
+        seatBookedPercent: totalSeats
+          ? Math.round((bookedSeats / totalSeats) * 100)
+          : 0,
+      };
+    });
+
+    return {
+      cinema,
+      rooms: roomData,
+      seats,
+      showtimes: showtimeData,
+      overview: {
+        rooms: roomData.length,
+        seats: seats.length,
+        todayShowtimes: showtimes.filter(
+          (showtime) =>
+            showtime.startAt >= todayStart && showtime.startAt < tomorrowStart,
+        ).length,
+        revenue: Number(revenue._sum.amount || 0),
+        currency: 'VND',
+        date: today,
+      },
+    };
   }
 
   async createCinema(dto: CreateCinemaDto) {
@@ -341,43 +1011,87 @@ export class AdminService {
 
   async listRooms() {
     const rooms = await this.prisma.room.findMany({
-      include: {
-        cinema: { include: { chain: true } },
-        seats: true,
-        _count: { select: { seats: true, showtimes: true } },
-      },
+      include: ADMIN_ROOM_INCLUDE,
       orderBy: [{ cinemaId: 'asc' }, { name: 'asc' }],
     });
 
-    return rooms.map((room) => {
-      const rowLabels = [...new Set(room.seats.map((seat) => seat.row))].sort();
-      const cols = room.seats.reduce(
-        (max, seat) => Math.max(max, seat.number),
+    return rooms.map((room) => this.adminRoomData(room));
+  }
+
+  async getRoomHistory(id: string) {
+    const room = await this.prisma.room.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        cinema: { select: { id: true, name: true } },
+      },
+    });
+    if (!room) throw new NotFoundException('Room not found');
+
+    const showtimes = await this.prisma.showtime.findMany({
+      where: { roomId: id, endAt: { lt: new Date() } },
+      orderBy: { startAt: 'desc' },
+      include: {
+        movie: { select: { id: true, title: true, posterUrl: true } },
+        bookings: {
+          where: {
+            payments: { some: { status: PaymentStatus.SUCCESS } },
+          },
+          select: {
+            payments: {
+              where: { status: PaymentStatus.SUCCESS },
+              select: { amount: true },
+            },
+            _count: { select: { tickets: true } },
+          },
+        },
+      },
+    });
+
+    const history = showtimes.map((showtime) => {
+      const revenue = showtime.bookings.reduce(
+        (bookingTotal, booking) =>
+          bookingTotal +
+          booking.payments.reduce(
+            (paymentTotal, payment) => paymentTotal + Number(payment.amount),
+            0,
+          ),
         0,
       );
-      const seatTypeSummary = room.seats.reduce(
-        (summary, seat) => {
-          summary[seat.type] = (summary[seat.type] || 0) + 1;
-          return summary;
-        },
-        {} as Record<string, number>,
+      const soldTickets = showtime.bookings.reduce(
+        (total, booking) => total + booking._count.tickets,
+        0,
       );
-
       return {
-        id: room.id,
-        cinemaId: room.cinemaId,
-        cinema: room.cinema,
-        name: room.name,
-        capacity: room._count.seats,
-        rows: rowLabels.length,
-        cols,
-        seatCount: room._count.seats,
-        showtimeCount: room._count.showtimes,
-        seatTypeSummary,
-        createdAt: room.createdAt,
-        updatedAt: room.updatedAt,
+        id: showtime.id,
+        movie: showtime.movie,
+        startAt: showtime.startAt,
+        endAt: showtime.endAt,
+        paidInvoices: showtime.bookings.length,
+        soldTickets,
+        revenue,
       };
     });
+
+    return {
+      room,
+      totalShowtimes: history.length,
+      paidInvoices: history.reduce(
+        (total, showtime) => total + showtime.paidInvoices,
+        0,
+      ),
+      soldTickets: history.reduce(
+        (total, showtime) => total + showtime.soldTickets,
+        0,
+      ),
+      revenue: history.reduce(
+        (total, showtime) => total + showtime.revenue,
+        0,
+      ),
+      currency: 'VND',
+      showtimes: history,
+    };
   }
 
   async createRoom(dto: CreateRoomDto) {
@@ -561,10 +1275,6 @@ export class AdminService {
           status: 'AVAILABLE',
         })),
       });
-      await tx.movie.update({
-        where: { id: dto.movieId },
-        data: { status: MovieStatus.NOW_SHOWING },
-      });
       return showtime;
     });
   }
@@ -702,12 +1412,28 @@ export class AdminService {
     };
   }
 
-  private movieData(dto: CreateMovieDto | UpdateMovieDto, movieId?: string) {
-    const { genreIds, releaseDate, status, ...rest } = dto;
+  private movieData(
+    dto: CreateMovieDto | UpdateMovieDto,
+    movieId?: string,
+    currentMovie?: { releaseDate: Date | null; endDate: Date | null; status: MovieStatus },
+  ) {
+    const { genreIds, releaseDate, endDate, status, ...rest } = dto;
+    const parsedReleaseDate = releaseDate
+      ? new Date(releaseDate)
+      : currentMovie?.releaseDate;
+    const parsedEndDate = endDate ? new Date(endDate) : currentMovie?.endDate;
+    const resolvedStatus = this.movieStatusService.resolveStatus(
+      parsedReleaseDate,
+      parsedEndDate,
+      (status as MovieStatus | undefined) ||
+        currentMovie?.status ||
+        MovieStatus.DRAFT,
+    );
     return {
       ...rest,
       releaseDate: releaseDate ? new Date(releaseDate) : undefined,
-      status: status as MovieStatus | undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      status: resolvedStatus,
       genres: genreIds
         ? {
             create: genreIds.map((genreId) => ({
@@ -717,6 +1443,49 @@ export class AdminService {
         : movieId
           ? undefined
           : { create: [] },
+    };
+  }
+
+  private adminRoomData(room: AdminRoomWithDetails) {
+    const rowLabels = [...new Set(room.seats.map((seat) => seat.row))].sort();
+    const cols = room.seats.reduce(
+      (max, seat) => Math.max(max, seat.number),
+      0,
+    );
+    const seatTypeSummary = room.seats.reduce(
+      (summary, seat) => {
+        summary[seat.type] = (summary[seat.type] || 0) + 1;
+        return summary;
+      },
+      {} as Record<string, number>,
+    );
+    return {
+      id: room.id,
+      cinemaId: room.cinemaId,
+      cinema: room.cinema,
+      name: room.name,
+      capacity: room._count.seats,
+      rows: rowLabels.length,
+      cols,
+      seatCount: room._count.seats,
+      showtimeCount: room._count.showtimes,
+      seatTypeSummary,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+    };
+  }
+
+  private dashboardShowtimeData(showtime: DashboardShowtime) {
+    return {
+      id: showtime.id,
+      movie: showtime.movie,
+      room: showtime.room,
+      startAt: showtime.startAt,
+      endAt: showtime.endAt,
+      totalSeats: showtime.showtimeSeats.length,
+      bookedSeats: showtime.showtimeSeats.filter(
+        (seat) => seat.status === 'BOOKED',
+      ).length,
     };
   }
 
@@ -814,7 +1583,7 @@ export class AdminService {
           },
         },
       },
-      select: { id: true },
+      select: { id: true, user: { select: { role: true } } },
     });
 
     await this.prisma.$transaction(async (tx) => {
@@ -827,21 +1596,19 @@ export class AdminService {
         data: { price },
       });
 
-      await tx.bookingItem.updateMany({
-        where: {
-          booking: {
-            status: 'PENDING',
-            showtime: { room: { cinemaId } },
-          },
-          showtimeSeat: {
-            status: { not: 'BOOKED' },
-            seat: { type: seatType },
-          },
-        },
-        data: { unitPrice: price },
-      });
-
       for (const booking of affectedBookings) {
+        await tx.bookingItem.updateMany({
+          where: {
+            bookingId: booking.id,
+            showtimeSeat: {
+              status: { not: 'BOOKED' },
+              seat: { type: seatType },
+            },
+          },
+          data: {
+            unitPrice: ticketPriceForRole(price, booking.user.role),
+          },
+        });
         const detail = await tx.booking.findUnique({
           where: { id: booking.id },
           include: {

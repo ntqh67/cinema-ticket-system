@@ -14,7 +14,29 @@ import {
   IsOptional,
   IsString,
   Min,
+  MinLength,
 } from 'class-validator';
+
+export class CreateStaffDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(2)
+  name: string;
+
+  @ApiProperty()
+  @IsEmail()
+  email: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(6)
+  password: string;
+}
 
 // Lớp CreateGenreDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateGenreDto {
@@ -83,6 +105,11 @@ export class CreateMovieDto {
   @IsDateString()
   releaseDate?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
   @ApiPropertyOptional({
     enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'],
   })
@@ -112,12 +139,13 @@ export class CreateMovieFromTmdbDto {
   @Min(1)
   tmdbId: number;
 
-  @ApiPropertyOptional({
-    enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'],
-  })
-  @IsOptional()
-  @IsEnum(['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'])
-  status?: 'DRAFT' | 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED';
+  @ApiProperty({ example: '2026-07-20' })
+  @IsDateString()
+  releaseDate: string;
+
+  @ApiProperty({ example: '2026-08-20' })
+  @IsDateString()
+  endDate: string;
 }
 
 // Lớp RoomAvailableSlotsQueryDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
@@ -129,21 +157,6 @@ export class RoomAvailableSlotsQueryDto {
   @ApiProperty({ example: '2026-07-13' })
   @IsDateString()
   date: string;
-}
-
-// Lớp ImportUpcomingMoviesFromTmdbDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
-export class ImportUpcomingMoviesFromTmdbDto {
-  @ApiPropertyOptional({ default: 1 })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  page?: number;
-
-  @ApiPropertyOptional({ default: 10 })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  limit?: number;
 }
 
 // Lớp CreateCinemaDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.

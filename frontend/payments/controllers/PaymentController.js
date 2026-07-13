@@ -58,6 +58,15 @@ const PaymentController = {
     PaymentView.showProcessing();
     // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
+      if (Number(finalAmount) === 0) {
+        const paid = await API.payBooking(booking.backendBookingId);
+        PaymentView._clearHoldCountdown();
+        State.set('currentBooking', null);
+        SeatController.selectedSeats = [];
+        Router.navigate(`/ticket/${paid.bookingId}`);
+        Toast.success('Đã phát hành vé Admin 0 ₫');
+        return;
+      }
       const result = await PaymentModel.process(paymentData);
       // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
       if (result.success && result.sepay) {

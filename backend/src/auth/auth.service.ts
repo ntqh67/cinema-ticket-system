@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'crypto';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
@@ -44,6 +45,7 @@ export class AuthService {
 
     return {
       user: this.toPublicUser(user),
+      accessToken: await this.issueSession(user.id),
     };
   }
 
@@ -71,7 +73,18 @@ export class AuthService {
 
     return {
       user: this.toPublicUser(user),
+      accessToken: await this.issueSession(user.id),
     };
+  }
+
+  private async issueSession(userId: string) {
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await this.prisma.refreshToken.create({
+      data: { tokenHash, userId, expiresAt },
+    });
+    return token;
   }
 
   // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối splitName.
@@ -112,7 +125,12 @@ export class AuthService {
       username: user.username,
       name: name || user.email,
       phone: user.phone || '',
-      role: user.role === Role.ADMIN ? 'admin' : 'user',
+      role:
+        user.role === Role.ADMIN
+          ? 'admin'
+          : user.role === Role.STAFF
+            ? 'staff'
+            : 'user',
       isActive: user.isActive,
       createdAt: user.createdAt,
     };

@@ -16,6 +16,7 @@ import { RedisModule } from './redis/redis.module';
 import { SeatHoldsModule } from './seat-holds/seat-holds.module';
 import { SeatsModule } from './seats/seats.module';
 import { UsersModule } from './users/users.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     SeatHoldsModule,
     SeatsModule,
     UsersModule,
+    StaffModule,
     BookingsModule,
     ConcessionsModule,
   ],

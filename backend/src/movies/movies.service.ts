@@ -9,6 +9,7 @@ import {
 } from '../common/danang-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMovieReviewDto } from './dto/movie-review.dto';
+import { MovieStatusService } from './movie-status.service';
 
 const movieInclude = {
   genres: {
@@ -60,10 +61,14 @@ type ShowtimeWithInclude = Prisma.ShowtimeGetPayload<{
 @Injectable()
 // Lớp MoviesService tập trung các quy tắc nghiệp vụ và phối hợp truy cập dữ liệu.
 export class MoviesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly movieStatusService: MovieStatusService,
+  ) {}
 
   // Đọc và lọc dữ liệu cần thiết trong khối findAll.
   async findAll() {
+    await this.movieStatusService.synchronizeStatuses();
     const movies = await this.prisma.movie.findMany({
       where: {
         status: {
@@ -81,6 +86,7 @@ export class MoviesService {
 
   // Đọc và lọc dữ liệu cần thiết trong khối findOne.
   async findOne(movieId: string) {
+    await this.movieStatusService.synchronizeStatuses();
     const movie = await this.prisma.movie.findUnique({
       where: { id: movieId },
       include: movieInclude,
@@ -224,10 +230,8 @@ export class MoviesService {
       banner: movie.posterUrl || '',
       duration: movie.durationMin,
       releaseDate: movie.releaseDate,
-      status:
-        movie._count.showtimes > 0
-          ? 'nowShowing'
-          : this.mapMovieStatus(movie.status),
+      endDate: movie.endDate,
+      status: this.mapMovieStatus(movie.status),
       genre: movie.genres.map((item) => item.genre.name),
       rating: this.averageRating(movie.reviews),
       ratingAverage: this.averageRating(movie.reviews),

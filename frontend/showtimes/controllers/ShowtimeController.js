@@ -39,8 +39,18 @@ const ShowtimeController = {
       });
       await API.syncBackendCatalog();
       Modal.close();
-      Toast.success('Da tao lich chieu');
-      ShowtimeView.renderAdmin();
+      Toast.success('Đã tạo lịch chiếu');
+      const returnCinemaId = ShowtimeView._returnCinemaId;
+      const returnView = ShowtimeView._returnView;
+      ShowtimeView._returnCinemaId = null;
+      ShowtimeView._returnView = null;
+      if (returnCinemaId) {
+        await CinemaView.renderAdminDetail({ id: returnCinemaId });
+      } else if (returnView === 'movies') {
+        await MovieView.renderAdmin();
+      } else {
+        ShowtimeView.renderAdmin();
+      }
     } catch (error) {
       Toast.error(error.message || 'Khong the tao lich chieu');
     }

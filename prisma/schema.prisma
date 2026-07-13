@@ -16,6 +16,13 @@ enum Role {
   STAFF
 }
 
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
 // Định nghĩa các giá trị hợp lệ của MovieStatus để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum MovieStatus {
   DRAFT
@@ -67,24 +74,43 @@ enum TicketStatus {
 
 // Mô hình người dùng và vai trò truy cập.
 model User {
-  id            String         @id @default(cuid())
-  username      String?        @unique
-  email         String         @unique
+  id            String            @id @default(cuid())
+  username      String?           @unique
+  email         String            @unique
   passwordHash  String
   firstName     String?
   lastName      String?
   phone         String?
-  role          Role           @default(CUSTOMER)
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  role          Role              @default(CUSTOMER)
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   bookings      Booking[]
   refreshTokens RefreshToken[]
   movieReviews  MovieReview[]
+  attendances   StaffAttendance[]
 
   @@index([email])
   @@index([role])
   @@map("users")
+}
+
+model StaffAttendance {
+  id         String           @id @default(cuid())
+  staffId    String
+  staff      User             @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  workDate   DateTime         @db.Date
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  shiftCode  String?
+  status     AttendanceStatus @default(PRESENT)
+  note       String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([staffId, workDate])
+  @@index([workDate])
+  @@map("staff_attendances")
 }
 
 // Mô hình refresh token phục vụ phiên đăng nhập.
@@ -112,6 +138,7 @@ model Movie {
   trailerUrl  String?
   durationMin Int
   releaseDate DateTime?
+  endDate     DateTime?
   ageRating   String        @default("P")
   status      MovieStatus   @default(DRAFT)
   createdAt   DateTime      @default(now())
@@ -122,6 +149,7 @@ model Movie {
 
   @@index([status])
   @@index([releaseDate])
+  @@index([endDate])
   @@index([title])
   @@index([tmdbId])
   @@map("movies")

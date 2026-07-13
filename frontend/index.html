@@ -16,10 +16,10 @@
   <link rel="stylesheet" href="assets/css/pages/movies.css" />
   <link rel="stylesheet" href="assets/css/pages/booking.css" />
   <link rel="stylesheet" href="assets/css/pages/seats.css" />
-  <link rel="stylesheet" href="assets/css/pages/payment.css" />
+  <link rel="stylesheet" href="assets/css/pages/payment.css?v=20260714-combo-poster-cards" />
   <link rel="stylesheet" href="assets/css/pages/ticket.css" />
-  <link rel="stylesheet" href="assets/css/pages/admin.css" />
-  <link rel="stylesheet" href="assets/css/pages/dashboard.css" />
+  <link rel="stylesheet" href="assets/css/pages/admin.css?v=20260714-movie-schedule-flow" />
+  <link rel="stylesheet" href="assets/css/pages/dashboard.css?v=20260714-revenue-insights" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body>
@@ -39,50 +39,50 @@
   <!-- Nạp các tiện ích nền tảng trước những module nghiệp vụ -->
   <script src="assets/js/utils/helpers.js"></script>
   <script src="assets/js/utils/state.js"></script>
-  <script src="assets/js/utils/api.js"></script>
+  <script src="assets/js/utils/api.js?v=20260714-revenue-insights"></script>
   <script src="assets/js/utils/qr.js"></script>
   <script src="assets/js/utils/router.js"></script>
 
   <!-- Các thành phần giao diện dùng chung -->
   <script src="assets/js/components/Toast.js"></script>
   <script src="assets/js/components/Modal.js"></script>
-  <script src="assets/js/components/Navbar.js"></script>
+  <script src="assets/js/components/Navbar.js?v=20260714-staff-three-shifts"></script>
   <script src="assets/js/components/Footer.js"></script>
 
   <!-- Module xác thực -->
-  <script src="auth/models/AuthModel.js"></script>
-  <script src="auth/controllers/AuthController.js"></script>
+  <script src="auth/models/AuthModel.js?v=20260714-staff-three-shifts"></script>
+  <script src="auth/controllers/AuthController.js?v=20260714-staff-three-shifts"></script>
   <script src="auth/views/AuthView.js"></script>
 
   <!-- Module người dùng -->
   <script src="users/models/UserModel.js"></script>
   <script src="users/controllers/UserController.js"></script>
-  <script src="users/views/UserView.js"></script>
+  <script src="users/views/UserView.js?v=20260714-staff-payroll"></script>
 
   <!-- Module phim -->
   <script src="movies/models/MovieModel.js"></script>
-  <script src="movies/controllers/MovieController.js"></script>
-  <script src="movies/views/MovieView.js"></script>
+  <script src="movies/controllers/MovieController.js?v=20260714-tmdb-date-range"></script>
+  <script src="movies/views/MovieView.js?v=20260714-movie-schedule-flow"></script>
 
   <!-- Module cụm rạp -->
   <script src="cinemas/models/CinemaModel.js"></script>
   <script src="cinemas/controllers/CinemaController.js"></script>
-  <script src="cinemas/views/CinemaView.js"></script>
+  <script src="cinemas/views/CinemaView.js?v=20260714-fast-cinema-detail"></script>
 
   <!-- Module phòng chiếu -->
   <script src="rooms/models/RoomModel.js"></script>
   <script src="rooms/controllers/RoomController.js"></script>
-  <script src="rooms/views/RoomView.js"></script>
+  <script src="rooms/views/RoomView.js?v=20260714-cinema-detail"></script>
 
   <!-- Module ghế -->
   <script src="seats/models/SeatModel.js"></script>
-  <script src="seats/controllers/SeatController.js"></script>
+  <script src="seats/controllers/SeatController.js?v=20260714-role-ticket-pricing"></script>
   <script src="seats/views/SeatView.js"></script>
 
   <!-- Module suất chiếu -->
   <script src="showtimes/models/ShowtimeModel.js"></script>
-  <script src="showtimes/controllers/ShowtimeController.js"></script>
-  <script src="showtimes/views/ShowtimeView.js"></script>
+  <script src="showtimes/controllers/ShowtimeController.js?v=20260714-movie-schedule-flow"></script>
+  <script src="showtimes/views/ShowtimeView.js?v=20260714-hide-showtime-price"></script>
 
   <!-- Module đặt vé -->
   <script src="bookings/models/BookingModel.js"></script>
@@ -91,8 +91,8 @@
 
   <!-- Module thanh toán -->
   <script src="payments/models/PaymentModel.js"></script>
-  <script src="payments/controllers/PaymentController.js"></script>
-  <script src="payments/views/PaymentView.js"></script>
+  <script src="payments/controllers/PaymentController.js?v=20260714-role-ticket-pricing"></script>
+  <script src="payments/views/PaymentView.js?v=20260714-role-ticket-pricing"></script>
 
   <!-- Module vé điện tử -->
   <script src="tickets/models/TicketModel.js"></script>
@@ -101,14 +101,14 @@
 
   <!-- Module combo bắp nước -->
   <script src="concessions/controllers/ConcessionController.js"></script>
-  <script src="concessions/views/ConcessionView.js"></script>
+  <script src="concessions/views/ConcessionView.js?v=20260714-combo-image-upload"></script>
 
   <!-- Module báo cáo -->
   <script src="reports/models/ReportModel.js"></script>
-  <script src="reports/controllers/ReportController.js"></script>
-  <script src="reports/views/ReportView.js"></script>
+  <script src="reports/controllers/ReportController.js?v=20260714-revenue-insights"></script>
+  <script src="reports/views/ReportView.js?v=20260714-revenue-insights"></script>
 
   <!-- Điểm khởi chạy ứng dụng; phải được nạp sau mọi phụ thuộc -->
-  <script src="assets/js/app.js"></script>
+  <script src="assets/js/app.js?v=20260714-staff-three-shifts"></script>
 </body>
 </html>
