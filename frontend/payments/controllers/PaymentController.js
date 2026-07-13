@@ -1,31 +1,16 @@
-/**
- * Mục đích: Lớp Controller điều phối sự kiện giao diện và nghiệp vụ thanh toán.
- */
-/* CineTicket - Controller thanh toán */
-// Lớp PaymentController nhận thao tác từ HTTP hoặc giao diện và chuyển chúng tới lớp nghiệp vụ phù hợp.
+/* CRTicket - Controller thanh toán */
 const PaymentController = {
-  // Điều phối sự kiện và phản hồi người dùng trong khối handleSubmit.
-  async handleSubmit(event, method) {
-    event.preventDefault();
-    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
+  // Tự tạo phiên thanh toán SePay khi người dùng vào trang thanh toán.
+  async startSepayPayment(booking = State.get('currentBooking')) {
     if (!AuthController.checkAuth()) return;
-    const onlineMethods = ['sepay', 'vnpay', 'card', 'momo', 'zalopay'];
-    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
-    if (!onlineMethods.includes(method)) {
-      Toast.error('Phương thức thanh toán không hợp lệ');
-      return;
-    }
 
-    const booking = State.get('currentBooking');
-    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
     if (!booking) {
       Toast.error('Phiên đặt vé đã hết hạn');
       Router.navigate('/');
       return;
     }
-    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
+
     if (booking.expiresAt && new Date(booking.expiresAt).getTime() <= Date.now()) {
-      // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
       try {
         await API.expireBookings();
       } catch (error) {
@@ -37,29 +22,11 @@ const PaymentController = {
       return;
     }
 
-    const user = State.get('currentUser');
-    const finalAmount = booking.totalPrice;
-    const paymentData = {
-      userId: user.id,
-      backendBookingId: booking.backendBookingId,
-      showtimeId: booking.showtimeId,
-      movieId: booking.movieId,
-      cinemaId: booking.cinemaId,
-      roomId: booking.roomId,
-      seats: booking.seats.map((seat) => typeof seat === 'object' ? seat.id : seat),
-      totalAmount: finalAmount,
-      comboItems: booking.comboItems || [],
-      discount: 0,
-      promoCode: null,
-      paymentMethod: method,
-      status: 'confirmed',
-    };
-
-    PaymentView.showProcessing();
-    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
-      if (Number(finalAmount) === 0) {
+      if (Number(booking.totalPrice || 0) === 0) {
+        PaymentView.renderAdminFreeProcessing();
         const paid = await API.payBooking(booking.backendBookingId);
+        PaymentView._clearSepayTimers();
         PaymentView._clearHoldCountdown();
         State.set('currentBooking', null);
         SeatController.selectedSeats = [];
@@ -67,27 +34,26 @@ const PaymentController = {
         Toast.success('Đã phát hành vé Admin 0 ₫');
         return;
       }
-      const result = await PaymentModel.process(paymentData);
-      // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
-      if (result.success && result.sepay) {
-        PaymentView.hideProcessing();
-        PaymentView.showSepayQr(result.payment, booking);
-      } else if (result.success && result.redirect && result.paymentUrl) {
-        PaymentView._clearHoldCountdown();
-        window.location.href = result.paymentUrl;
-      } else if (result.success) {
-        PaymentView._clearHoldCountdown();
-        State.set('currentBooking', null);
-        SeatController.selectedSeats = [];
-        Router.navigate(`/ticket/${result.booking.id}`);
-        Toast.success('Thanh toán thành công!');
-      } else {
-        Toast.error('Thanh toán thất bại, vui lòng thử lại');
-        PaymentView.hideProcessing();
+
+      PaymentView.renderSepayLoading();
+      const result = await PaymentModel.process({
+        backendBookingId: booking.backendBookingId,
+        paymentMethod: 'sepay',
+      });
+
+      if (!result.success || !result.sepay) {
+        throw new Error('Không tạo được thanh toán SePay');
       }
+
+      PaymentView.renderSepayQr(result.payment, booking);
     } catch (error) {
-      Toast.error(error.message || 'Thanh toán thất bại, vui lòng thử lại');
-      PaymentView.hideProcessing();
+      if (Number(booking.totalPrice || 0) === 0) {
+        PaymentView.renderAdminFreeError(error.message || 'Không thể phát hành vé Admin');
+        Toast.error(error.message || 'Không thể phát hành vé Admin');
+        return;
+      }
+      PaymentView.renderSepayError(error.message || 'Thanh toán SePay thất bại, vui lòng thử lại');
+      Toast.error(error.message || 'Thanh toán SePay thất bại, vui lòng thử lại');
     }
   },
 };

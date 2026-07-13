@@ -1,0 +1,209 @@
+HUONG DAN CHAY SEPAY GIONG MAY QUANG HUY
+========================================
+
+Muc dich
+--------
+File nay ghi lai cac buoc da test thanh cong de nguoi khac pull ve co the
+chay luong thanh toan SePay trong moi truong local bang ngrok.
+
+Luu y bao mat
+-------------
+Khong commit file .env that len GitHub.
+Moi nguoi tu copy .env.example thanh .env va dien thong tin rieng.
+SEPAY_API_KEY va ngrok authtoken la secret, khong dua vao tai lieu public.
+
+1. Cau hinh .env
+----------------
+Trong file .env can co cac bien:
+
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cinema_ticket_system?schema=public"
+BOOKING_HOLD_MINUTES="10"
+
+SEPAY_ENABLED="true"
+SEPAY_BANK_ACCOUNT="SO_TAI_KHOAN_NHAN_TIEN"
+SEPAY_BANK_CODE="MA_NGAN_HANG"
+SEPAY_ACCOUNT_NAME="TEN_CHU_TAI_KHOAN"
+SEPAY_API_KEY="API_KEY_CUA_SEPAY"
+SEPAY_PAYMENT_PREFIX="CRT"
+SEPAY_WEBHOOK_URL="https://URL_NGROK/api/bookings/sepay-webhook"
+
+FRONTEND_URL="http://localhost:5173"
+
+Vi du da test thanh cong:
+- Bank account: 220007012004
+- Bank code: MBBank
+- Account name: Nguyen Quang Huy
+- Prefix noi dung chuyen khoan: CRT
+
+2. Chay Docker
+--------------
+Mo terminal 1:
+
+cd "D:\My Project\Project 4 - Cinema"
+docker compose up -d
+
+3. Dong bo Prisma/database
+--------------------------
+Tai thu muc root:
+
+cd "D:\My Project\Project 4 - Cinema"
+npx.cmd prisma generate
+npx.cmd prisma migrate deploy
+
+4. Chay backend
+---------------
+Mo terminal 2:
+
+cd "D:\My Project\Project 4 - Cinema\backend"
+npm.cmd run start:dev
+
+Backend phai chay o port 3000.
+
+5. Chay frontend
+----------------
+Mo terminal 3:
+
+cd "D:\My Project\Project 4 - Cinema\frontend"
+npx.cmd vite --host 0.0.0.0
+
+Mo web:
+
+http://localhost:5173
+
+6. Chay ngrok
+-------------
+Mo terminal 4:
+
+ngrok http 3000
+
+Neu ngrok yeu cau authtoken:
+
+ngrok config add-authtoken YOUR_NGROK_AUTHTOKEN
+
+Neu ngrok bao version cu:
+
+ngrok update
+
+Sau khi chay thanh cong, ngrok se hien:
+
+Forwarding https://xxxxx.ngrok-free.dev -> http://localhost:3000
+
+Copy URL https do.
+
+7. Kiem tra ngrok noi duoc backend
+----------------------------------
+Mo trinh duyet:
+
+https://xxxxx.ngrok-free.dev/api/bookings/payment-methods
+
+Ket qua dung la JSON co:
+
+"id": "sepay", "enabled": true, "mode": "live"
+
+Neu vao / bi "Cannot GET /" thi khong sao, vi backend khong co route goc.
+Can test dung route /api/bookings/payment-methods.
+
+8. Cau hinh webhook tren SePay
+-----------------------------
+Trong SePay Dashboard, them webhook:
+
+Ten webhook:
+CRTicket Booking Payment
+
+URL nhan webhook:
+https://xxxxx.ngrok-free.dev/api/bookings/sepay-webhook
+
+Loai giao dich:
+Tien vao
+
+Dinh dang du lieu:
+JSON
+
+Bao mat:
+API Key
+
+API key:
+Dung gia tri SEPAY_API_KEY trong .env.
+
+Neu SePay cho nhap header day du, dung:
+
+Authorization: Apikey <SEPAY_API_KEY>
+
+9. Theo doi webhook
+-------------------
+Mo:
+
+http://127.0.0.1:4040
+
+Khi SePay goi dung, se thay request:
+
+POST /api/bookings/sepay-webhook
+
+Y nghia status:
+- 200: backend da nhan webhook.
+- 401: sai API key hoac SePay gui header khac voi backend mong doi.
+- Khong co request: SePay chua goi webhook hoac URL webhook dang sai.
+- 200 nhung payment khong thanh cong: kiem tra payment_webhook_events,
+  thuong la sai so tien, sai noi dung chuyen khoan hoac booking da het han.
+
+10. Luong test thanh cong
+-------------------------
+1. Dang nhap tren web.
+2. Chon phim.
+3. Chon suat chieu.
+4. Chon ghe.
+5. Chon hoac bo qua combo bap nuoc.
+6. Vao thanh toan.
+7. QR SePay tu hien, khong can chon phuong thuc va khong can bam xac nhan.
+8. Quet QR va chuyen khoan dung:
+   - dung so tien;
+   - dung noi dung chuyen khoan dang hien, vi du CRT...
+9. SePay gui webhook ve backend qua ngrok.
+10. Frontend tu polling /api/bookings/:bookingId/payment-status.
+11. Khi payment SUCCESS, web tu chuyen sang trang ve dien tu.
+
+Ket qua dung trong database:
+- payments.status = SUCCESS
+- bookings.status = PAID
+- showtime_seats.status = BOOKED
+- tickets co ve moi
+- payment_webhook_events co log webhook PROCESSED
+
+11. Test nhanh bang webhook gia
+-------------------------------
+Dung khi khong muon chuyen khoan that hoac can test logic backend.
+Copy so tien va noi dung CRT dang hien tren QR roi chay:
+
+$headers = @{ Authorization = "Apikey <SEPAY_API_KEY>" }
+$body = @{
+  id = "TXN-TEST-001"
+  transferType = "in"
+  transferAmount = 180000
+  content = "Thanh toan CRT_MA_DANG_HIEN_TREN_QR"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Uri "http://localhost:3000/api/bookings/sepay-webhook" `
+  -Method Post `
+  -Headers $headers `
+  -ContentType "application/json" `
+  -Body $body
+
+Phai thay:
+- transferAmount bang dung so tien tren QR.
+- content co dung ma CRT dang hien tren QR.
+
+12. Loi thuong gap
+------------------
+Web dung o "Dang cho SePay xac nhan":
+- Mo http://127.0.0.1:4040.
+- Neu khong co POST /api/bookings/sepay-webhook: SePay chua goi webhook.
+- Neu co 401: sai API key/header.
+- Neu co 200 nhung khong ra ve: xem payment_webhook_events va status payment.
+
+Ngrok URL doi:
+- Moi lan ngrok doi URL, phai cap nhat lai webhook URL tren SePay.
+
+Booking het han:
+- Mac dinh giu booking 10 phut.
+- Het han thi booking/payment thanh EXPIRED, can tao booking moi.

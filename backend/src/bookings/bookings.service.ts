@@ -25,7 +25,9 @@ import {
   ticketPriceForRole,
 } from '../common/ticket-discount';
 
-const BOOKING_HOLD_MINUTES = 5;
+const DEFAULT_BOOKING_HOLD_MINUTES = 10;
+const SEPAY_PROVIDER = 'sepay';
+const DEFAULT_SEPAY_PAYMENT_PREFIX = 'CRT';
 const BOOKING_QR_PREFIX = 'CINETICKET:BOOKING:';
 // Đối tượng PAYMENT_WITH_BOOKING_INCLUDE gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const PAYMENT_WITH_BOOKING_INCLUDE = {
@@ -71,6 +73,24 @@ type PaymentBooking = Pick<
   'id' | 'totalAmount' | 'currency'
 >;
 
+type SepayConfig = {
+  enabled: boolean;
+  bankAccount: string;
+  bankCode: string;
+  accountName: string;
+  apiKey: string;
+  prefix: string;
+};
+
+type NormalizedSepayWebhook = {
+  transactionId: string;
+  providerRef: string | null;
+  amount: number;
+  direction: string;
+  content: string;
+  isIncoming: boolean;
+};
+
 @Injectable()
 // Lớp BookingsService tập trung các quy tắc nghiệp vụ và phối hợp truy cập dữ liệu.
 export class BookingsService {
@@ -81,29 +101,15 @@ export class BookingsService {
 
   // Đọc và lọc dữ liệu cần thiết trong khối getPaymentMethods.
   getPaymentMethods() {
-    const sepayEnabled = Boolean(
-      process.env.SEPAY_BANK_ACCOUNT?.trim() &&
-        process.env.SEPAY_BANK_CODE?.trim(),
-    );
-    const vnpayDemo = this.isVnpayDemoMode();
-    const vnpayConfigured = Boolean(
-      process.env.VNPAY_TMN_CODE?.trim() &&
-        process.env.VNPAY_HASH_SECRET?.trim() &&
-        !process.env.VNPAY_TMN_CODE?.startsWith('YOUR_') &&
-        !process.env.VNPAY_HASH_SECRET?.startsWith('YOUR_'),
-    );
+    const sepayEnabled = this.isSepayConfigured();
 
     return {
       methods: [
-        { id: 'sepay', enabled: sepayEnabled, mode: 'live' },
         {
-          id: 'vnpay',
-          enabled: vnpayDemo || vnpayConfigured,
-          mode: vnpayDemo ? 'demo' : 'live',
+          id: 'sepay',
+          enabled: sepayEnabled,
+          mode: sepayEnabled ? 'live' : 'unavailable',
         },
-        { id: 'momo', enabled: true, mode: 'demo' },
-        { id: 'zalopay', enabled: true, mode: 'demo' },
-        { id: 'card', enabled: true, mode: 'demo' },
       ],
     };
   }
@@ -185,7 +191,9 @@ export class BookingsService {
       (sum, item) => sum + item.unitPrice,
       0,
     );
-    const expiresAt = new Date(Date.now() + BOOKING_HOLD_MINUTES * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + this.getBookingHoldMinutes() * 60 * 1000,
+    );
 
     await this.seatHoldsService.bindHoldsToUser({
       showtimeId,
@@ -469,12 +477,21 @@ export class BookingsService {
             },
           },
         },
+        user: {
+          select: { role: true },
+        },
       },
     });
 
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!booking) {
       throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.user.role !== 'ADMIN' || Number(booking.totalAmount) !== 0) {
+      throw new BadRequestException(
+        'Direct ticket issuing is only available for Admin bookings with a 0 VND total',
+      );
     }
 
     // Rẽ nhánh theo trạng thái hiện tại để chỉ cho phép luồng nghiệp vụ hợp lệ.
@@ -1135,14 +1152,18 @@ export class BookingsService {
       showtimeSeatIds: booking.bookingItems.map((item) => item.showtimeSeatId),
     });
 
-    const account = process.env.SEPAY_BANK_ACCOUNT?.trim();
-    const bank = process.env.SEPAY_BANK_CODE?.trim();
+    const config = this.getSepayConfig();
     // Kiểm tra số lượng phần tử để xử lý trường hợp rỗng hoặc vượt giới hạn.
-    if (!account || !bank) {
+    if (!this.isSepayConfigured(config)) {
       throw new BadRequestException('SePay bank account is not configured');
     }
     let payment = await this.prisma.payment.findFirst({
-      where: { bookingId, provider: 'sepay', status: 'PENDING' },
+      where: {
+        bookingId,
+        provider: SEPAY_PROVIDER,
+        status: 'PENDING',
+        OR: [{ expiredAt: null }, { expiredAt: { gt: new Date() } }],
+      },
       orderBy: { createdAt: 'desc' },
     });
     // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
@@ -1150,34 +1171,38 @@ export class BookingsService {
       payment = await this.prisma.payment.create({
         data: {
           bookingId,
-          provider: 'sepay',
-          providerRef: `CRT${booking.id
-            .replace(/[^a-zA-Z0-9]/g, '')
-            .slice(-14)
-            .toUpperCase()}`,
+          provider: SEPAY_PROVIDER,
+          providerRef: this.buildSepayProviderRef(booking.id, config.prefix),
           amount: booking.totalAmount,
           currency: 'VND',
           status: 'PENDING',
+          expiredAt: booking.expiresAt,
         },
       });
     }
     const description = payment.providerRef || payment.id;
     const params = new URLSearchParams({
-      acc: account,
-      bank,
+      acc: config.bankAccount,
+      bank: config.bankCode,
       amount: String(Math.round(Number(payment.amount))),
       des: description,
     });
     return {
       bookingId,
       paymentId: payment.id,
+      provider: 'SEPAY',
+      status: payment.status,
+      providerRef: description,
+      transferContent: description,
       paymentCode: description,
       amount: Number(payment.amount),
-      accountNumber: account,
-      accountName: process.env.SEPAY_ACCOUNT_NAME || '',
-      bankCode: bank,
+      currency: payment.currency,
+      bankAccount: config.bankAccount,
+      accountNumber: config.bankAccount,
+      accountName: config.accountName,
+      bankCode: config.bankCode,
       qrUrl: `https://vietqr.app/img?${params.toString()}`,
-      expiresAt: booking.expiresAt,
+      expiresAt: payment.expiredAt || booking.expiresAt,
     };
   }
 
@@ -1186,52 +1211,123 @@ export class BookingsService {
     authorization: string | undefined,
     payload: Record<string, unknown>,
   ) {
-    const apiKey = process.env.SEPAY_API_KEY;
+    const config = this.getSepayConfig();
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
-    if (!apiKey || authorization !== `Apikey ${apiKey}`) {
+    if (!config.apiKey || authorization !== `Apikey ${config.apiKey}`) {
       throw new UnauthorizedException('Invalid SePay webhook API key');
     }
-    const transactionId = String(
-      payload.id || payload.referenceCode || '',
-    ).trim();
-    const transferType = String(payload.transferType || '').toLowerCase();
-    const amount = Number(payload.transferAmount || 0);
-    const paymentCode = String(payload.code || payload.content || '')
-      .trim()
-      .toUpperCase();
+    const normalized = this.normalizeSepayWebhook(payload, config.prefix);
+    const event = await this.createWebhookEvent(normalized, payload);
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
-    if (!transactionId || transferType !== 'in' || !Number.isFinite(amount)) {
-      throw new BadRequestException('Invalid SePay webhook payload');
+    if (!normalized.transactionId || !Number.isFinite(normalized.amount)) {
+      await this.completeWebhookEvent(
+        event.id,
+        'INVALID',
+        'Invalid SePay webhook payload',
+      );
+      return { success: true, ignored: true, reason: 'INVALID_PAYLOAD' };
+    }
+
+    if (!normalized.isIncoming) {
+      await this.completeWebhookEvent(event.id, 'IGNORED', 'Outgoing transfer');
+      return { success: true, ignored: true, reason: 'OUTGOING_TRANSFER' };
+    }
+
+    if (!normalized.providerRef) {
+      await this.completeWebhookEvent(
+        event.id,
+        'REVIEW_REQUIRED',
+        'Transfer content does not contain payment code',
+      );
+      return {
+        success: true,
+        reviewRequired: true,
+        reason: 'PAYMENT_CODE_NOT_FOUND',
+      };
     }
 
     const duplicate = await this.prisma.payment.findUnique({
-      where: { providerTransactionId: transactionId },
+      where: { providerTransactionId: normalized.transactionId },
     });
     // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
-    if (duplicate) return { success: true, duplicate: true };
+    if (duplicate) {
+      await this.completeWebhookEvent(event.id, 'DUPLICATE');
+      return { success: true, duplicate: true };
+    }
 
     const payment = await this.prisma.payment.findFirst({
       where: {
-        provider: 'sepay',
-        providerRef: paymentCode,
+        provider: SEPAY_PROVIDER,
+        providerRef: normalized.providerRef,
       },
       include: PAYMENT_WITH_BOOKING_INCLUDE,
     });
     // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
-    if (!payment) throw new NotFoundException('SePay payment code not found');
+    if (!payment) {
+      await this.completeWebhookEvent(
+        event.id,
+        'REVIEW_REQUIRED',
+        'SePay payment code not found',
+      );
+      return { success: true, reviewRequired: true, reason: 'PAYMENT_NOT_FOUND' };
+    }
     // Rẽ nhánh theo trạng thái hiện tại để chỉ cho phép luồng nghiệp vụ hợp lệ.
-    if (payment.status === 'SUCCESS') return { success: true, duplicate: true };
+    if (payment.status === 'SUCCESS') {
+      await this.completeWebhookEvent(event.id, 'DUPLICATE');
+      return { success: true, duplicate: true };
+    }
     // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
-    if (amount !== Number(payment.amount)) {
-      throw new BadRequestException(
+    if (normalized.amount !== Number(payment.amount)) {
+      await this.markPaymentForReview(
+        payment.id,
+        normalized.transactionId,
         'SePay transfer amount does not match booking',
       );
+      await this.completeWebhookEvent(
+        event.id,
+        'REVIEW_REQUIRED',
+        'SePay transfer amount does not match booking',
+      );
+      return { success: true, reviewRequired: true, reason: 'AMOUNT_MISMATCH' };
     }
+    if (payment.booking.status !== 'PENDING') {
+      await this.markPaymentForReview(
+        payment.id,
+        normalized.transactionId,
+        'Booking is not pending',
+      );
+      await this.completeWebhookEvent(
+        event.id,
+        'REVIEW_REQUIRED',
+        'Booking is not pending',
+      );
+      return {
+        success: true,
+        reviewRequired: true,
+        reason: 'BOOKING_NOT_PENDING',
+      };
+    }
+
+    if (payment.booking.expiresAt && payment.booking.expiresAt < new Date()) {
+      await this.markPaymentForReview(
+        payment.id,
+        normalized.transactionId,
+        'Booking has expired',
+      );
+      await this.completeWebhookEvent(
+        event.id,
+        'REVIEW_REQUIRED',
+        'Booking has expired',
+      );
+      return { success: true, reviewRequired: true, reason: 'BOOKING_EXPIRED' };
+    }
+
     await this.confirmPaidBookingPayment(
       payment,
       payment.providerRef || undefined,
-      transactionId,
+      normalized.transactionId,
     );
+    await this.completeWebhookEvent(event.id, 'PROCESSED');
     return { success: true, bookingId: payment.bookingId };
   }
 
@@ -1391,6 +1487,40 @@ export class BookingsService {
     };
   }
 
+  // Trả trạng thái thanh toán gọn cho frontend polling SePay mà không cần đọc màn admin.
+  async getPaymentStatus(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        payments: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        tickets: {
+          orderBy: { issuedAt: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const payment = booking.payments[0] || null;
+    const ticket = booking.tickets[0] || null;
+
+    return {
+      bookingId: booking.id,
+      bookingStatus: booking.status,
+      paymentStatus: payment?.status || null,
+      expiresAt: payment?.expiredAt || booking.expiresAt,
+      ticketId: ticket?.id || null,
+      paymentId: payment?.id || null,
+      providerRef: payment?.providerRef || null,
+    };
+  }
+
   // Đọc và lọc dữ liệu cần thiết trong khối findBookingByQr.
   async findBookingByQr(bookingQrToken: string) {
     const bookingId = this.parseBookingQrToken(bookingQrToken);
@@ -1531,6 +1661,19 @@ export class BookingsService {
         },
         data: {
           status: 'EXPIRED',
+        },
+      });
+
+      await tx.payment.updateMany({
+        where: {
+          bookingId: {
+            in: expiredBookingIds,
+          },
+          status: 'PENDING',
+        },
+        data: {
+          status: 'EXPIRED',
+          expiredAt: new Date(),
         },
       });
 
@@ -1824,6 +1967,161 @@ export class BookingsService {
   }
 
   // Đọc và lọc dữ liệu cần thiết trong khối getVnpayConfig.
+  // Đọc thời gian giữ booking từ env để các luồng thanh toán dùng cùng một giới hạn.
+  private getBookingHoldMinutes() {
+    const rawValue = Number(process.env.BOOKING_HOLD_MINUTES);
+    if (!Number.isFinite(rawValue) || rawValue <= 0) {
+      return DEFAULT_BOOKING_HOLD_MINUTES;
+    }
+    return rawValue;
+  }
+
+  // Gom cấu hình SePay ở một nơi để tránh đọc env rải rác trong nhiều endpoint.
+  private getSepayConfig(): SepayConfig {
+    return {
+      enabled: process.env.SEPAY_ENABLED === 'true',
+      bankAccount: process.env.SEPAY_BANK_ACCOUNT?.trim() || '',
+      bankCode: process.env.SEPAY_BANK_CODE?.trim() || '',
+      accountName: process.env.SEPAY_ACCOUNT_NAME?.trim() || '',
+      apiKey: process.env.SEPAY_API_KEY?.trim() || '',
+      prefix:
+        process.env.SEPAY_PAYMENT_PREFIX?.trim().toUpperCase() ||
+        DEFAULT_SEPAY_PAYMENT_PREFIX,
+    };
+  }
+
+  // SePay chỉ bật khi đã có đầy đủ thông tin ngân hàng và khóa webhook.
+  private isSepayConfigured(config = this.getSepayConfig()) {
+    return Boolean(
+      config.enabled &&
+        config.bankAccount &&
+        config.bankCode &&
+        config.accountName &&
+        config.apiKey,
+    );
+  }
+
+  // Mã chuyển khoản có prefix ổn định để webhook nhận diện đúng booking.
+  private buildSepayProviderRef(bookingId: string, prefix: string) {
+    const suffix = bookingId.replace(/[^a-zA-Z0-9]/g, '').slice(-14);
+    return `${prefix}${suffix}`.toUpperCase();
+  }
+
+  // Chuẩn hóa payload SePay để chịu được khác biệt nhỏ giữa các cấu hình webhook.
+  private normalizeSepayWebhook(
+    payload: Record<string, unknown>,
+    prefix: string,
+  ): NormalizedSepayWebhook {
+    const content = String(
+      payload.content ||
+        payload.description ||
+        payload.transferContent ||
+        payload.code ||
+        '',
+    );
+    const direction = String(
+      payload.transferType || payload.type || payload.direction || '',
+    ).toLowerCase();
+    const transactionId = String(
+      payload.id ||
+        payload.referenceCode ||
+        payload.transactionId ||
+        payload.gatewayTransactionId ||
+        '',
+    ).trim();
+    const amount = Number(
+      payload.transferAmount || payload.amount || payload.money || 0,
+    );
+    const upperContent = `${String(payload.code || '')} ${content}`.toUpperCase();
+    const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const providerRef =
+      upperContent.match(new RegExp(`${escapedPrefix}[A-Z0-9]+`))?.[0] ||
+      null;
+    const isIncoming =
+      direction === 'in' ||
+      direction.includes('credit') ||
+      direction.includes('incoming') ||
+      payload.isIncome === true;
+
+    return {
+      transactionId,
+      providerRef,
+      amount,
+      direction,
+      content,
+      isIncoming,
+    };
+  }
+
+  // Lược bỏ các trường nhạy cảm khỏi payload trước khi lưu log webhook.
+  private sanitizeWebhookPayload(
+    payload: Record<string, unknown>,
+  ): Prisma.InputJsonValue {
+    const blockedKeys = new Set([
+      'authorization',
+      'apiKey',
+      'apikey',
+      'token',
+      'secret',
+      'password',
+    ]);
+    const sanitized = Object.fromEntries(
+      Object.entries(payload).filter(
+        ([key]) => !blockedKeys.has(key.toLowerCase()),
+      ),
+    );
+    return JSON.parse(JSON.stringify(sanitized)) as Prisma.InputJsonValue;
+  }
+
+  // Lưu webhook ngay khi nhận để có dấu vết đối soát khi giao dịch bị lệch.
+  private createWebhookEvent(
+    normalized: NormalizedSepayWebhook,
+    payload: Record<string, unknown>,
+  ) {
+    return this.prisma.paymentWebhookEvent.create({
+      data: {
+        provider: SEPAY_PROVIDER,
+        transactionId: normalized.transactionId || null,
+        providerRef: normalized.providerRef,
+        amount: Number.isFinite(normalized.amount) ? normalized.amount : null,
+        direction: normalized.direction || null,
+        status: 'RECEIVED',
+        payload: this.sanitizeWebhookPayload(payload),
+      },
+    });
+  }
+
+  // Cập nhật kết quả xử lý webhook sau khi đã xác nhận hoặc cần đối soát.
+  private completeWebhookEvent(
+    id: string,
+    status: string,
+    errorMessage?: string,
+  ) {
+    return this.prisma.paymentWebhookEvent.update({
+      where: { id },
+      data: {
+        status,
+        errorMessage,
+        processedAt: new Date(),
+      },
+    });
+  }
+
+  // Sai tiền hoặc sai trạng thái sẽ chuyển payment sang đối soát, không phát hành vé.
+  private markPaymentForReview(
+    paymentId: string,
+    providerTransactionId: string,
+    reason: string,
+  ) {
+    return this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: 'REVIEW_REQUIRED',
+        providerTransactionId,
+      },
+    });
+  }
+
   private getVnpayConfig() {
     const tmnCode = process.env.VNPAY_TMN_CODE;
     const hashSecret = process.env.VNPAY_HASH_SECRET;
