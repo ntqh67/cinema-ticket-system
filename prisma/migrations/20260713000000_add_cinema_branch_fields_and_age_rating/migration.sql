@@ -1,3 +1,4 @@
+-- Mục đích: Migration PostgreSQL; mỗi khối lần lượt thay đổi cấu trúc, chỉ mục hoặc khóa ngoại.
 ALTER TABLE "movies"
 ADD COLUMN "ageRating" TEXT NOT NULL DEFAULT 'P';
 

@@ -11,38 +11,37 @@ const CLEANUP_MINUTES = 30;
 const SEED_DAY_COUNT = 7;
 const PRICE_BY_SEAT_TYPE = {
   STANDARD: 80000,
-  VIP: 120000,
   COUPLE: 180000,
 };
 
 const CINEMA_PRICE_BY_CHAIN = {
-  'CR Cinema': { STANDARD: 85000, VIP: 125000, COUPLE: 200000 },
+  'CR Cinema': { STANDARD: 85000, COUPLE: 200000 },
 };
 
 const CONCESSION_COMBOS = [
   {
-    name: 'Combo Solo',
-    description: '1 bap vua + 1 nuoc ngot',
-    price: 79000,
-    imageUrl: 'https://images.unsplash.com/photo-1578849278619-e73505e9610f?auto=format&fit=crop&w=600&q=80',
+    name: 'My Combo',
+    description: '1 bắp rang cỡ lớn và 1 nước ngọt.',
+    price: 95000,
+    imageUrl: '/assets/images/combos/my_combo.jpg',
   },
   {
-    name: 'Combo Couple',
-    description: '1 bap lon + 2 nuoc ngot',
-    price: 129000,
-    imageUrl: 'https://images.unsplash.com/photo-1585647347384-2593bc35786b?auto=format&fit=crop&w=600&q=80',
+    name: 'Double Combo',
+    description: '1 bắp rang cỡ lớn và 2 nước ngọt.',
+    price: 115000,
+    imageUrl: '/assets/images/combos/double_combo.jpg',
   },
   {
-    name: 'Combo Family',
-    description: '2 bap lon + 4 nuoc ngot',
-    price: 229000,
-    imageUrl: 'https://images.unsplash.com/photo-1526676037777-05a232554f77?auto=format&fit=crop&w=600&q=80',
+    name: 'Hattrick Combo',
+    description: '1 bắp rang, 1 nước ngọt và 1 phần nachos phô mai.',
+    price: 135000,
+    imageUrl: '/assets/images/combos/hattrick_combo.jpg',
   },
   {
-    name: 'Nuoc Ngot',
-    description: '1 ly nuoc ngot tuy chon',
-    price: 35000,
-    imageUrl: 'https://images.unsplash.com/photo-1581006852262-e4307cf6283a?auto=format&fit=crop&w=600&q=80',
+    name: 'Poker Combo',
+    description: '2 bắp rang, 2 nước ngọt và 1 phần nachos phô mai.',
+    price: 230000,
+    imageUrl: '/assets/images/combos/poker_combo.jpg',
   },
 ];
 
@@ -478,19 +477,6 @@ async function createCinemaTicketPrices(cinemaId, chainName) {
 
 function countSeats(layout) {
   return layout.seatRows.reduce((total, seatRow) => total + seatRow.positions.length, 0);
-}
-
-function getVipZone(rows, columns) {
-  const zoneRowCount = Math.min(3, rows.length);
-  const zoneColCount = Math.min(5, columns);
-  const rowStart = Math.max(0, Math.round((rows.length - zoneRowCount) / 2));
-  const colStart = Math.max(1, Math.round((columns - zoneColCount) / 2) + 1);
-
-  return {
-    rows: new Set(rows.slice(rowStart, rowStart + zoneRowCount)),
-    colStart,
-    colEnd: colStart + zoneColCount - 1,
-  };
 }
 
 async function createSeatLayout({ roomId, seatRows }) {

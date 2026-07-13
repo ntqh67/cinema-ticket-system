@@ -1,3 +1,5 @@
+// Mục đích: Mô tả enum, mô hình, quan hệ và chỉ mục của dữ liệu PostgreSQL.
+// Mỗi mô hình bên dưới tương ứng với một miền nghiệp vụ của hệ thống đặt vé.
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,12 +9,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Định nghĩa các giá trị hợp lệ của Role để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum Role {
   CUSTOMER
   ADMIN
   STAFF
 }
 
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
+// Định nghĩa các giá trị hợp lệ của MovieStatus để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum MovieStatus {
   DRAFT
   NOW_SHOWING
@@ -20,12 +31,14 @@ enum MovieStatus {
   ENDED
 }
 
+// Định nghĩa các giá trị hợp lệ của SeatType để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum SeatType {
   STANDARD
   VIP
   COUPLE
 }
 
+// Định nghĩa các giá trị hợp lệ của ShowtimeSeatStatus để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum ShowtimeSeatStatus {
   AVAILABLE
   HELD
@@ -33,6 +46,7 @@ enum ShowtimeSeatStatus {
   BLOCKED
 }
 
+// Định nghĩa các giá trị hợp lệ của BookingStatus để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum BookingStatus {
   PENDING
   PAID
@@ -41,14 +55,18 @@ enum BookingStatus {
   REFUNDED
 }
 
+// Định nghĩa các giá trị hợp lệ của PaymentStatus để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum PaymentStatus {
   PENDING
   SUCCESS
   FAILED
   CANCELLED
   REFUNDED
+  EXPIRED
+  REVIEW_REQUIRED
 }
 
+// Định nghĩa các giá trị hợp lệ của TicketStatus để tránh trạng thái tự do trong cơ sở dữ liệu.
 enum TicketStatus {
   VALID
   USED
@@ -56,26 +74,48 @@ enum TicketStatus {
   EXPIRED
 }
 
+// Mô hình người dùng và vai trò truy cập.
 model User {
-  id            String         @id @default(cuid())
-  username      String?        @unique
-  email         String         @unique
+  id            String            @id @default(cuid())
+  username      String?           @unique
+  email         String            @unique
   passwordHash  String
   firstName     String?
   lastName      String?
-  role          Role           @default(CUSTOMER)
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  phone         String?
+  role          Role              @default(CUSTOMER)
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   bookings      Booking[]
   refreshTokens RefreshToken[]
   movieReviews  MovieReview[]
+  attendances   StaffAttendance[]
 
   @@index([email])
   @@index([role])
   @@map("users")
 }
 
+model StaffAttendance {
+  id         String           @id @default(cuid())
+  staffId    String
+  staff      User             @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  workDate   DateTime         @db.Date
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  shiftCode  String?
+  status     AttendanceStatus @default(PRESENT)
+  note       String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([staffId, workDate])
+  @@index([workDate])
+  @@map("staff_attendances")
+}
+
+// Mô hình refresh token phục vụ phiên đăng nhập.
 model RefreshToken {
   id        String    @id @default(cuid())
   tokenHash String    @unique
@@ -90,6 +130,7 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// Mô hình phim và thông tin trình chiếu.
 model Movie {
   id          String        @id @default(cuid())
   tmdbId      Int?
@@ -99,6 +140,7 @@ model Movie {
   trailerUrl  String?
   durationMin Int
   releaseDate DateTime?
+  endDate     DateTime?
   ageRating   String        @default("P")
   status      MovieStatus   @default(DRAFT)
   createdAt   DateTime      @default(now())
@@ -109,11 +151,13 @@ model Movie {
 
   @@index([status])
   @@index([releaseDate])
+  @@index([endDate])
   @@index([title])
   @@index([tmdbId])
   @@map("movies")
 }
 
+// Mô hình đánh giá phim của khách đã mua vé.
 model MovieReview {
   id        String   @id @default(cuid())
   userId    String
@@ -131,6 +175,7 @@ model MovieReview {
   @@map("movie_reviews")
 }
 
+// Mô hình thể loại phim.
 model Genre {
   id        String       @id @default(cuid())
   name      String       @unique
@@ -141,6 +186,7 @@ model Genre {
   @@map("genres")
 }
 
+// Mô hình quan hệ nhiều-nhiều giữa phim và thể loại.
 model MovieGenre {
   movieId String
   genreId String
@@ -152,6 +198,7 @@ model MovieGenre {
   @@map("movie_genres")
 }
 
+// Mô hình chuỗi thương hiệu rạp.
 model CinemaChain {
   id        String   @id @default(cuid())
   name      String
@@ -166,6 +213,7 @@ model CinemaChain {
   @@map("cinema_chains")
 }
 
+// Mô hình chi nhánh rạp tại Đà Nẵng.
 model Cinema {
   id           String              @id @default(cuid())
   chainId      String?
@@ -191,6 +239,7 @@ model Cinema {
   @@map("cinemas")
 }
 
+// Mô hình bảng giá ghế riêng của từng rạp.
 model CinemaTicketPrice {
   id        String   @id @default(cuid())
   cinemaId  String
@@ -207,6 +256,7 @@ model CinemaTicketPrice {
   @@map("cinema_ticket_prices")
 }
 
+// Mô hình phòng chiếu thuộc một rạp.
 model Room {
   id        String     @id @default(cuid())
   cinemaId  String
@@ -223,6 +273,7 @@ model Room {
   @@map("rooms")
 }
 
+// Mô hình ghế vật lý và vị trí trong phòng.
 model Seat {
   id            String         @id @default(cuid())
   roomId        String
@@ -242,6 +293,7 @@ model Seat {
   @@map("seats")
 }
 
+// Mô hình suất chiếu của phim trong một phòng.
 model Showtime {
   id            String         @id @default(cuid())
   movieId       String
@@ -262,6 +314,7 @@ model Showtime {
   @@map("showtimes")
 }
 
+// Mô hình trạng thái bền vững và giá ghế theo suất chiếu.
 model ShowtimeSeat {
   id           String             @id @default(cuid())
   showtimeId   String
@@ -281,6 +334,7 @@ model ShowtimeSeat {
   @@map("showtime_seats")
 }
 
+// Mô hình đơn đặt vé của người dùng.
 model Booking {
   id           String             @id @default(cuid())
   userId       String
@@ -304,6 +358,7 @@ model Booking {
   @@map("bookings")
 }
 
+// Mô hình combo bắp nước có thể bán.
 model ConcessionCombo {
   id           String             @id @default(cuid())
   name         String
@@ -320,6 +375,7 @@ model ConcessionCombo {
   @@map("concession_combos")
 }
 
+// Mô hình combo đã chọn trong một booking.
 model BookingComboItem {
   id        String          @id @default(cuid())
   bookingId String
@@ -337,6 +393,7 @@ model BookingComboItem {
   @@map("booking_combo_items")
 }
 
+// Mô hình ghế đã chọn trong một booking.
 model BookingItem {
   id             String       @id @default(cuid())
   bookingId      String
@@ -354,6 +411,7 @@ model BookingItem {
   @@map("booking_items")
 }
 
+// Mô hình giao dịch thanh toán của booking.
 model Payment {
   id                    String        @id @default(cuid())
   bookingId             String
@@ -365,14 +423,38 @@ model Payment {
   currency              String        @default("VND")
   status                PaymentStatus @default(PENDING)
   paidAt                DateTime?
+  expiredAt             DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
   @@index([bookingId, status])
+  @@index([provider, providerRef])
+  @@index([provider, status])
   @@index([status, createdAt])
   @@map("payments")
 }
 
+// Mô hình lưu lại webhook thanh toán để đối soát giao dịch ngân hàng và tránh xử lý trùng.
+model PaymentWebhookEvent {
+  id            String    @id @default(cuid())
+  provider      String
+  transactionId String?
+  providerRef   String?
+  amount        Decimal?  @db.Decimal(10, 2)
+  direction     String?
+  status        String
+  payload       Json
+  errorMessage  String?   @db.Text
+  receivedAt    DateTime  @default(now())
+  processedAt   DateTime?
+
+  @@index([provider, transactionId])
+  @@index([provider, providerRef])
+  @@index([status, receivedAt])
+  @@map("payment_webhook_events")
+}
+
+// Mô hình vé điện tử phát hành cho từng ghế.
 model Ticket {
   id            String         @id @default(cuid())
   bookingId     String
@@ -393,6 +475,7 @@ model Ticket {
   @@map("tickets")
 }
 
+// Mô hình lịch sử nhân viên quét và soát vé.
 model TicketCheckIn {
   id          String   @id @default(cuid())
   ticketId    String   @unique
