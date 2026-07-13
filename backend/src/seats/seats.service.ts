@@ -1,14 +1,23 @@
+/**
+ * Mục đích: Cài đặt nghiệp vụ sơ đồ và trạng thái ghế; dữ liệu bền vững được truy cập qua Prisma.
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  formatDateInDaNang,
+  formatTimeInDaNang,
+} from '../common/danang-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { SeatHoldsService } from '../seat-holds/seat-holds.service';
 
 @Injectable()
+// Lớp SeatsService tập trung các quy tắc nghiệp vụ và phối hợp truy cập dữ liệu.
 export class SeatsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly seatHoldsService: SeatHoldsService,
   ) {}
 
+  // Dựng phần giao diện tương ứng trong khối findByShowtime.
   async findByShowtime(
     showtimeId: string,
     viewer: { sessionId?: string; userId?: string } = {},
@@ -29,6 +38,7 @@ export class SeatsService {
       },
     });
 
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!showtime) {
       throw new NotFoundException('Showtime not found');
     }
@@ -63,9 +73,9 @@ export class SeatsService {
     return {
       showtime: {
         id: showtime.id,
-        date: this.formatDate(showtime.startAt),
-        startTime: this.formatTime(showtime.startAt),
-        endTime: this.formatTime(showtime.endAt),
+        date: formatDateInDaNang(showtime.startAt),
+        startTime: formatTimeInDaNang(showtime.startAt),
+        endTime: formatTimeInDaNang(showtime.endAt),
         startAt: showtime.startAt,
         endAt: showtime.endAt,
         basePrice: Number(showtime.basePrice),
@@ -111,23 +121,5 @@ export class SeatsService {
         };
       }),
     };
-  }
-
-  private formatDate(value: Date) {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Bangkok',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(value);
-  }
-
-  private formatTime(value: Date) {
-    return new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Bangkok',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(value);
   }
 }

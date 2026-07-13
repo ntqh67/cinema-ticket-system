@@ -1,5 +1,10 @@
-/* CineTicket - App Entry */
+/**
+ * Mục đích: Mã nguồn phục vụ khởi tạo và tiện ích dùng chung; các khối bên dưới được giữ tách biệt theo trách nhiệm.
+ */
+/* CineTicket - Điểm khởi chạy ứng dụng */
+// Đối tượng App gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const App = {
+  // Khởi tạo luồng init và chuẩn bị các phụ thuộc cần thiết.
   async init() {
     await API.init();
     State.hydrate();
@@ -9,6 +14,7 @@ const App = {
     Router.init();
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _registerRoutes trước khi tiếp tục.
   _registerRoutes() {
     Router.register('/', () => this.renderHome());
     Router.register('/movies', (params) => MovieView.renderList(params));
@@ -35,8 +41,10 @@ const App = {
     Router.register('/admin/users', () => UserView.renderAdmin());
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderHome.
   renderHome() {
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
     document.getElementById('footer').style.display = '';
 
@@ -47,6 +55,7 @@ const App = {
       .sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'vi', { numeric: true }))
       .slice(0, 3);
 
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!firstMovie) {
       main.innerHTML = `
         <div class="page-wrapper">

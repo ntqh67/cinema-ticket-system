@@ -1,4 +1,8 @@
-/* CineTicket - Showtime View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền suất chiếu.
+ */
+/* CineTicket - View suất chiếu */
+// Đối tượng ShowtimeView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const ShowtimeView = {
   _selectedDate: null,
   _selectedCinema: null,
@@ -6,10 +10,13 @@ const ShowtimeView = {
   _adminCinemas: [],
   _adminSearchQuery: '',
 
+  // Dựng phần giao diện tương ứng trong khối renderForMovie.
   renderForMovie(movieId, containerId) {
     const container = document.getElementById(containerId);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!container) return;
     const dates = ShowtimeModel.getAvailableDates(movieId);
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (dates.length === 0) {
       container.innerHTML = '<p style="color:var(--color-text-muted);">Không có suất chiếu nào cho phim này.</p>';
       return;
@@ -44,6 +51,7 @@ const ShowtimeView = {
     this._renderShowtimeList(movieId, containerId);
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối _selectDate.
   _selectDate(movieId, date, containerId, btn) {
     this._selectedDate = date;
     document.querySelectorAll('#showtime-date-picker .date-btn').forEach((item) => item.classList.remove('active'));
@@ -51,6 +59,7 @@ const ShowtimeView = {
     this._renderShowtimeList(movieId, containerId);
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối _selectCinema.
   _selectCinema(movieId, cinemaId, containerId, btn) {
     this._selectedCinema = cinemaId;
     document.querySelectorAll('#showtime-cinema-tabs .cinema-tab').forEach((item) => item.classList.remove('active'));
@@ -58,8 +67,10 @@ const ShowtimeView = {
     this._renderShowtimeList(movieId, containerId);
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _renderShowtimeList trước khi tiếp tục.
   _renderShowtimeList(movieId, containerId) {
     const listEl = document.getElementById(`showtime-list-${containerId}`);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!listEl) return;
     const showtimes = ShowtimeModel.getByFilters({
       movieId,
@@ -67,6 +78,7 @@ const ShowtimeView = {
       date: this._selectedDate,
     });
 
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (showtimes.length === 0) {
       listEl.innerHTML = `<div class="empty-state" style="padding:40px 0;"><i class="fas fa-calendar-times"></i><h3>Không có suất chiếu</h3><p>Thử chọn ngày hoặc rạp khác.</p></div>`;
       return;
@@ -75,6 +87,7 @@ const ShowtimeView = {
     const byCinema = {};
     showtimes.forEach((showtime) => {
       const cinemaId = showtime.cinemaId || showtime.cinema?.id || '';
+      // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
       if (!byCinema[cinemaId]) byCinema[cinemaId] = [];
       byCinema[cinemaId].push(showtime);
     });
@@ -121,14 +134,18 @@ const ShowtimeView = {
     }).join('');
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderAdmin.
   async renderAdmin() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
 
     let showtimes = [];
     let cinemas = [];
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       [showtimes, cinemas] = await Promise.all([
         API.getAdminShowtimes(),
@@ -141,6 +158,7 @@ const ShowtimeView = {
     }
     cinemas.sort((a, b) => this._compareCinema(a, b));
     this._adminCinemas = cinemas;
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!this._adminSelectedCinema || !cinemas.some((cinema) => cinema.id === this._adminSelectedCinema)) {
       this._adminSelectedCinema = cinemas[0]?.id || '';
     }
@@ -193,20 +211,24 @@ const ShowtimeView = {
     </div>`;
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối selectAdminCinema.
   selectAdminCinema(cinemaId) {
     this._adminSelectedCinema = cinemaId;
     this.renderAdmin();
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối setAdminSearch.
   setAdminSearch(query) {
     this._adminSearchQuery = query || '';
     this.renderAdmin();
   },
 
+  // Dựng phần giao diện tương ứng trong khối _showtimeCinemaId.
   _showtimeCinemaId(showtime) {
     return showtime.cinemaId || showtime.cinema?.id || showtime.room?.cinemaId || '';
   },
 
+  // Dựng phần giao diện tương ứng trong khối _adminShowtimeRow.
   _adminShowtimeRow(showtime) {
     const movie = showtime.movie || MovieModel.getById(showtime.movieId);
     const cinema = showtime.cinema || CinemaModel.getById(showtime.cinemaId);
@@ -222,7 +244,7 @@ const ShowtimeView = {
       <td style="font-size:0.8rem;">${cinema ? Helpers.escapeHtml(cinema.name || cinema.shortName) : Helpers.escapeHtml(showtime.cinemaId || '')}</td>
       <td><span class="badge badge-secondary" style="font-size:0.65rem;">${room ? Helpers.escapeHtml(room.name) : ''}</span></td>
       <td>${Helpers.formatDate(startAt)}</td>
-      <td><strong>${this._time(startAt)}</strong> - ${this._time(endAt)}</td>
+      <td><strong>${Helpers.formatTimeOfDay(startAt)}</strong> - ${Helpers.formatTimeOfDay(endAt)}</td>
       <td style="color:var(--color-accent);font-weight:600;">${Helpers.formatCurrency(price)}</td>
       <td>
         <div style="font-size:0.8rem;">${showtime.bookedSeats || 0}/${showtime.totalSeats || 0}</div>
@@ -235,16 +257,10 @@ const ShowtimeView = {
       </td>
     </tr>`;
   },
-
-  _time(value) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value).slice(0, 5);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  },
-
+  // Dựng phần giao diện tương ứng trong khối _filterAdminShowtimes.
   _filterAdminShowtimes(showtimes, query) {
     const normalized = this._normalize(query);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!normalized) return showtimes;
     return showtimes.filter((showtime) => {
       const movie = showtime.movie || MovieModel.getById(showtime.movieId);
@@ -261,6 +277,7 @@ const ShowtimeView = {
     });
   },
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối _normalize.
   _normalize(value) {
     return String(value || '')
       .toLowerCase()
@@ -268,10 +285,12 @@ const ShowtimeView = {
       .replace(/[\u0300-\u036f]/g, '');
   },
 
+  // Thực hiện trách nhiệm riêng của khối _compareCinema.
   _compareCinema(a, b) {
     return String(a?.code || a?.name || '').localeCompare(String(b?.code || b?.name || ''), 'vi', { numeric: true });
   },
 
+  // Thực hiện trách nhiệm riêng của khối _cinemasForMovie.
   _cinemasForMovie(movieId) {
     const cinemaIds = new Set(ShowtimeModel.getByMovie(movieId).map((showtime) => showtime.cinemaId));
     return CinemaModel.getAll()
@@ -279,6 +298,7 @@ const ShowtimeView = {
       .sort((a, b) => this._compareCinema(a, b));
   },
 
+  // Tạo dữ liệu mới trong khối _showAddForm và trả về kết quả đã chuẩn hóa.
   _showAddForm() {
     const movies = MovieModel.getAll();
     const cinemas = CinemaModel.getAll().sort((a, b) => this._compareCinema(a, b));
@@ -336,23 +356,28 @@ const ShowtimeView = {
     document.getElementById('showtime-movie-id')?.addEventListener('change', () => this._loadAvailableSlots());
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối _updateRoomOptions.
   _updateRoomOptions() {
     const cinemaId = document.getElementById('showtime-cinema-id')?.value;
     const roomSelect = document.getElementById('showtime-room-id');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!roomSelect) return;
     const rooms = cinemaId ? RoomModel.getByCinema(cinemaId) : [];
     roomSelect.innerHTML = `<option value="">Chọn phòng</option>${rooms.map((room) => `<option value="${room.id}">${Helpers.escapeHtml(room.name)} (${room.capacity || 0} ghế)</option>`).join('')}`;
     this._loadAvailableSlots();
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối _loadAvailableSlots.
   async _loadAvailableSlots() {
     const movieId = document.getElementById('showtime-movie-id')?.value;
     const roomId = document.getElementById('showtime-room-id')?.value;
     const date = document.getElementById('showtime-date')?.value;
     const timeSelect = document.getElementById('showtime-time');
     const helper = document.getElementById('showtime-slot-helper');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!timeSelect || !helper) return;
 
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!movieId || !roomId || !date) {
       timeSelect.innerHTML = '<option value="">Chọn phim, phòng và ngày trước</option>';
       helper.className = 'alert alert-info';
@@ -367,6 +392,7 @@ const ShowtimeView = {
     try {
       const result = await API.getAdminRoomAvailableSlots(roomId, movieId, date);
       const times = result.suggestedStartTimes || [];
+      // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
       if (!times.length) {
         timeSelect.innerHTML = '<option value="">Không còn giờ phù hợp</option>';
         helper.className = 'alert alert-warning';
@@ -391,8 +417,10 @@ const ShowtimeView = {
     }
   },
 
+  // Tính toán giá trị tổng hợp trong khối _slotSummary.
   _slotSummary(result) {
     const occupied = result.occupied || [];
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (!occupied.length) return 'Phòng chưa có suất chiếu trong ngày này.';
     return `Đã có ${occupied.length} suất chiếu, hệ thống chỉ hiện giờ không bị trùng và không vi phạm dọn phòng.`;
   },

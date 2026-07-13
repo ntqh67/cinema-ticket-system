@@ -42,6 +42,79 @@ Do not assume the frontend uses React, Next.js, Vue, Angular, or a component fra
 
 Do not introduce microservices, Kafka, RabbitMQ, Kubernetes, message brokers, distributed infrastructure, or unnecessary new platforms.
 
+## Clean Code And Reuse Rules
+
+These rules are mandatory for every new feature, bug fix, and refactor.
+
+### Inspect Before Writing
+
+Before creating a class, method, helper, constant, mapper, formatter, API client, or validation rule:
+
+- Search the repository for the same name, responsibility, input/output shape, and similar implementation.
+- Inspect the relevant backend services, frontend models/views/controllers, shared utilities, Prisma seed, and scripts.
+- Check for semantic duplication, not only identical text. Functions with different names may still perform the same job.
+- Prefer extending or reusing an existing implementation when its responsibility and business rules match.
+- Do not create a second implementation merely because importing the existing implementation requires a small refactor.
+- Use `rg` and `rg --files` to search classes, methods, helpers, and business terms before editing.
+
+### Single Source Of Truth
+
+- Keep each reusable rule, mapping, formatter, calculation, and provider client in one canonical location.
+- Put pure backend utilities that are shared across domains in `backend/src/common/`.
+- Keep domain-specific business rules inside the owning service instead of moving them into a generic helper.
+- Put reusable frontend formatting and mapping functions in `frontend/assets/js/utils/`.
+- Put reusable frontend UI shells or behavior in `frontend/assets/js/components/`.
+- Put shared script clients and script-only utilities in `scripts/`.
+- Store shared static mappings in one data file when TypeScript and JavaScript runtimes both need them.
+- Update all consumers to call the shared implementation, then remove the obsolete copies.
+- Do not keep a copied fallback implementation after extracting a shared function.
+
+### When Code Must Not Be Merged
+
+Similar-looking code should remain separate when it enforces different:
+
+- Domain ownership or authorization boundaries.
+- Prisma transaction boundaries.
+- Validation rules or error semantics.
+- API response contracts.
+- Seat-hold, booking, payment, or ticket state transitions.
+- Runtime/deployment constraints that would make sharing fragile.
+
+When retaining an apparent duplicate, verify that the difference is intentional and explain the reason in the handoff. Do not merge code only to reduce line count.
+
+### Class And Method Design
+
+- Give every class or object one clear responsibility.
+- Keep controllers thin: parse HTTP input and delegate to services.
+- Keep database access and business state changes in services/repositories, not controllers or frontend views.
+- Keep frontend controllers focused on event coordination, models focused on data/API access, and views focused on rendering and DOM updates.
+- Prefer small methods with descriptive names and explicit inputs/outputs.
+- Extract repeated conditions or calculations only when the extracted name makes the business rule clearer.
+- Replace magic numbers and repeated strings with named constants when they represent business configuration.
+- Remove dead code, unused variables, obsolete methods, duplicate wrappers, and stale comments during the same change.
+- Avoid generic catch-all helpers that couple unrelated domains.
+
+### Comment Rules
+
+- Write code comments in Vietnamese unless an external protocol or official identifier requires English.
+- Add a concise comment for each class/object, public method, and non-obvious business block.
+- Explain purpose, business reason, ownership, transaction boundary, or state transition; do not merely translate the code into prose.
+- Keep comments next to the code they describe and update them whenever behavior changes.
+- Never leave duplicated, contradictory, stale, or misleading comments.
+- Do not add several identical comments above consecutive conditions; describe the surrounding logical block once.
+- Keep external names such as Prisma, Redis, TMDB, VNPay, SePay, DTO, API, and HTTP unchanged.
+
+### Required Duplication Review
+
+Before finishing a meaningful code change:
+
+- Search again for the new class, method, helper, constants, and key business terms.
+- Confirm that only one canonical implementation exists for reusable behavior.
+- Check that old private helpers were removed after consumers switched to the shared version.
+- Check that shared JavaScript used by the NestJS build is copied to `dist` and has TypeScript declarations when required.
+- Confirm that shared changes did not move transaction-sensitive logic outside its transaction.
+- Run `git diff --check` and review the diff for accidental copied blocks and repeated comments.
+
 ## Business Flow
 
 The core customer flow is:
@@ -181,6 +254,10 @@ docker compose up -d
 
 Before finishing meaningful code changes, verify the relevant parts:
 
+- Review the repository for exact and semantic duplication introduced by the change.
+- Reuse existing classes, methods, utilities, mappings, and components where responsibilities match.
+- Remove superseded copies after extracting shared code.
+- Ensure comments are Vietnamese, current, useful, and not duplicated.
 - Prisma schema validates after model changes.
 - Backend builds after TypeScript changes.
 - Booking/payment changes use transactions.

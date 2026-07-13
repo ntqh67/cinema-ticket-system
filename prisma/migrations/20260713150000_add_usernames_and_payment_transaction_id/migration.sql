@@ -1,3 +1,4 @@
+-- Mục đích: Migration PostgreSQL; mỗi khối lần lượt thay đổi cấu trúc, chỉ mục hoặc khóa ngoại.
 ALTER TABLE "users" ADD COLUMN "username" TEXT;
 ALTER TABLE "payments" ADD COLUMN "providerTransactionId" TEXT;
 

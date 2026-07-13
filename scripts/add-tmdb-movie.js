@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Script đồng bộ dữ liệu phim và hình ảnh từ TMDB vào PostgreSQL.
+ */
 const { PrismaClient } = require('@prisma/client');
 const dotenv = require('dotenv');
 const { normalizeGenreName } = require('./genre-map');
@@ -5,21 +8,18 @@ const { normalizeGenreName } = require('./genre-map');
 dotenv.config();
 
 const prisma = new PrismaClient();
+const {
+  requireCredential,
+  tmdbFetch,
+  imageUrl,
+  fetchTrailer,
+} = require('./tmdb-client');
 
-const TMDB_API_URL = 'https://api.themoviedb.org/3';
-const IMAGE_BASE_URL = process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
-const apiKey = process.env.TMDB_API_KEY;
-const readAccessToken = process.env.TMDB_READ_ACCESS_TOKEN;
-
-function requireCredential() {
-  if (!apiKey && !readAccessToken) {
-    throw new Error('Missing TMDB_API_KEY or TMDB_READ_ACCESS_TOKEN in .env');
-  }
-}
-
+// Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối parseMovieIds.
 function parseMovieIds() {
   const ids = process.argv.slice(2).map((value) => Number(value));
 
+  // Kiểm tra số lượng phần tử để xử lý trường hợp rỗng hoặc vượt giới hạn.
   if (!ids.length || ids.some((id) => !Number.isInteger(id) || id <= 0)) {
     throw new Error('Usage: npm.cmd run tmdb:add -- 123456 [anotherTmdbId]');
   }
@@ -27,76 +27,11 @@ function parseMovieIds() {
   return ids;
 }
 
-function buildUrl(path, params = {}) {
-  const url = new URL(`${TMDB_API_URL}${path}`);
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value));
-    }
-  });
-
-  if (!readAccessToken && apiKey) {
-    url.searchParams.set('api_key', apiKey);
-  }
-
-  return url;
-}
-
-async function tmdbFetch(path, params) {
-  const response = await fetch(buildUrl(path, params), {
-    headers: readAccessToken
-      ? {
-          Authorization: `Bearer ${readAccessToken}`,
-          Accept: 'application/json',
-        }
-      : {
-          Accept: 'application/json',
-        },
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`TMDB ${response.status} ${response.statusText}: ${body}`);
-  }
-
-  return response.json();
-}
-
-function imageUrl(path, size) {
-  return path ? `${IMAGE_BASE_URL}/${size}${path}` : null;
-}
-
-function pickTrailer(videos) {
-  const youtubeVideos = videos.filter((video) => video.site === 'YouTube' && video.key);
-  const officialTrailer = youtubeVideos.find(
-    (video) => video.type === 'Trailer' && video.official,
-  );
-  const trailer = youtubeVideos.find((video) => video.type === 'Trailer');
-  const teaser = youtubeVideos.find((video) => video.type === 'Teaser');
-  const selected = officialTrailer || trailer || teaser || youtubeVideos[0];
-
-  return selected ? `https://www.youtube.com/embed/${selected.key}` : null;
-}
-
-async function fetchTrailer(tmdbId) {
-  const languages = ['vi-VN', 'en-US'];
-
-  for (const language of languages) {
-    const videos = await tmdbFetch(`/movie/${tmdbId}/videos`, { language });
-    const trailerUrl = pickTrailer(videos.results || []);
-
-    if (trailerUrl) {
-      return trailerUrl;
-    }
-  }
-
-  return null;
-}
-
+// Cập nhật trạng thái hoặc dữ liệu trong khối replaceMovieGenres.
 async function replaceMovieGenres(movieId, genres) {
   await prisma.movieGenre.deleteMany({ where: { movieId } });
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const genre of genres) {
     const name = normalizeGenreName(genre.name);
     const genreRecord = await prisma.genre.upsert({
@@ -114,6 +49,7 @@ async function replaceMovieGenres(movieId, genres) {
   }
 }
 
+// Tạo dữ liệu mới trong khối addOrUpdateMovie và trả về kết quả đã chuẩn hóa.
 async function addOrUpdateMovie(tmdbId) {
   const detailsVi = await tmdbFetch(`/movie/${tmdbId}`, { language: 'vi-VN' });
   const detailsEn =
@@ -153,9 +89,12 @@ async function addOrUpdateMovie(tmdbId) {
   );
 }
 
+// Khởi tạo luồng main và chuẩn bị các phụ thuộc cần thiết.
 async function main() {
+  // Kiểm tra điều kiện nghiệp vụ trong khối requireCredential trước khi tiếp tục.
   requireCredential();
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const tmdbId of parseMovieIds()) {
     await addOrUpdateMovie(tmdbId);
   }

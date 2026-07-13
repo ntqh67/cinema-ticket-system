@@ -1,4 +1,7 @@
-/* CineTicket - Auth Page Styles */
+/*
+ * Mục đích: Các quy tắc trình bày cho auth; được nhóm theo khu vực giao diện và trạng thái tương tác.
+ */
+/* Kiểu giao diện trang xác thực CineTicket */
 .auth-page {
   display: flex;
   min-height: 100vh;
@@ -85,7 +88,7 @@
   flex-shrink: 0;
 }
 
-/* Right */
+/* Khu vực bên phải */
 .auth-right {
   width: 480px;
   flex-shrink: 0;
@@ -136,7 +139,7 @@
   margin-bottom: var(--spacing-6);
 }
 
-/* Input Group */
+/* Nhóm trường nhập */
 .input-group {
   position: relative;
   display: flex;
@@ -154,7 +157,7 @@
 }
 .input-toggle-btn:hover { color: var(--color-text); }
 
-/* Password strength */
+/* Độ mạnh mật khẩu */
 .password-strength {
   margin-top: var(--spacing-2);
   display: flex;
@@ -175,7 +178,7 @@
 }
 .strength-text { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); white-space: nowrap; }
 
-/* Form Row */
+/* Hàng biểu mẫu */
 .form-row-between {
   display: flex;
   align-items: center;
@@ -191,7 +194,7 @@
 }
 .forgot-link:hover { text-decoration: underline; }
 
-/* Social Login */
+/* Đăng nhập mạng xã hội */
 .social-login {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -215,7 +218,7 @@
 }
 .social-btn:hover { background: var(--color-bg-card); border-color: var(--color-border-light); color: var(--color-text); }
 
-/* Demo Hint */
+/* Gợi ý chế độ demo */
 .demo-hint {
   background: rgba(245,197,24,0.08);
   border: 1px solid rgba(245,197,24,0.2);

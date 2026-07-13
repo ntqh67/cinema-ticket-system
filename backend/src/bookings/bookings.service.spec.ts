@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Kiểm thử các hành vi và ràng buộc quan trọng của miền đặt vé, thanh toán và vé điện tử.
+ */
 import { BadRequestException } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 
@@ -20,11 +23,13 @@ describe('BookingsService seat selection rules', () => {
     },
   }));
 
+  // Thực hiện trách nhiệm riêng của khối beforeEach.
   beforeEach(() => {
     jest.clearAllMocks();
     findMany.mockResolvedValue(rowSeats);
   });
 
+  // Thực hiện trách nhiệm riêng của khối it.
   it('rejects an isolated standard seat between selected seats', async () => {
     listByShowtime.mockResolvedValue([
       { showtimeSeatId: 'ss-1' },
@@ -39,6 +44,7 @@ describe('BookingsService seat selection rules', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  // Thực hiện trách nhiệm riêng của khối it.
   it('allows the outermost standard seat to remain available', async () => {
     listByShowtime.mockResolvedValue([
       { showtimeSeatId: 'ss-2' },
@@ -53,6 +59,7 @@ describe('BookingsService seat selection rules', () => {
     ).resolves.toBeUndefined();
   });
 
+  // Thực hiện trách nhiệm riêng của khối it.
   it('does not apply the standard-seat gap rule to Sweetbox', async () => {
     await expect(
       (service as any).validateNoOrphanStandardSeat('showtime-1', [

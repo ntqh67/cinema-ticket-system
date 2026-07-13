@@ -1,7 +1,12 @@
-/* CineTicket - Navbar Component */
+/**
+ * Mục đích: Mã nguồn phục vụ khởi tạo và tiện ích dùng chung; các khối bên dưới được giữ tách biệt theo trách nhiệm.
+ */
+/* CineTicket - Thành phần thanh điều hướng */
+// Đối tượng Navbar gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const Navbar = {
   _searchDebounced: null,
 
+  // Dựng phần giao diện tương ứng trong khối render.
   render() {
     const user = State.get('currentUser');
     const userHtml = user
@@ -85,8 +90,10 @@ const Navbar = {
       </div>`;
   },
 
+  // Thực hiện trách nhiệm riêng của khối mount.
   mount() {
     const navbar = document.getElementById('navbar');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!navbar) return;
     navbar.innerHTML = this.render();
     this._bindScroll();
@@ -98,6 +105,7 @@ const Navbar = {
     State.subscribe('currentUser', (user) => this.updateAuthState(user));
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateAuthState.
   updateAuthState(user) {
     const navbar = document.getElementById('navbar');
     if (!navbar) return;
@@ -106,6 +114,7 @@ const Navbar = {
     this._highlightActive();
   },
 
+  // Thực hiện trách nhiệm riêng của khối _highlightActive.
   _highlightActive() {
     const hash = window.location.hash.replace('#', '') || '/';
     document.querySelectorAll('.nav-link[data-route]').forEach(link => {
@@ -114,9 +123,11 @@ const Navbar = {
     });
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối _bindScroll.
   _bindScroll() {
     const navbar = document.getElementById('navbar');
     const onScroll = Helpers.throttle(() => {
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if (navbar) navbar.classList.toggle('scrolled', window.scrollY > 50);
     }, 100);
     window.removeEventListener('scroll', this._scrollHandler);
@@ -125,21 +136,28 @@ const Navbar = {
     onScroll();
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối toggleSearch.
   toggleSearch() {
     const box = document.getElementById('navbar-search-box');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!box) return;
     box.classList.toggle('open');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (box.classList.contains('open')) {
       const input = document.getElementById('navbar-search-input');
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if (input) setTimeout(() => input.focus(), 100);
     }
   },
 
   handleSearch: Helpers.debounce(function(query) {
     const resultsEl = document.getElementById('navbar-search-results');
+    // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
     if (!resultsEl) return;
+    // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
     if (!query || query.length < 2) { resultsEl.innerHTML = ''; return; }
     const movies = MovieModel.search(query).slice(0, 5);
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (movies.length === 0) {
       resultsEl.innerHTML = '<p style="padding:12px;color:var(--color-text-muted);font-size:0.85rem;text-align:center;">Không tìm thấy phim</p>';
       return;
@@ -154,37 +172,49 @@ const Navbar = {
       </div>`).join('');
   }, 300),
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối toggleMobileMenu.
   toggleMobileMenu() {
     const menu = document.getElementById('navbar-mobile-menu');
     const hamburger = document.getElementById('navbar-hamburger');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (menu) menu.classList.toggle('open');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (hamburger) hamburger.classList.toggle('open');
   },
 
+  // Thực hiện trách nhiệm riêng của khối closeMobileMenu.
   closeMobileMenu() {
     const menu = document.getElementById('navbar-mobile-menu');
     const hamburger = document.getElementById('navbar-hamburger');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (menu) menu.classList.remove('open');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (hamburger) hamburger.classList.remove('open');
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối toggleUserDropdown.
   toggleUserDropdown() {
     const dropdown = document.getElementById('navbar-user-dropdown');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (dropdown) dropdown.classList.toggle('open');
   },
 
+  // Thực hiện trách nhiệm riêng của khối closeDropdowns.
   closeDropdowns() {
     document.querySelectorAll('.navbar-user.open').forEach(d => d.classList.remove('open'));
   }
 };
 
-// Close dropdowns when clicking outside
+// Đóng mọi menu thả xuống khi người dùng nhấp ra ngoài thanh điều hướng.
 document.addEventListener('click', (e) => {
+  // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
   if (!e.target.closest('#navbar-user-dropdown')) {
     document.querySelectorAll('.navbar-user.open').forEach(d => d.classList.remove('open'));
   }
+  // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
   if (!e.target.closest('.navbar-search')) {
     const box = document.getElementById('navbar-search-box');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (box) box.classList.remove('open');
   }
 });

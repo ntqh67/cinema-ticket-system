@@ -1,4 +1,8 @@
 // @ts-check
+/**
+ * Cấu hình ESLint cho mã TypeScript của backend NestJS.
+ * Các khối bên dưới lần lượt nạp cấu hình chuẩn, quy tắc TypeScript và ngoại lệ của dự án.
+ */
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';

@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Tiếp nhận yêu cầu HTTP cho miền quản trị và chuyển xử lý sang service.
+ */
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
@@ -27,6 +30,7 @@ import {
 
 @ApiTags('admin')
 @Controller('admin')
+// Lớp AdminController nhận thao tác từ HTTP hoặc giao diện và chuyển chúng tới lớp nghiệp vụ phù hợp.
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

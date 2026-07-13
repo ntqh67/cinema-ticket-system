@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Script đồng bộ dữ liệu phim và hình ảnh từ TMDB vào PostgreSQL.
+ */
 const { PrismaClient } = require('@prisma/client');
 const dotenv = require('dotenv');
 const { normalizeGenreName } = require('./genre-map');
@@ -5,55 +8,16 @@ const { normalizeGenreName } = require('./genre-map');
 dotenv.config();
 
 const prisma = new PrismaClient();
+const {
+  requireCredential,
+  tmdbFetch,
+  imageUrl,
+  fetchTrailer,
+} = require('./tmdb-client');
 
-const TMDB_API_URL = 'https://api.themoviedb.org/3';
-const IMAGE_BASE_URL = process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
-const apiKey = process.env.TMDB_API_KEY;
-const readAccessToken = process.env.TMDB_READ_ACCESS_TOKEN;
-
-function requireCredential() {
-  if (!apiKey && !readAccessToken) {
-    throw new Error('Missing TMDB_API_KEY or TMDB_READ_ACCESS_TOKEN in .env');
-  }
-}
-
-function buildUrl(path, params = {}) {
-  const url = new URL(`${TMDB_API_URL}${path}`);
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value));
-    }
-  });
-
-  if (!readAccessToken && apiKey) {
-    url.searchParams.set('api_key', apiKey);
-  }
-
-  return url;
-}
-
-async function tmdbFetch(path, params) {
-  const response = await fetch(buildUrl(path, params), {
-    headers: readAccessToken
-      ? {
-          Authorization: `Bearer ${readAccessToken}`,
-          Accept: 'application/json',
-        }
-      : {
-          Accept: 'application/json',
-        },
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`TMDB ${response.status} ${response.statusText}: ${body}`);
-  }
-
-  return response.json();
-}
-
+// Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối releaseYear.
 function releaseYear(movie) {
+  // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
   if (!movie.releaseDate) {
     return undefined;
   }
@@ -61,15 +25,19 @@ function releaseYear(movie) {
   return new Date(movie.releaseDate).getFullYear();
 }
 
+// Thực hiện trách nhiệm riêng của khối pickMovieResult.
 function pickMovieResult(results, movie) {
+  // Kiểm tra kết quả thao tác và chuyển sang nhánh lỗi khi cần.
   if (!results.length) {
     return null;
   }
 
   const year = releaseYear(movie);
 
+  // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
   if (year) {
     const exactYear = results.find((result) => {
+      // Kiểm tra kết quả thao tác và chuyển sang nhánh lỗi khi cần.
       if (!result.release_date) {
         return false;
       }
@@ -77,6 +45,7 @@ function pickMovieResult(results, movie) {
       return Number(result.release_date.slice(0, 4)) === year;
     });
 
+    // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (exactYear) {
       return exactYear;
     }
@@ -89,33 +58,16 @@ function pickMovieResult(results, movie) {
   return exactTitle || results[0];
 }
 
-function imageUrl(path, size) {
-  if (!path) {
-    return null;
-  }
-
-  return `${IMAGE_BASE_URL}/${size}${path}`;
-}
-
-function pickTrailer(videos) {
-  const youtubeVideos = videos.filter((video) => video.site === 'YouTube' && video.key);
-  const officialTrailer = youtubeVideos.find(
-    (video) => video.type === 'Trailer' && video.official,
-  );
-  const trailer = youtubeVideos.find((video) => video.type === 'Trailer');
-  const teaser = youtubeVideos.find((video) => video.type === 'Teaser');
-  const selected = officialTrailer || trailer || teaser || youtubeVideos[0];
-
-  return selected ? `https://www.youtube.com/embed/${selected.key}` : null;
-}
-
+// Đọc và lọc dữ liệu cần thiết trong khối findTmdbMovie.
 async function findTmdbMovie(movie) {
+  // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
   if (movie.tmdbId) {
     return tmdbFetch(`/movie/${movie.tmdbId}`, { language: 'en-US' });
   }
 
   const languages = ['vi-VN', 'en-US'];
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const language of languages) {
     const search = await tmdbFetch('/search/movie', {
       query: movie.title,
@@ -126,6 +78,7 @@ async function findTmdbMovie(movie) {
     });
     const result = pickMovieResult(search.results || [], movie);
 
+    // Kiểm tra kết quả thao tác và chuyển sang nhánh lỗi khi cần.
     if (result) {
       return result;
     }
@@ -134,24 +87,11 @@ async function findTmdbMovie(movie) {
   return null;
 }
 
-async function fetchTrailer(tmdbId) {
-  const languages = ['vi-VN', 'en-US'];
-
-  for (const language of languages) {
-    const videos = await tmdbFetch(`/movie/${tmdbId}/videos`, { language });
-    const trailerUrl = pickTrailer(videos.results || []);
-
-    if (trailerUrl) {
-      return trailerUrl;
-    }
-  }
-
-  return null;
-}
-
+// Cập nhật trạng thái hoặc dữ liệu trong khối syncMovie.
 async function syncMovie(movie) {
   const tmdbMovie = await findTmdbMovie(movie);
 
+  // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
   if (!tmdbMovie) {
     console.log(`SKIP ${movie.title}: TMDB match not found`);
     return;
@@ -176,8 +116,10 @@ async function syncMovie(movie) {
       },
     });
 
+    // Kiểm tra số lượng phần tử để xử lý trường hợp rỗng hoặc vượt giới hạn.
     if (details.genres?.length) {
       await tx.movieGenre.deleteMany({ where: { movieId: movie.id } });
+      // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
       for (const genre of details.genres) {
         const name = normalizeGenreName(genre.name);
         const genreRecord = await tx.genre.upsert({
@@ -202,13 +144,16 @@ async function syncMovie(movie) {
   );
 }
 
+// Khởi tạo luồng main và chuẩn bị các phụ thuộc cần thiết.
 async function main() {
+  // Kiểm tra điều kiện nghiệp vụ trong khối requireCredential trước khi tiếp tục.
   requireCredential();
 
   const movies = await prisma.movie.findMany({
     orderBy: { title: 'asc' },
   });
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const movie of movies) {
     await syncMovie(movie);
   }

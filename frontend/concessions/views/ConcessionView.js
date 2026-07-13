@@ -1,11 +1,18 @@
-/* CineTicket - Concession View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền combo bắp nước.
+ */
+/* CineTicket - View combo bắp nước */
+// Đối tượng ConcessionView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const ConcessionView = {
   _combos: [],
   _selectedCombos: {},
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối renderCheckout trước khi tiếp tục.
   async renderCheckout() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.checkAuth()) return;
     const booking = State.get('currentBooking');
+    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
     if (!booking || !booking.backendBookingId) {
       Toast.warning('Không có thông tin đặt vé');
       Router.navigate('/');
@@ -15,9 +22,11 @@ const ConcessionView = {
     document.body.classList.remove('admin-layout');
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
 
     this._selectedCombos = {};
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       this._combos = await API.getConcessionCombos();
     } catch (error) {
@@ -80,7 +89,9 @@ const ConcessionView = {
     this._renderCheckoutSummary();
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _checkoutComboList trước khi tiếp tục.
   _checkoutComboList() {
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (!this._combos.length) {
       return '<div class="empty-state concession-empty"><i class="fas fa-shopping-basket"></i><h3>Chưa có combo đang bán</h3><p>Bạn có thể bỏ qua bước này.</p></div>';
     }
@@ -109,33 +120,42 @@ const ConcessionView = {
       </div>`;
   },
 
+  // Thực hiện trách nhiệm riêng của khối changeQuantity.
   changeQuantity(comboId, delta) {
     const next = Math.max(0, Math.min(10, (this._selectedCombos[comboId] || 0) + delta));
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (next === 0) delete this._selectedCombos[comboId];
     else this._selectedCombos[comboId] = next;
     const el = document.getElementById(`checkout-combo-qty-${comboId}`);
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (el) el.textContent = String(next);
     const card = document.getElementById(`checkout-combo-card-${comboId}`);
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (card) card.classList.toggle('selected', next > 0);
     this._renderCheckoutSummary();
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối _selectedItems.
   _selectedItems() {
     return Object.entries(this._selectedCombos).map(([comboId, quantity]) => ({ comboId, quantity }));
   },
 
+  // Tính toán giá trị tổng hợp trong khối _comboSubtotal.
   _comboSubtotal() {
     return this._combos.reduce((sum, combo) => sum + Number(combo.price || 0) * (this._selectedCombos[combo.id] || 0), 0);
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _renderCheckoutSummary trước khi tiếp tục.
   _renderCheckoutSummary() {
     const booking = State.get('currentBooking');
+    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
     if (!booking) return;
     const summary = document.getElementById('concession-combo-summary');
     const subtotal = document.getElementById('concession-subtotal');
     const total = document.getElementById('concession-total');
     const selected = this._combos.filter((combo) => this._selectedCombos[combo.id]);
     const comboSubtotal = this._comboSubtotal();
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (summary) {
       summary.innerHTML = selected.length
         ? `<div class="concession-summary-list">${selected.map((combo) => `
@@ -146,18 +166,23 @@ const ConcessionView = {
           `).join('')}</div>`
         : '<div class="concession-summary-empty">Chưa chọn combo nào</div>';
     }
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (subtotal) subtotal.textContent = Helpers.formatCurrency(comboSubtotal);
+    // Kiểm tra trạng thái ghế và lượt giữ ghế trước khi cập nhật lựa chọn.
     if (total) total.textContent = Helpers.formatCurrency((booking.seatSubtotal || booking.totalPrice || 0) + comboSubtotal);
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối skipCheckout trước khi tiếp tục.
   async skipCheckout() {
     await this._saveCombosAndContinue([]);
   },
 
+  // Thực hiện bước thanh toán trong khối continueToPayment với kiểm tra trạng thái an toàn.
   async continueToPayment() {
     await this._saveCombosAndContinue(this._selectedItems());
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối _saveCombosAndContinue.
   async _saveCombosAndContinue(items) {
     const booking = State.get('currentBooking');
     if (!booking || !booking.backendBookingId) {
@@ -181,7 +206,9 @@ const ConcessionView = {
     }
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderAdmin.
   async renderAdmin() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
     const main = document.getElementById('main-content');
@@ -229,6 +256,7 @@ const ConcessionView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _row.
   _row(combo) {
     return `
       <tr>
@@ -250,11 +278,13 @@ const ConcessionView = {
       </tr>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối showFormById.
   showFormById(comboId) {
     const combo = this._combos.find((item) => item.id === comboId);
     this.showForm(combo || null);
   },
 
+  // Dựng phần giao diện tương ứng trong khối showForm.
   showForm(combo = null) {
     const isEdit = Boolean(combo);
     const content = `

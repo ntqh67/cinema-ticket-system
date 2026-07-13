@@ -1,4 +1,7 @@
-/* CineTicket - Seat Selection Page */
+/*
+ * Mục đích: Các quy tắc trình bày cho seats; được nhóm theo khu vực giao diện và trạng thái tương tác.
+ */
+/* Trang chọn ghế CineTicket */
 .seats-page { padding: var(--spacing-6) 0 var(--spacing-12); }
 .seats-layout {
   display: grid;
@@ -7,7 +10,7 @@
   align-items: start;
 }
 
-/* Info Bar */
+/* Thanh thông tin */
 .booking-info-bar {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -40,7 +43,7 @@
 }
 .booking-info-meta span { display: flex; align-items: center; gap: 4px; }
 
-/* Steps */
+/* Các bước */
 .booking-steps {
   display: flex;
   align-items: center;
@@ -83,7 +86,7 @@
 }
 .booking-step.done + .booking-step-divider { background: var(--color-success); }
 
-/* Screen */
+/* Màn hình chiếu */
 .screen-wrap {
   text-align: center;
   margin-bottom: var(--spacing-8);
@@ -104,7 +107,7 @@
   letter-spacing: 3px;
 }
 
-/* Seat Grid */
+/* Lưới ghế */
 .seat-grid-wrap {
   overflow-x: auto;
   padding-bottom: var(--spacing-4);
@@ -216,7 +219,7 @@
 }
 .seat.booked:hover { transform: none; }
 
-/* Legend */
+/* Chú giải */
 .seat-legend {
   display: flex;
   gap: var(--spacing-5);
@@ -316,7 +319,7 @@
 .legend-box.selected { background: var(--seat-selected); }
 .legend-box.booked { background: var(--seat-booked); border: 1px solid var(--color-border); }
 
-/* Booking Summary Panel */
+/* Bảng tóm tắt booking */
 .booking-summary-panel {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);

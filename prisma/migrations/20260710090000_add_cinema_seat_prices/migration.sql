@@ -1,3 +1,4 @@
--- Superseded by 20260710000000_add_cinema_prices_and_combos.
--- The canonical model is CinemaTicketPrice / cinema_ticket_prices.
--- Kept as a no-op migration so existing development branches retain a linear history.
+-- Mục đích: Migration PostgreSQL; mỗi khối lần lượt thay đổi cấu trúc, chỉ mục hoặc khóa ngoại.
+-- Migration này đã được thay thế bởi 20260710000000_add_cinema_prices_and_combos.
+-- Mô hình chuẩn là CinemaTicketPrice, ánh xạ tới bảng cinema_ticket_prices.
+-- Giữ migration rỗng để lịch sử của các nhánh phát triển hiện có vẫn tuyến tính.

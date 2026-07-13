@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Cài đặt nghiệp vụ giữ ghế tạm thời; dữ liệu bền vững được truy cập qua Prisma.
+ */
 import {
   ConflictException,
   Injectable,
@@ -78,22 +81,26 @@ return released
 `;
 
 @Injectable()
+// Lớp SeatHoldsService tập trung các quy tắc nghiệp vụ và phối hợp truy cập dữ liệu.
 export class SeatHoldsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
   ) {}
 
+  // Áp dụng quy tắc ghế và quyền sở hữu giữ ghế trong khối hold.
   async hold(dto: CreateSeatHoldDto) {
     const showtimeSeat = await this.prisma.showtimeSeat.findUnique({
       where: { id: dto.showtimeSeatId },
       select: { id: true, showtimeId: true, status: true },
     });
 
+    // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
     if (!showtimeSeat || showtimeSeat.showtimeId !== dto.showtimeId) {
       throw new NotFoundException('Showtime seat not found');
     }
 
+    // Rẽ nhánh theo trạng thái hiện tại để chỉ cho phép luồng nghiệp vụ hợp lệ.
     if (showtimeSeat.status !== 'AVAILABLE') {
       throw new ConflictException('Seat is not available');
     }
@@ -118,6 +125,7 @@ export class SeatHoldsService {
       ],
     );
 
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (saved !== 1) {
       throw new ConflictException('Seat is temporarily held by another customer');
     }
@@ -125,6 +133,7 @@ export class SeatHoldsService {
     return { held: true, expiresAt, ttlSeconds: HOLD_SECONDS };
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối release.
   async release(params: {
     showtimeSeatId: string;
     sessionId?: string;
@@ -134,28 +143,35 @@ export class SeatHoldsService {
       where: { id: params.showtimeSeatId },
       select: { showtimeId: true },
     });
+    // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
     if (!seat) return { released: false };
     const existing = await this.getHold(seat.showtimeId, params.showtimeSeatId);
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!existing) return { released: false };
     const released = await this.redis.eval(
       RELEASE_OWNED_HOLD_SCRIPT,
       [this.key(existing.showtimeId, params.showtimeSeatId)],
       [params.sessionId || '', params.userId || ''],
     );
+    // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (released === -1) {
       throw new ConflictException('Cannot release another customer hold');
     }
     return { released: released === 1 };
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listByShowtime trước khi tiếp tục.
   async listByShowtime(showtimeId: string, showtimeSeatIds: string[]) {
     const keys = showtimeSeatIds.map((showtimeSeatId) =>
       this.key(showtimeId, showtimeSeatId),
     );
     const values = await this.redis.mGet(keys);
     const holds: SeatHoldPayload[] = [];
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const [index, value] of values.entries()) {
+      // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
       if (!value) continue;
+      // Bắt đầu khối thao tác có thể phát sinh lỗi để phần xử lý lỗi phía sau tiếp nhận.
       try {
         holds.push(JSON.parse(value) as SeatHoldPayload);
       } catch {
@@ -165,6 +181,7 @@ export class SeatHoldsService {
     return holds;
   }
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối bindHoldsToUser.
   async bindHoldsToUser(params: {
     showtimeId: string;
     showtimeSeatIds: string[];
@@ -183,18 +200,22 @@ export class SeatHoldsService {
       String(HOLD_SECONDS),
     ]);
 
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (bound !== 1) {
       throw new ConflictException('One or more selected seats are no longer held');
     }
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối verifyBookingHolds trước khi tiếp tục.
   async verifyBookingHolds(params: {
     userId: string;
     showtimeId: string;
     showtimeSeatIds: string[];
   }) {
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const showtimeSeatId of params.showtimeSeatIds) {
       const hold = await this.getHold(params.showtimeId, showtimeSeatId);
+      // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
       if (
         !hold ||
         hold.showtimeId !== params.showtimeId ||
@@ -205,8 +226,10 @@ export class SeatHoldsService {
     }
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối releaseBookingHolds.
   async releaseBookingHolds(owners: BookingHoldOwner[]) {
     let released = 0;
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const owner of owners) {
       const keys = owner.showtimeSeatIds.map((showtimeSeatId) =>
         this.key(owner.showtimeId, showtimeSeatId),
@@ -215,15 +238,19 @@ export class SeatHoldsService {
         owner.showtimeId,
         owner.userId,
       ]);
+      // Kiểm tra kết quả thao tác và chuyển sang nhánh lỗi khi cần.
       if (typeof result === 'number') released += result;
     }
     return released;
   }
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getHold.
   private async getHold(showtimeId: string, showtimeSeatId: string) {
     const key = this.key(showtimeId, showtimeSeatId);
     const value = await this.redis.get(key);
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!value) return null;
+    // Bắt đầu khối thao tác có thể phát sinh lỗi để phần xử lý lỗi phía sau tiếp nhận.
     try {
       return JSON.parse(value) as SeatHoldPayload;
     } catch {
@@ -232,6 +259,7 @@ export class SeatHoldsService {
     }
   }
 
+  // Thực hiện trách nhiệm riêng của khối key.
   private key(showtimeId: string, showtimeSeatId: string) {
     return `${HOLD_PREFIX}:${showtimeId}:${showtimeSeatId}`;
   }

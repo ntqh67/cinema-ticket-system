@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Định nghĩa dữ liệu đầu vào và các quy tắc kiểm tra cho miền quản trị.
+ */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
@@ -13,12 +16,14 @@ import {
   Min,
 } from 'class-validator';
 
+// Lớp CreateGenreDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateGenreDto {
   @ApiProperty()
   @IsString()
   name: string;
 }
 
+// Lớp UpdateGenreDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateGenreDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -26,6 +31,7 @@ export class UpdateGenreDto {
   name?: string;
 }
 
+// Lớp CreateCinemaChainDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateCinemaChainDto {
   @ApiProperty()
   @IsString()
@@ -37,8 +43,10 @@ export class CreateCinemaChainDto {
   city?: string;
 }
 
+// Lớp UpdateCinemaChainDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateCinemaChainDto extends CreateCinemaChainDto {}
 
+// Lớp CreateMovieDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateMovieDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -94,8 +102,10 @@ export class CreateMovieDto {
   ageRating?: string;
 }
 
+// Lớp UpdateMovieDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateMovieDto extends CreateMovieDto {}
 
+// Lớp CreateMovieFromTmdbDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateMovieFromTmdbDto {
   @ApiProperty()
   @IsInt()
@@ -110,6 +120,7 @@ export class CreateMovieFromTmdbDto {
   status?: 'DRAFT' | 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED';
 }
 
+// Lớp RoomAvailableSlotsQueryDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class RoomAvailableSlotsQueryDto {
   @ApiProperty()
   @IsString()
@@ -120,6 +131,7 @@ export class RoomAvailableSlotsQueryDto {
   date: string;
 }
 
+// Lớp ImportUpcomingMoviesFromTmdbDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class ImportUpcomingMoviesFromTmdbDto {
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
@@ -134,6 +146,7 @@ export class ImportUpcomingMoviesFromTmdbDto {
   limit?: number;
 }
 
+// Lớp CreateCinemaDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateCinemaDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -180,8 +193,10 @@ export class CreateCinemaDto {
   imageUrl?: string;
 }
 
+// Lớp UpdateCinemaDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateCinemaDto extends CreateCinemaDto {}
 
+// Lớp UpsertCinemaTicketPriceDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpsertCinemaTicketPriceDto {
   @ApiProperty({ enum: ['STANDARD', 'COUPLE'] })
   @IsEnum(['STANDARD', 'COUPLE'])
@@ -198,6 +213,7 @@ export class UpsertCinemaTicketPriceDto {
   isActive?: boolean;
 }
 
+// Lớp CreateConcessionComboDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateConcessionComboDto {
   @ApiProperty()
   @IsString()
@@ -224,8 +240,10 @@ export class CreateConcessionComboDto {
   isActive?: boolean;
 }
 
+// Lớp UpdateConcessionComboDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateConcessionComboDto extends CreateConcessionComboDto {}
 
+// Lớp CreateRoomDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateRoomDto {
   @ApiProperty()
   @IsString()
@@ -245,6 +263,7 @@ export class CreateRoomDto {
   capacity?: number;
 }
 
+// Lớp UpdateRoomDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateRoomDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -258,6 +277,7 @@ export class UpdateRoomDto {
   capacity?: number;
 }
 
+// Lớp CreateSeatDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateSeatDto {
   @ApiProperty()
   @IsString()
@@ -284,6 +304,7 @@ export class CreateSeatDto {
   type?: 'STANDARD' | 'COUPLE';
 }
 
+// Lớp UpdateSeatDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateSeatDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -297,6 +318,7 @@ export class UpdateSeatDto {
   type?: 'STANDARD' | 'COUPLE';
 }
 
+// Lớp GenerateSeatsDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class GenerateSeatsDto {
   @ApiProperty()
   @IsArray()
@@ -316,6 +338,7 @@ export class GenerateSeatsDto {
   coupleRows?: string[];
 }
 
+// Lớp CreateShowtimeDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class CreateShowtimeDto {
   @ApiProperty()
   @IsString()
@@ -339,4 +362,5 @@ export class CreateShowtimeDto {
   basePrice: number;
 }
 
+// Lớp UpdateShowtimeDto mô tả cấu trúc dữ liệu đầu vào và kích hoạt validation.
 export class UpdateShowtimeDto extends CreateShowtimeDto {}

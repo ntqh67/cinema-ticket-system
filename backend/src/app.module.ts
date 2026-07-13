@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Khai báo module NestJS và liên kết các thành phần của miền khởi tạo và tiện ích dùng chung.
+ */
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -35,4 +38,5 @@ import { UsersModule } from './users/users.module';
   controllers: [AppController],
   providers: [AppService],
 })
+// Lớp AppModule đăng ký controller, service và các module phụ thuộc với NestJS.
 export class AppModule {}

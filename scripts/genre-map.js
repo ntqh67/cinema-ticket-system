@@ -1,43 +1,10 @@
-const GENRE_NAME_MAP = {
-  Action: 'Hành Động',
-  Adventure: 'Phiêu Lưu',
-  Animation: 'Hoạt Hình',
-  Comedy: 'Hài',
-  Crime: 'Tội Phạm',
-  Documentary: 'Tài Liệu',
-  Drama: 'Chính Kịch',
-  Family: 'Gia Đình',
-  Fantasy: 'Giả Tưởng',
-  History: 'Lịch Sử',
-  Horror: 'Kinh Dị',
-  Music: 'Âm Nhạc',
-  Mystery: 'Bí Ẩn',
-  Romance: 'Tình Cảm',
-  'Science Fiction': 'Khoa Học Viễn Tưởng',
-  'Sci-Fi': 'Khoa Học Viễn Tưởng',
-  'TV Movie': 'Phim Truyền Hình',
-  Thriller: 'Giật Gân',
-  War: 'Chiến Tranh',
-  Western: 'Viễn Tây',
-  'Hành động': 'Hành Động',
-  'Phiêu lưu': 'Phiêu Lưu',
-  'Hoạt hình': 'Hoạt Hình',
-  'Gia đình': 'Gia Đình',
-  'Giả tưởng': 'Giả Tưởng',
-  'Kinh dị': 'Kinh Dị',
-  'Khoa học viễn tưởng': 'Khoa Học Viễn Tưởng',
-  'Giật gân': 'Giật Gân',
-  'Phim Bí Ẩn': 'Bí Ẩn',
-  'Phim Gây Cấn': 'Giật Gân',
-  'Phim Giả Tượng': 'Giả Tưởng',
-  'Phim Hành Động': 'Hành Động',
-  'Phim Hình Sự': 'Tội Phạm',
-  'Phim Hoạt Hình': 'Hoạt Hình',
-  'Phim Khoa Học Viễn Tưởng': 'Khoa Học Viễn Tưởng',
-  'Phim Kinh Dị': 'Kinh Dị',
-  'Phim Phiêu Lưu': 'Phiêu Lưu',
-};
+/**
+ * Mục đích: Mã nguồn phục vụ khởi tạo và tiện ích dùng chung; các khối bên dưới được giữ tách biệt theo trách nhiệm.
+ */
+// Dùng chung dữ liệu chuẩn với backend để hai môi trường không lệch tên thể loại.
+const GENRE_NAME_MAP = require('../backend/src/common/genre-map.json');
 
+// Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối normalizeGenreName.
 function normalizeGenreName(name) {
   const value = String(name || '').trim();
   return GENRE_NAME_MAP[value] || value;

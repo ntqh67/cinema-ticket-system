@@ -1,3 +1,6 @@
+<#
+  Mục đích: Script PowerShell phục vụ sao lưu/khôi phục cơ sở dữ liệu PostgreSQL.
+#>
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
