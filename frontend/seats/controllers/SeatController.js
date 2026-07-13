@@ -18,11 +18,19 @@ const SeatController = {
       this.currentShowtime = data.showtime;
       this.currentRoom = data.room;
       this.currentRows = data.rows;
+      this.selectedSeats = data.rows.flatMap((row) => row.seats)
+        .filter((seat) => seat.heldByMe)
+        .map((seat) => ({
+          id: seat.id,
+          showtimeSeatId: seat.showtimeSeatId,
+          type: seat.type,
+          price: Number(seat.price),
+        }));
     } catch (error) {
       this.currentError = error.message || 'Không thể tải sơ đồ ghế';
     }
 
-    State.set('selectedSeats', []);
+    State.set('selectedSeats', [...this.selectedSeats]);
   },
 
   async toggleSeat(seatId, type, isBooked, showtimeSeatId, price) {
@@ -36,10 +44,6 @@ const SeatController = {
       await API.releaseSeat(this.selectedSeats[idx].showtimeSeatId);
       this.selectedSeats.splice(idx, 1);
     } else {
-      if (this.selectedSeats.length >= 8) {
-        Toast.warning('Tối đa 8 ghế mỗi lần đặt');
-        return false;
-      }
       await API.holdSeat({
         showtimeId: this.currentShowtime.id,
         showtimeSeatId: showtimeSeatId || seatId,
@@ -69,7 +73,22 @@ const SeatController = {
       Toast.warning('Vui lòng chọn ít nhất 1 ghế');
       return;
     }
-    if (!AuthController.checkAuth()) return;
+    const orphanSeat = this._findOrphanStandardSeat();
+    if (orphanSeat) {
+      Toast.warning(`Không được để lại ghế ${orphanSeat.id} trống một mình. Vui lòng chọn lại ghế.`);
+      return;
+    }
+    if (!AuthModel.isAuthenticated()) {
+      const confirmed = await Modal.confirm(
+        'Bạn cần đăng nhập trước khi tạo booking. Các ghế đang giữ sẽ được khôi phục khi bạn quay lại.',
+        'Yêu cầu đăng nhập',
+        'info'
+      );
+      if (!confirmed) return;
+      sessionStorage.setItem('post_login_route', `/seats/${this.currentShowtime.id}`);
+      Router.navigate('/login');
+      return;
+    }
 
     try {
       const booking = await BookingModel.create({
@@ -94,5 +113,40 @@ const SeatController = {
     } catch (error) {
       Toast.error(error.message || 'Không thể tạo booking');
     }
+  },
+
+  _findOrphanStandardSeat() {
+    const selectedIds = new Set(this.selectedSeats.map((seat) => seat.id));
+    for (const row of this.currentRows || []) {
+      const standardSeats = row.seats
+        .filter((seat) => seat.type !== 'couple')
+        .sort((a, b) => Number(a.position || a.col) - Number(b.position || b.col));
+      const blocks = [];
+      standardSeats.forEach((seat) => {
+        const block = blocks[blocks.length - 1];
+        const previous = block && block[block.length - 1];
+        if (!previous || Number(seat.position || seat.col) !== Number(previous.position || previous.col) + 1) {
+          blocks.push([seat]);
+        } else {
+          block.push(seat);
+        }
+      });
+      for (const block of blocks) {
+        for (let index = 1; index < block.length - 1; index += 1) {
+          const current = block[index];
+          const isAvailable = !current.isBooked
+            && !['HELD', 'BOOKED', 'BLOCKED'].includes(current.status)
+            && !selectedIds.has(current.id);
+          if (!isAvailable) continue;
+          const hasAvailableNeighbor = [block[index - 1], block[index + 1]].some((neighbor) =>
+            !neighbor.isBooked
+              && !['HELD', 'BOOKED', 'BLOCKED'].includes(neighbor.status)
+              && !selectedIds.has(neighbor.id)
+          );
+          if (!hasAvailableNeighbor) return current;
+        }
+      }
+    }
+    return null;
   },
 };

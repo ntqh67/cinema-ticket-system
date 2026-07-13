@@ -24,6 +24,14 @@ export class RedisService implements OnModuleDestroy {
     return typeof value === 'string' ? value : null;
   }
 
+  async mGet(keys: string[]) {
+    if (keys.length === 0) return [];
+    const result = await this.command(['MGET', ...keys]);
+    return Array.isArray(result)
+      ? result.map((item) => (typeof item === 'string' ? item : null))
+      : [];
+  }
+
   async setNxEx(key: string, seconds: number, value: string) {
     const result = await this.command([
       'SET',
@@ -52,6 +60,16 @@ export class RedisService implements OnModuleDestroy {
     return Array.isArray(result)
       ? result.filter((item): item is string => typeof item === 'string')
       : [];
+  }
+
+  async eval(script: string, keys: string[], args: string[] = []) {
+    return this.command([
+      'EVAL',
+      script,
+      String(keys.length),
+      ...keys,
+      ...args,
+    ]);
   }
 
   private command(args: string[]) {

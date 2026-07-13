@@ -5,16 +5,18 @@ const BookingModel = {
     return (data.bookings || []).map((booking) => this._mapBackendBooking(booking));
   },
 
-  getById(id) {
-    return null;
+  async getById(id) {
+    if (!id) throw new Error('Thieu ma booking');
+    return API.getBookingTickets(id);
   },
 
   async getDetail(id) {
     return API.getAdminBookingDetail(id);
   },
 
-  getByUser(userId) {
-    return [];
+  async getByUser(userId) {
+    const data = await API.getUserBookings(userId || API.getBackendUserId());
+    return data.bookings || [];
   },
 
   async create(data) {

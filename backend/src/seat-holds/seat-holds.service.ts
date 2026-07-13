@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -16,8 +15,67 @@ export type SeatHoldPayload = {
   expiresAt: string;
 };
 
+export type BookingHoldOwner = {
+  showtimeId: string;
+  showtimeSeatIds: string[];
+  userId: string;
+};
+
 const HOLD_SECONDS = 5 * 60;
 const HOLD_PREFIX = 'seat_hold';
+const UPSERT_OWNED_HOLD_SCRIPT = `
+local existing = redis.call('GET', KEYS[1])
+if existing then
+  local hold = cjson.decode(existing)
+  local ownedBySession = ARGV[1] ~= '' and hold.sessionId == ARGV[1]
+  local ownedByUser = ARGV[2] ~= '' and hold.userId == ARGV[2]
+  if not ownedBySession and not ownedByUser then return 0 end
+end
+redis.call('SET', KEYS[1], ARGV[3], 'EX', ARGV[4])
+return 1
+`;
+const RELEASE_OWNED_HOLD_SCRIPT = `
+local existing = redis.call('GET', KEYS[1])
+if not existing then return 0 end
+local hold = cjson.decode(existing)
+local ownedBySession = ARGV[1] ~= '' and hold.sessionId == ARGV[1]
+local ownedByUser = ARGV[2] ~= '' and hold.userId == ARGV[2]
+if not ownedBySession and not ownedByUser then return -1 end
+return redis.call('DEL', KEYS[1])
+`;
+const BIND_HOLDS_TO_USER_SCRIPT = `
+local holds = {}
+for index, key in ipairs(KEYS) do
+  local existing = redis.call('GET', key)
+  if not existing then return 0 end
+  local hold = cjson.decode(existing)
+  local ownedBySession = ARGV[1] ~= '' and hold.sessionId == ARGV[1]
+  local ownedByUser = hold.userId == ARGV[2]
+  if hold.showtimeId ~= ARGV[3] or (not ownedBySession and not ownedByUser) then
+    return 0
+  end
+  holds[index] = hold
+end
+for index, key in ipairs(KEYS) do
+  holds[index].userId = ARGV[2]
+  holds[index].expiresAt = ARGV[4]
+  redis.call('SET', key, cjson.encode(holds[index]), 'EX', ARGV[5])
+end
+return 1
+`;
+const RELEASE_BOOKING_HOLDS_SCRIPT = `
+local released = 0
+for _, key in ipairs(KEYS) do
+  local existing = redis.call('GET', key)
+  if existing then
+    local hold = cjson.decode(existing)
+    if hold.showtimeId == ARGV[1] and hold.userId == ARGV[2] then
+      released = released + redis.call('DEL', key)
+    end
+  end
+end
+return released
+`;
 
 @Injectable()
 export class SeatHoldsService {
@@ -40,11 +98,6 @@ export class SeatHoldsService {
       throw new ConflictException('Seat is not available');
     }
 
-    const existing = await this.getHold(dto.showtimeSeatId);
-    if (existing && !this.isOwner(existing, dto.sessionId, dto.userId)) {
-      throw new ConflictException('Seat is temporarily held by another customer');
-    }
-
     const expiresAt = new Date(Date.now() + HOLD_SECONDS * 1000).toISOString();
     const payload: SeatHoldPayload = {
       showtimeId: dto.showtimeId,
@@ -54,11 +107,18 @@ export class SeatHoldsService {
       expiresAt,
     };
     const key = this.key(dto.showtimeId, dto.showtimeSeatId);
-    const saved = existing
-      ? await this.redis.setEx(key, HOLD_SECONDS, JSON.stringify(payload))
-      : await this.redis.setNxEx(key, HOLD_SECONDS, JSON.stringify(payload));
+    const saved = await this.redis.eval(
+      UPSERT_OWNED_HOLD_SCRIPT,
+      [key],
+      [
+        dto.sessionId,
+        dto.userId || '',
+        JSON.stringify(payload),
+        String(HOLD_SECONDS),
+      ],
+    );
 
-    if (!saved) {
+    if (saved !== 1) {
       throw new ConflictException('Seat is temporarily held by another customer');
     }
 
@@ -70,25 +130,36 @@ export class SeatHoldsService {
     sessionId?: string;
     userId?: string;
   }) {
-    const existing = await this.getHold(params.showtimeSeatId);
+    const seat = await this.prisma.showtimeSeat.findUnique({
+      where: { id: params.showtimeSeatId },
+      select: { showtimeId: true },
+    });
+    if (!seat) return { released: false };
+    const existing = await this.getHold(seat.showtimeId, params.showtimeSeatId);
     if (!existing) return { released: false };
-    if (!this.isOwner(existing, params.sessionId, params.userId)) {
+    const released = await this.redis.eval(
+      RELEASE_OWNED_HOLD_SCRIPT,
+      [this.key(existing.showtimeId, params.showtimeSeatId)],
+      [params.sessionId || '', params.userId || ''],
+    );
+    if (released === -1) {
       throw new ConflictException('Cannot release another customer hold');
     }
-    await this.redis.del(this.key(existing.showtimeId, params.showtimeSeatId));
-    return { released: true };
+    return { released: released === 1 };
   }
 
-  async listByShowtime(showtimeId: string) {
-    const keys = await this.redis.keys(`${HOLD_PREFIX}:${showtimeId}:*`);
+  async listByShowtime(showtimeId: string, showtimeSeatIds: string[]) {
+    const keys = showtimeSeatIds.map((showtimeSeatId) =>
+      this.key(showtimeId, showtimeSeatId),
+    );
+    const values = await this.redis.mGet(keys);
     const holds: SeatHoldPayload[] = [];
-    for (const key of keys) {
-      const value = await this.redis.get(key);
+    for (const [index, value] of values.entries()) {
       if (!value) continue;
       try {
         holds.push(JSON.parse(value) as SeatHoldPayload);
       } catch {
-        await this.redis.del(key);
+        await this.redis.del(keys[index]);
       }
     }
     return holds;
@@ -97,27 +168,23 @@ export class SeatHoldsService {
   async bindHoldsToUser(params: {
     showtimeId: string;
     showtimeSeatIds: string[];
-    sessionId?: string;
+    sessionId: string;
     userId: string;
   }) {
-    if (!params.sessionId) {
-      throw new BadRequestException('Seat hold session is required');
-    }
+    const expiresAt = new Date(Date.now() + HOLD_SECONDS * 1000).toISOString();
+    const keys = params.showtimeSeatIds.map((showtimeSeatId) =>
+      this.key(params.showtimeId, showtimeSeatId),
+    );
+    const bound = await this.redis.eval(BIND_HOLDS_TO_USER_SCRIPT, keys, [
+      params.sessionId,
+      params.userId,
+      params.showtimeId,
+      expiresAt,
+      String(HOLD_SECONDS),
+    ]);
 
-    for (const showtimeSeatId of params.showtimeSeatIds) {
-      const hold = await this.getHold(showtimeSeatId);
-      if (
-        !hold ||
-        hold.showtimeId !== params.showtimeId ||
-        !this.isOwner(hold, params.sessionId, params.userId)
-      ) {
-        throw new ConflictException('One or more selected seats are no longer held');
-      }
-      await this.redis.setEx(
-        this.key(params.showtimeId, showtimeSeatId),
-        HOLD_SECONDS,
-        JSON.stringify({ ...hold, userId: params.userId }),
-      );
+    if (bound !== 1) {
+      throw new ConflictException('One or more selected seats are no longer held');
     }
   }
 
@@ -127,7 +194,7 @@ export class SeatHoldsService {
     showtimeSeatIds: string[];
   }) {
     for (const showtimeSeatId of params.showtimeSeatIds) {
-      const hold = await this.getHold(showtimeSeatId);
+      const hold = await this.getHold(params.showtimeId, showtimeSeatId);
       if (
         !hold ||
         hold.showtimeId !== params.showtimeId ||
@@ -138,24 +205,29 @@ export class SeatHoldsService {
     }
   }
 
-  async releaseMany(showtimeSeatIds: string[]) {
-    const keys: string[] = [];
-    for (const showtimeSeatId of showtimeSeatIds) {
-      const existing = await this.getHold(showtimeSeatId);
-      if (existing) keys.push(this.key(existing.showtimeId, showtimeSeatId));
+  async releaseBookingHolds(owners: BookingHoldOwner[]) {
+    let released = 0;
+    for (const owner of owners) {
+      const keys = owner.showtimeSeatIds.map((showtimeSeatId) =>
+        this.key(owner.showtimeId, showtimeSeatId),
+      );
+      const result = await this.redis.eval(RELEASE_BOOKING_HOLDS_SCRIPT, keys, [
+        owner.showtimeId,
+        owner.userId,
+      ]);
+      if (typeof result === 'number') released += result;
     }
-    await this.redis.del(...keys);
+    return released;
   }
 
-  private async getHold(showtimeSeatId: string) {
-    const keys = await this.redis.keys(`${HOLD_PREFIX}:*:${showtimeSeatId}`);
-    if (keys.length === 0) return null;
-    const value = await this.redis.get(keys[0]);
+  private async getHold(showtimeId: string, showtimeSeatId: string) {
+    const key = this.key(showtimeId, showtimeSeatId);
+    const value = await this.redis.get(key);
     if (!value) return null;
     try {
       return JSON.parse(value) as SeatHoldPayload;
     } catch {
-      await this.redis.del(keys[0]);
+      await this.redis.del(key);
       return null;
     }
   }
@@ -164,14 +236,4 @@ export class SeatHoldsService {
     return `${HOLD_PREFIX}:${showtimeId}:${showtimeSeatId}`;
   }
 
-  private isOwner(
-    hold: SeatHoldPayload,
-    sessionId?: string,
-    userId?: string,
-  ) {
-    return (
-      (!!sessionId && hold.sessionId === sessionId) ||
-      (!!userId && hold.userId === userId)
-    );
-  }
 }

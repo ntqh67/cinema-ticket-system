@@ -1,8 +1,8 @@
 /* CineTicket - Auth Model */
 const AuthModel = {
-  async login(email, password) {
+  async login(identifier, password) {
     try {
-      const data = await API.login({ email, password });
+      const data = await API.login({ identifier, password });
       return { success: true, user: this._mapBackendUser(data.user) };
     } catch (error) {
       return { success: false, error: error.message || 'Email hoac mat khau khong dung' };
@@ -65,7 +65,7 @@ const AuthModel = {
 
   validateLoginForm(data) {
     const errors = {};
-    if (!data.email || !Helpers.isEmail(data.email)) errors.email = 'Email khong hop le';
+    if (!data.email || data.email.trim().length < 3) errors.email = 'Vui lòng nhập tên đăng nhập hoặc email';
     if (!data.password || data.password.length < 6) errors.password = 'Mat khau phai co it nhat 6 ky tu';
     return { valid: Object.keys(errors).length === 0, errors };
   },

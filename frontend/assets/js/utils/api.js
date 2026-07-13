@@ -501,6 +501,10 @@ const API = {
     });
   },
 
+  createSepayPayment(bookingId) {
+    return this.backendRequest(`/bookings/${bookingId}/sepay`, { method: 'POST' });
+  },
+
   onlineDemoPay(bookingId, provider) {
     return this.backendRequest(`/bookings/${bookingId}/online-demo-pay`, {
       method: 'POST',
@@ -671,6 +675,10 @@ const API = {
 
   getUserTickets(userId) {
     return this.backendRequest(`/users/${userId}/tickets`);
+  },
+
+  getUserBookings(userId) {
+    return this.backendRequest(`/users/${encodeURIComponent(userId)}/bookings`);
   },
 
   _save(key) {

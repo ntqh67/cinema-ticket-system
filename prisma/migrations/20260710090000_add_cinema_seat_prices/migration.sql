@@ -1,0 +1,3 @@
+-- Superseded by 20260710000000_add_cinema_prices_and_combos.
+-- The canonical model is CinemaTicketPrice / cinema_ticket_prices.
+-- Kept as a no-op migration so existing development branches retain a linear history.

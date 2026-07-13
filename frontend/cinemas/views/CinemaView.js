@@ -72,7 +72,7 @@ const CinemaView = {
               const rooms = c.rooms || API.mockData.rooms.filter(r => r.cinemaId === c.id);
               const prices = this._ticketPriceText(c.ticketPrices || []);
               return `
-              <div class="card">
+              <div class="card" style="cursor:pointer;" onclick="Router.navigate('/admin/cinemas/${c.id}')">
                 <img src="${Helpers.escapeHtml(c.imageUrl || c.image || '')}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
                 <div class="card-body">
                   <h4 style="margin-bottom:6px;">${Helpers.escapeHtml(c.name)}</h4>
@@ -86,9 +86,9 @@ const CinemaView = {
                     <i class="fas fa-door-open"></i> ${rooms.length} phòng &nbsp;|&nbsp; <i class="fas fa-phone"></i> ${c.phone}
                   </div>
                   <div class="table-actions">
-                    <button class="action-btn edit" onclick="CinemaView.showTicketPriceForm('${c.id}')" title="Gia Ve"><i class="fas fa-dollar-sign"></i></button>
-                    <button class="action-btn edit" onclick="CinemaView.showEditForm('${c.id}')" title="Sửa"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn delete" onclick="CinemaController.handleDelete('${c.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
+                    <button class="action-btn edit" onclick="event.stopPropagation();CinemaView.showTicketPriceForm('${c.id}')" title="Gia Ve"><i class="fas fa-dollar-sign"></i></button>
+                    <button class="action-btn edit" onclick="event.stopPropagation();CinemaView.showEditForm('${c.id}')" title="Sửa"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="event.stopPropagation();CinemaController.handleDelete('${c.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
                   </div>
                 </div>
               </div>`;
@@ -97,6 +97,45 @@ const CinemaView = {
         </div>
       </div>
     </div>`;
+  },
+
+  async renderAdminDetail(params) {
+    if (!AuthController.requireAdmin()) return;
+    document.body.classList.add('admin-layout');
+    const main = document.getElementById('main-content');
+    if (!main) return;
+    try {
+      const [cinemas, rooms, showtimes] = await Promise.all([
+        API.getAdminCinemas(), API.getAdminRooms(), API.getAdminShowtimes()
+      ]);
+      const cinema = cinemas.find((item) => item.id === params.id);
+      if (!cinema) throw new Error('Không tìm thấy rạp');
+      const cinemaRooms = rooms.filter((room) => room.cinemaId === cinema.id);
+      const roomIds = new Set(cinemaRooms.map((room) => room.id));
+      const cinemaShowtimes = showtimes
+        .filter((showtime) => roomIds.has(showtime.roomId) && new Date(showtime.endAt) >= new Date())
+        .sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
+      main.innerHTML = `
+        <div class="admin-layout-wrap">
+          ${UserView._renderAdminSidebar('cinemas')}
+          <div class="admin-main">
+            ${UserView._renderAdminTopbar('Chi Tiết Rạp Chiếu')}
+            <div class="admin-content">
+              <button class="btn btn-secondary" style="margin-bottom:20px;" onclick="Router.navigate('/admin/cinemas')"><i class="fas fa-arrow-left"></i> Danh sách rạp</button>
+              <div class="admin-page-header"><div><h1 class="admin-page-title">${Helpers.escapeHtml(cinema.name)}</h1><p class="admin-page-subtitle">${cinemaRooms.length} phòng · ${cinemaShowtimes.length} suất sắp chiếu</p></div></div>
+              <div class="grid grid-3" style="gap:16px;margin-bottom:24px;">
+                ${cinemaRooms.map((room) => `<div class="card"><div class="card-body"><h4>${Helpers.escapeHtml(room.name)}</h4><p style="color:var(--color-text-muted);margin-top:8px;">${room.capacity} ghế</p></div></div>`).join('')}
+              </div>
+              <div class="admin-table-card"><div class="admin-table-header"><span class="admin-table-title">Phim và suất đang chiếu</span></div><div class="table-wrapper"><table class="admin-table"><thead><tr><th>Phim</th><th>Phòng</th><th>Bắt đầu</th><th>Kết thúc</th><th>Ghế đã đặt</th></tr></thead><tbody>
+                ${cinemaShowtimes.slice(0, 100).map((showtime) => `<tr><td>${Helpers.escapeHtml(showtime.movie?.title || '')}</td><td>${Helpers.escapeHtml(showtime.room?.name || '')}</td><td>${new Date(showtime.startAt).toLocaleString('vi-VN')}</td><td>${new Date(showtime.endAt).toLocaleTimeString('vi-VN')}</td><td>${showtime.bookedSeats || 0}/${showtime.totalSeats || 0}</td></tr>`).join('') || '<tr><td colspan="5">Chưa có suất chiếu</td></tr>'}
+              </tbody></table></div></div>
+            </div>
+          </div>
+        </div>`;
+    } catch (error) {
+      Toast.error(error.message || 'Không thể tải chi tiết rạp');
+      Router.navigate('/admin/cinemas');
+    }
   },
 
   _ticketPriceText(ticketPrices) {

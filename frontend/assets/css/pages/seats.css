@@ -115,6 +115,7 @@
   margin: 0 auto;
 }
 .seat-grid {
+  --seat-size: 34px;
   display: inline-flex;
   flex-direction: column;
   gap: var(--spacing-2);
@@ -123,10 +124,13 @@
   position: relative;
 }
 .seat-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 24px repeat(var(--seat-columns), var(--seat-size)) 24px;
   align-items: center;
-  gap: var(--spacing-2);
+  column-gap: var(--spacing-2);
 }
+.seat-row > .seat-row-label:first-child { grid-column: 1; }
+.seat-row > .seat-row-label:last-child { grid-column: calc(var(--seat-columns) + 2); }
 .seat-number-row {
   display: flex;
   align-items: center;
@@ -150,7 +154,7 @@
   flex-shrink: 0;
 }
 .seat {
-  width: 34px; height: 34px;
+  width: var(--seat-size); height: var(--seat-size);
   border-radius: 6px 6px 4px 4px;
   background: var(--seat-normal);
   border: 1px solid rgba(255,255,255,0.05);
@@ -165,6 +169,8 @@
   position: relative;
   flex-shrink: 0;
   z-index: 1;
+  grid-column: calc(var(--seat-position) + 1);
+  padding: 0;
 }
 .seat::after {
   content: '';
@@ -181,7 +187,8 @@
 }
 .seat.vip { background: var(--seat-vip); }
 .seat.couple {
-  width: 72px;
+  width: calc((var(--seat-size) * 2) + var(--spacing-2));
+  grid-column: calc(var(--seat-position) + 1) / span 2;
   background: var(--seat-couple);
   border-radius: 6px 6px 4px 4px;
 }
@@ -381,6 +388,5 @@
 }
 @media (max-width: 600px) {
   .booking-steps { display: none; }
-  .seat { width: 28px; height: 28px; }
-  .seat.couple { width: 60px; }
+  .seat-grid { --seat-size: 28px; }
 }

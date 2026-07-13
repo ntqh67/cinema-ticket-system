@@ -75,7 +75,9 @@ export class CreateMovieDto {
   @IsDateString()
   releaseDate?: string;
 
-  @ApiPropertyOptional({ enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'] })
+  @ApiPropertyOptional({
+    enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'],
+  })
   @IsOptional()
   @IsEnum(['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'])
   status?: 'DRAFT' | 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED';
@@ -100,7 +102,9 @@ export class CreateMovieFromTmdbDto {
   @Min(1)
   tmdbId: number;
 
-  @ApiPropertyOptional({ enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'] })
+  @ApiPropertyOptional({
+    enum: ['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'],
+  })
   @IsOptional()
   @IsEnum(['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'])
   status?: 'DRAFT' | 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED';
@@ -231,10 +235,14 @@ export class CreateRoomDto {
   @IsString()
   name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description:
+      'Tự động tính từ số ghế; giá trị gửi lên sẽ không được sử dụng',
+  })
+  @IsOptional()
   @IsInt()
-  @Min(1)
-  capacity: number;
+  @Min(0)
+  capacity?: number;
 }
 
 export class UpdateRoomDto {
@@ -264,6 +272,12 @@ export class CreateSeatDto {
   @Min(1)
   number: number;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  position?: number;
+
   @ApiPropertyOptional({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
   @IsOptional()
   @IsEnum(['STANDARD', 'VIP', 'COUPLE'])
@@ -271,6 +285,12 @@ export class CreateSeatDto {
 }
 
 export class UpdateSeatDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  position?: number;
+
   @ApiPropertyOptional({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
   @IsOptional()
   @IsEnum(['STANDARD', 'VIP', 'COUPLE'])

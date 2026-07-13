@@ -9,4 +9,9 @@ export class TicketsController {
   findUserTickets(@Param('userId') userId: string) {
     return this.bookingsService.findUserTickets(userId);
   }
+
+  @Get(':userId/bookings')
+  findUserBookings(@Param('userId') userId: string) {
+    return this.bookingsService.findUserBookings(userId);
+  }
 }

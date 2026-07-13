@@ -13,6 +13,7 @@ const SeatModel = {
         showtimeSeatId: item.showtimeSeatId,
         row: item.row,
         col: item.number,
+        position: Number(item.position || item.number),
         type: this._mapSeatType(item.type),
         price: Number(item.price),
         status: item.status,
@@ -23,7 +24,7 @@ const SeatModel = {
 
     const rows = Object.keys(rowsByLabel).sort().map((label) => ({
       label,
-      seats: rowsByLabel[label].sort((a, b) => a.col - b.col),
+      seats: rowsByLabel[label].sort((a, b) => a.position - b.position),
     }));
 
     if (rows.length === 0) {

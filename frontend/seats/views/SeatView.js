@@ -66,8 +66,7 @@ const SeatView = {
         </div>`;
       return;
     }
-    const numberHeader = this._seatNumberHeader(rows);
-    const bestSeatZone = this._bestSeatZone(rows);
+    const maxPosition = this._maxPosition(rows);
 
     main.innerHTML = `
     <div class="seats-page">
@@ -103,23 +102,19 @@ const SeatView = {
                   <div class="screen-label">Man Hinh</div>
                 </div>
 
-                <div class="seat-grid" id="seat-grid">
-                  ${this._bestSeatZoneOverlay(bestSeatZone)}
-                  ${numberHeader}
+                <div class="seat-grid" id="seat-grid" style="--seat-columns:${maxPosition}">
                   ${rows.map((row) => `
                     <div class="seat-row">
                       <span class="seat-row-label">${row.label}</span>
                       ${row.seats.map((seat) => this._seatHtml(showtime, seat)).join('')}
                       <span class="seat-row-label">${row.label}</span>
                     </div>`).join('')}
-                  ${numberHeader}
                 </div>
               </div>
             </div>
 
             <div class="seat-legend">
               <div class="legend-item"><div class="legend-box normal"></div><span>Thuong - ${Helpers.formatCurrency(showtime.price.normal)}</span></div>
-              <div class="legend-item"><div class="legend-box vip"></div><span>VIP - ${Helpers.formatCurrency(showtime.price.vip)}</span></div>
               <div class="legend-item"><div class="legend-box couple"></div><span>Doi - ${Helpers.formatCurrency(showtime.price.couple)}</span></div>
               <div class="legend-item"><div class="legend-box selected"></div><span>Dang chon</span></div>
               <div class="legend-item"><div class="legend-box booked"></div><span>Da dat / dang giu</span></div>
@@ -166,15 +161,24 @@ const SeatView = {
     const isUnavailable = (seat.isBooked || ['HELD', 'BOOKED', 'BLOCKED'].includes(seat.status)) && !seat.heldByMe;
     const price = seat.price || SeatModel.getPriceForType(showtime, seat.type);
     const label = seat.type === 'vip' ? 'VIP' : seat.type === 'couple' ? 'Doi' : 'Thuong';
-    return `<div class="seat ${seat.type} ${isUnavailable ? 'booked' : ''} ${seat.heldByMe ? 'selected' : ''}"
+    return `<button type="button" class="seat ${seat.type} ${isUnavailable ? 'booked' : ''} ${seat.heldByMe ? 'selected' : ''}"
+      style="--seat-position:${seat.position || seat.col}"
       data-id="${seat.id}"
       data-showtime-seat-id="${seat.showtimeSeatId || seat.id}"
       data-type="${seat.type}"
       data-price="${price}"
       data-booked="${isUnavailable}"
       onclick="SeatView._handleSeatClick(this)"
-      title="${seat.id} - ${label} - ${Helpers.formatCurrency(price)}"
-    >${Helpers.escapeHtml(seat.label || seat.id)}</div>`;
+      title="Ghe ${seat.id} - ${label}"
+      ${isUnavailable ? 'disabled' : ''}
+    >${seat.col}</button>`;
+  },
+
+  _maxPosition(rows) {
+    return Math.max(1, ...rows.flatMap((row) => row.seats.map((seat) => {
+      const width = seat.type === 'couple' ? 2 : 1;
+      return Number(seat.position || seat.col) + width - 1;
+    })));
   },
 
   _ageWarningMessage(ageRating) {

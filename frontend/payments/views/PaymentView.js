@@ -1,6 +1,6 @@
 /* CineTicket - Payment View */
 const PaymentView = {
-  _selectedMethod: 'vnpay',
+  _selectedMethod: 'sepay',
   _processing: false,
   _holdTimer: null,
 
@@ -52,6 +52,7 @@ const PaymentView = {
               <div class="booking-card-body">
                 <form id="payment-form" onsubmit="PaymentController.handleSubmit(event, PaymentView._selectedMethod)">
                   <div class="payment-methods">
+                    ${this._methodOption('sepay', 'fas fa-qrcode', 'sepay', 'SePay QR', 'Chuyển khoản ngân hàng, tự động xác nhận')}
                     ${this._methodOption('card', 'fas fa-credit-card', 'card', 'Thẻ tín dụng / ghi nợ', 'Visa, MasterCard, JCB')}
                     ${this._methodOption('momo', 'fas fa-mobile-alt', 'momo', 'MoMo', 'Thanh toán qua ví MoMo')}
                     ${this._methodOption('vnpay', 'fas fa-qrcode', 'vnpay', 'VNPay', 'Thanh toán qua VNPay QR')}
@@ -202,6 +203,36 @@ const PaymentView = {
         <div class="payment-method-desc">${desc}</div>
       </div>
     </label>`;
+  },
+
+  showSepayQr(payment, booking) {
+    const content = `
+      <div style="text-align:center;">
+        <img src="${payment.qrUrl}" alt="SePay QR" style="width:min(320px,100%);border-radius:12px;background:#fff;padding:10px;" />
+        <h3 style="margin:16px 0 8px;">${Helpers.formatCurrency(payment.amount)}</h3>
+        <p style="color:var(--color-text-muted);">${Helpers.escapeHtml(payment.bankCode)} · ${Helpers.escapeHtml(payment.accountNumber)}</p>
+        <p style="margin-top:8px;">Nội dung: <strong style="color:var(--color-primary);">${Helpers.escapeHtml(payment.paymentCode)}</strong></p>
+        <p id="sepay-status" style="margin-top:16px;color:var(--color-warning);"><i class="fas fa-spinner fa-spin"></i> Đang chờ SePay xác nhận...</p>
+      </div>`;
+    Modal.show('Thanh toán SePay', content, { size: 'md' });
+    const poll = setInterval(async () => {
+      try {
+        const detail = await API.getAdminBookingDetail(payment.bookingId);
+        const status = detail.booking?.status || detail.status;
+        if (status === 'PAID') {
+          clearInterval(poll);
+          Modal.close();
+          this._clearHoldCountdown();
+          State.set('currentBooking', null);
+          SeatController.selectedSeats = [];
+          Router.navigate(`/ticket/${payment.bookingId}`);
+          Toast.success('SePay đã xác nhận thanh toán!');
+        }
+      } catch (error) {
+        console.warn('SePay status poll failed:', error);
+      }
+    }, 3000);
+    setTimeout(() => clearInterval(poll), 10 * 60 * 1000);
   },
 
   updateTotal(total, discount) {

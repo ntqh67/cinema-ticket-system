@@ -61,8 +61,8 @@ const AuthView = {
     <p class="auth-form-subtitle">Đăng nhập để tiếp tục trải nghiệm điện ảnh</p>
     <form id="login-form" onsubmit="AuthController.handleLogin(event)" novalidate>
       <div class="form-group">
-        <label class="form-label" for="login-email">Email</label>
-        <input type="email" class="form-control" id="login-email" placeholder="example@email.com" autocomplete="email" />
+        <label class="form-label" for="login-email">Tên đăng nhập hoặc Email</label>
+        <input type="text" class="form-control" id="login-email" placeholder="admin, staff, customer" autocomplete="username" />
         <span class="form-error" id="login-email-error"></span>
       </div>
       <div class="form-group">

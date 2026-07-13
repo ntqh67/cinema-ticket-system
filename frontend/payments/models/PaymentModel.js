@@ -1,6 +1,6 @@
 /* CineTicket - Payment Model */
 const PaymentModel = {
-  _onlineMethods: ['vnpay', 'card', 'momo', 'zalopay'],
+  _onlineMethods: ['sepay', 'vnpay', 'card', 'momo', 'zalopay'],
 
   async process(bookingData) {
     if (!bookingData.backendBookingId) {
@@ -9,6 +9,11 @@ const PaymentModel = {
 
     if (!this._onlineMethods.includes(bookingData.paymentMethod)) {
       throw new Error('Phuong thuc thanh toan khong hop le');
+    }
+
+    if (bookingData.paymentMethod === 'sepay') {
+      const sepay = await API.createSepayPayment(bookingData.backendBookingId);
+      return { success: true, sepay: true, payment: sepay, booking: bookingData };
     }
 
     const paid = await API.onlineDemoPay(

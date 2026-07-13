@@ -36,7 +36,8 @@ const SHOWTIME_DAY_OPEN = '08:00';
 const SHOWTIME_DAY_CLOSE = '26:00';
 const SHOWTIME_LAST_START = '23:45';
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
-const TMDB_IMAGE_BASE_URL = process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
+const TMDB_IMAGE_BASE_URL =
+  process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 
 @Injectable()
 export class AdminService {
@@ -59,24 +60,18 @@ export class AdminService {
   }
 
   async getDashboard() {
-    const [
-      movies,
-      cinemas,
-      showtimes,
-      users,
-      paidBookings,
-      revenue,
-    ] = await Promise.all([
-      this.prisma.movie.count(),
-      this.prisma.cinema.count({ where: { city: 'Đà Nẵng' } }),
-      this.prisma.showtime.count(),
-      this.prisma.user.count(),
-      this.prisma.booking.count({ where: { status: 'PAID' } }),
-      this.prisma.payment.aggregate({
-        where: { status: PaymentStatus.SUCCESS },
-        _sum: { amount: true },
-      }),
-    ]);
+    const [movies, cinemas, showtimes, users, paidBookings, revenue] =
+      await Promise.all([
+        this.prisma.movie.count(),
+        this.prisma.cinema.count({ where: { city: 'Đà Nẵng' } }),
+        this.prisma.showtime.count(),
+        this.prisma.user.count(),
+        this.prisma.booking.count({ where: { status: 'PAID' } }),
+        this.prisma.payment.aggregate({
+          where: { status: PaymentStatus.SUCCESS },
+          _sum: { amount: true },
+        }),
+      ]);
 
     return {
       movies,
@@ -129,7 +124,9 @@ export class AdminService {
   }
 
   private async upsertMovieFromTmdb(tmdbId: number, status: string) {
-    const detailsVi = await this.fetchTmdb(`/movie/${tmdbId}`, { language: 'vi-VN' });
+    const detailsVi = await this.fetchTmdb(`/movie/${tmdbId}`, {
+      language: 'vi-VN',
+    });
     const detailsEn =
       detailsVi.title && detailsVi.runtime
         ? detailsVi
@@ -137,11 +134,15 @@ export class AdminService {
     const details = {
       ...detailsEn,
       ...Object.fromEntries(
-        Object.entries(detailsVi).filter(([, value]) => value !== null && value !== ''),
+        Object.entries(detailsVi).filter(
+          ([, value]) => value !== null && value !== '',
+        ),
       ),
     };
     const trailerUrl = await this.fetchTmdbTrailer(tmdbId);
-    const existingMovie = await this.prisma.movie.findFirst({ where: { tmdbId } });
+    const existingMovie = await this.prisma.movie.findFirst({
+      where: { tmdbId },
+    });
 
     return this.prisma.$transaction(async (tx) => {
       const movieData = {
@@ -152,13 +153,19 @@ export class AdminService {
         releaseDate: details.release_date
           ? new Date(`${details.release_date}T00:00:00.000Z`)
           : null,
-        posterUrl: this.tmdbImageUrl(details.poster_path || detailsEn.poster_path, 'w500'),
+        posterUrl: this.tmdbImageUrl(
+          details.poster_path || detailsEn.poster_path,
+          'w500',
+        ),
         trailerUrl,
         ageRating: 'P',
         status: status as MovieStatus,
       };
       const movie = existingMovie
-        ? await tx.movie.update({ where: { id: existingMovie.id }, data: movieData })
+        ? await tx.movie.update({
+            where: { id: existingMovie.id },
+            data: movieData,
+          })
         : await tx.movie.create({ data: movieData });
 
       await tx.movieGenre.deleteMany({ where: { movieId: movie.id } });
@@ -256,7 +263,10 @@ export class AdminService {
     });
   }
 
-  async upsertCinemaTicketPrice(cinemaId: string, dto: UpsertCinemaTicketPriceDto) {
+  async upsertCinemaTicketPrice(
+    cinemaId: string,
+    dto: UpsertCinemaTicketPriceDto,
+  ) {
     await this.ensureCinema(cinemaId);
     return this.prisma.cinemaTicketPrice.upsert({
       where: {
@@ -332,18 +342,24 @@ export class AdminService {
 
     return rooms.map((room) => {
       const rowLabels = [...new Set(room.seats.map((seat) => seat.row))].sort();
-      const cols = room.seats.reduce((max, seat) => Math.max(max, seat.number), 0);
-      const seatTypeSummary = room.seats.reduce((summary, seat) => {
-        summary[seat.type] = (summary[seat.type] || 0) + 1;
-        return summary;
-      }, {} as Record<string, number>);
+      const cols = room.seats.reduce(
+        (max, seat) => Math.max(max, seat.number),
+        0,
+      );
+      const seatTypeSummary = room.seats.reduce(
+        (summary, seat) => {
+          summary[seat.type] = (summary[seat.type] || 0) + 1;
+          return summary;
+        },
+        {} as Record<string, number>,
+      );
 
       return {
         id: room.id,
         cinemaId: room.cinemaId,
         cinema: room.cinema,
         name: room.name,
-        capacity: room.capacity,
+        capacity: room._count.seats,
         rows: rowLabels.length,
         cols,
         seatCount: room._count.seats,
@@ -357,11 +373,18 @@ export class AdminService {
 
   async createRoom(dto: CreateRoomDto) {
     await this.ensureCinema(dto.cinemaId);
-    return this.prisma.room.create({ data: dto });
+    return this.prisma.room.create({
+      data: { cinemaId: dto.cinemaId, name: dto.name, capacity: 0 },
+    });
   }
 
-  updateRoom(id: string, dto: UpdateRoomDto) {
-    return this.prisma.room.update({ where: { id }, data: dto });
+  async updateRoom(id: string, dto: UpdateRoomDto) {
+    await this.ensureRoom(id);
+    const seatCount = await this.prisma.seat.count({ where: { roomId: id } });
+    return this.prisma.room.update({
+      where: { id },
+      data: { name: dto.name, capacity: seatCount },
+    });
   }
 
   deleteRoom(id: string) {
@@ -377,8 +400,17 @@ export class AdminService {
 
   async createSeat(dto: CreateSeatDto) {
     await this.ensureRoom(dto.roomId);
-    return this.prisma.seat.create({
-      data: { ...dto, type: dto.type || 'STANDARD' },
+    return this.prisma.$transaction(async (tx) => {
+      const seat = await tx.seat.create({
+        data: {
+          ...dto,
+          position: dto.position || dto.number,
+          type: dto.type || 'STANDARD',
+        },
+      });
+      const capacity = await tx.seat.count({ where: { roomId: dto.roomId } });
+      await tx.room.update({ where: { id: dto.roomId }, data: { capacity } });
+      return seat;
     });
   }
 
@@ -386,8 +418,18 @@ export class AdminService {
     return this.prisma.seat.update({ where: { id }, data: dto });
   }
 
-  deleteSeat(id: string) {
-    return this.prisma.seat.delete({ where: { id } });
+  async deleteSeat(id: string) {
+    const seat = await this.prisma.seat.findUnique({
+      where: { id },
+      select: { roomId: true },
+    });
+    if (!seat) throw new NotFoundException('Seat not found');
+    return this.prisma.$transaction(async (tx) => {
+      const deleted = await tx.seat.delete({ where: { id } });
+      const capacity = await tx.seat.count({ where: { roomId: seat.roomId } });
+      await tx.room.update({ where: { id: seat.roomId }, data: { capacity } });
+      return deleted;
+    });
   }
 
   async generateSeats(roomId: string, dto: GenerateSeatsDto) {
@@ -409,6 +451,7 @@ export class AdminService {
           roomId,
           row,
           number,
+          position: isCoupleRow ? (number - 1) * 2 + 1 : number,
           type: isCoupleRow ? 'COUPLE' : isVip ? 'VIP' : 'STANDARD',
         });
       }
@@ -445,15 +488,20 @@ export class AdminService {
 
     return showtimes.map((showtime) => {
       const totalSeats = showtime.showtimeSeats.length;
-      const bookedSeats = showtime.showtimeSeats.filter((seat) => seat.status === 'BOOKED').length;
-      const priceBySeatType = showtime.showtimeSeats.reduce((prices, showtimeSeat) => {
-        const seatType = showtimeSeat.seat.type;
-        const price = Number(showtimeSeat.price);
-        if (prices[seatType] === undefined || price < prices[seatType]) {
-          prices[seatType] = price;
-        }
-        return prices;
-      }, {} as Record<string, number>);
+      const bookedSeats = showtime.showtimeSeats.filter(
+        (seat) => seat.status === 'BOOKED',
+      ).length;
+      const priceBySeatType = showtime.showtimeSeats.reduce(
+        (prices, showtimeSeat) => {
+          const seatType = showtimeSeat.seat.type;
+          const price = Number(showtimeSeat.price);
+          if (prices[seatType] === undefined || price < prices[seatType]) {
+            prices[seatType] = price;
+          }
+          return prices;
+        },
+        {} as Record<string, number>,
+      );
 
       return {
         id: showtime.id,
@@ -470,12 +518,20 @@ export class AdminService {
         basePrice: Number(showtime.basePrice),
         price: {
           normal: priceBySeatType.STANDARD ?? Number(showtime.basePrice),
-          vip: priceBySeatType.VIP ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
-          couple: priceBySeatType.COUPLE ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
+          vip:
+            priceBySeatType.VIP ??
+            priceBySeatType.STANDARD ??
+            Number(showtime.basePrice),
+          couple:
+            priceBySeatType.COUPLE ??
+            priceBySeatType.STANDARD ??
+            Number(showtime.basePrice),
         },
         totalSeats,
         bookedSeats,
-        seatBookedPercent: totalSeats ? Math.round((bookedSeats / totalSeats) * 100) : 0,
+        seatBookedPercent: totalSeats
+          ? Math.round((bookedSeats / totalSeats) * 100)
+          : 0,
         createdAt: showtime.createdAt,
         updatedAt: showtime.updatedAt,
       };
@@ -484,7 +540,9 @@ export class AdminService {
 
   async createShowtime(dto: CreateShowtimeDto) {
     await this.validateShowtime(dto);
-    const { priceBySeatType, basePrice } = await this.getRoomPriceMap(dto.roomId);
+    const { priceBySeatType, basePrice } = await this.getRoomPriceMap(
+      dto.roomId,
+    );
     return this.prisma.$transaction(async (tx) => {
       const showtime = await tx.showtime.create({
         data: {
@@ -531,7 +589,10 @@ export class AdminService {
     return this.prisma.showtime.delete({ where: { id } });
   }
 
-  async getRoomAvailableSlots(roomId: string, query: RoomAvailableSlotsQueryDto) {
+  async getRoomAvailableSlots(
+    roomId: string,
+    query: RoomAvailableSlotsQueryDto,
+  ) {
     const [room, movie] = await Promise.all([
       this.prisma.room.findUnique({
         where: { id: roomId },
@@ -554,7 +615,9 @@ export class AdminService {
         startAt: { lt: windowEnd },
         endAt: { gt: windowStart },
       },
-      include: { movie: { select: { id: true, title: true, durationMin: true } } },
+      include: {
+        movie: { select: { id: true, title: true, durationMin: true } },
+      },
       orderBy: { startAt: 'asc' },
     });
 
@@ -576,10 +639,14 @@ export class AdminService {
 
     let cursor = windowStart;
     for (const item of occupied) {
-      const nextShowtimeStartWithCleanup = this.addMinutes(item.startAt, -CLEANUP_MINUTES);
-      const slotEnd = nextShowtimeStartWithCleanup < windowEnd
-        ? nextShowtimeStartWithCleanup
-        : windowEnd;
+      const nextShowtimeStartWithCleanup = this.addMinutes(
+        item.startAt,
+        -CLEANUP_MINUTES,
+      );
+      const slotEnd =
+        nextShowtimeStartWithCleanup < windowEnd
+          ? nextShowtimeStartWithCleanup
+          : windowEnd;
       const slotMinutes = this.minutesBetween(cursor, slotEnd);
       if (slotMinutes >= requiredMinutes) {
         availableSlots.push({
@@ -589,7 +656,8 @@ export class AdminService {
           durationMinutes: slotMinutes,
         });
       }
-      const cleanupEndAt = item.cleanupEndAt > windowStart ? item.cleanupEndAt : windowStart;
+      const cleanupEndAt =
+        item.cleanupEndAt > windowStart ? item.cleanupEndAt : windowStart;
       if (cleanupEndAt > cursor) cursor = cleanupEndAt;
     }
 
@@ -603,12 +671,18 @@ export class AdminService {
       });
     }
 
-    const latestStartBoundary = this.dateTimeInDaNang(query.date, SHOWTIME_LAST_START);
+    const latestStartBoundary = this.dateTimeInDaNang(
+      query.date,
+      SHOWTIME_LAST_START,
+    );
     const suggestedStartTimes = availableSlots.flatMap((slot) => {
-      const latestStartAt = slot.latestStartAt < latestStartBoundary
-        ? slot.latestStartAt
-        : latestStartBoundary;
-      return latestStartAt >= slot.startAt ? this.suggestStartTimes(slot.startAt, latestStartAt, 15) : [];
+      const latestStartAt =
+        slot.latestStartAt < latestStartBoundary
+          ? slot.latestStartAt
+          : latestStartBoundary;
+      return latestStartAt >= slot.startAt
+        ? this.suggestStartTimes(slot.startAt, latestStartAt, 15)
+        : [];
     });
 
     return {
@@ -700,7 +774,9 @@ export class AdminService {
       activePrices.map((price) => [price.seatType, Number(price.price)]),
     ) as Record<string, number>;
     const seatTypes = [...new Set(room.seats.map((seat) => seat.type))];
-    const missing = seatTypes.filter((seatType) => priceBySeatType[seatType] === undefined);
+    const missing = seatTypes.filter(
+      (seatType) => priceBySeatType[seatType] === undefined,
+    );
     if (missing.length) {
       throw new BadRequestException(
         `Cinema ticket price is missing for seat type(s): ${missing.join(', ')}`,
@@ -709,7 +785,8 @@ export class AdminService {
 
     return {
       priceBySeatType,
-      basePrice: priceBySeatType.STANDARD ?? Object.values(priceBySeatType)[0] ?? 0,
+      basePrice:
+        priceBySeatType.STANDARD ?? Object.values(priceBySeatType)[0] ?? 0,
     };
   }
 
@@ -746,12 +823,18 @@ export class AdminService {
     const minute = Number.isFinite(minuteRaw) ? minuteRaw : 0;
     const dayOffset = Math.floor(hour / 24);
     const hourInDay = hour % 24;
-    const result = new Date(`${date}T${String(hourInDay).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000+07:00`);
+    const result = new Date(
+      `${date}T${String(hourInDay).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000+07:00`,
+    );
     result.setUTCDate(result.getUTCDate() + dayOffset);
     return result;
   }
 
-  private suggestStartTimes(startAt: Date, latestStartAt: Date, stepMinutes: number) {
+  private suggestStartTimes(
+    startAt: Date,
+    latestStartAt: Date,
+    stepMinutes: number,
+  ) {
     const times: Array<{ value: string; label: string; startAt: Date }> = [];
     let cursor = new Date(startAt);
 
@@ -783,7 +866,10 @@ export class AdminService {
     return `${hour}:${minute}`;
   }
 
-  private async fetchTmdb(path: string, params: Record<string, string | number | boolean> = {}) {
+  private async fetchTmdb(
+    path: string,
+    params: Record<string, string | number | boolean> = {},
+  ) {
     const apiKey = process.env.TMDB_API_KEY;
     const readAccessToken = process.env.TMDB_READ_ACCESS_TOKEN;
 
@@ -792,14 +878,19 @@ export class AdminService {
     }
 
     const url = new URL(`${TMDB_API_URL}${path}`);
-    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, String(value)));
+    Object.entries(params).forEach(([key, value]) =>
+      url.searchParams.set(key, String(value)),
+    );
     if (!readAccessToken && apiKey) {
       url.searchParams.set('api_key', apiKey);
     }
 
     const response = await fetch(url, {
       headers: readAccessToken
-        ? { Authorization: `Bearer ${readAccessToken}`, Accept: 'application/json' }
+        ? {
+            Authorization: `Bearer ${readAccessToken}`,
+            Accept: 'application/json',
+          }
         : { Accept: 'application/json' },
     });
 
@@ -812,17 +903,30 @@ export class AdminService {
 
   private async fetchTmdbTrailer(tmdbId: number) {
     for (const language of ['vi-VN', 'en-US']) {
-      const videos = await this.fetchTmdb(`/movie/${tmdbId}/videos`, { language });
+      const videos = await this.fetchTmdb(`/movie/${tmdbId}/videos`, {
+        language,
+      });
       const trailerUrl = this.pickTmdbTrailer(videos.results || []);
       if (trailerUrl) return trailerUrl;
     }
     return null;
   }
 
-  private pickTmdbTrailer(videos: Array<{ site?: string; key?: string; type?: string; official?: boolean }>) {
-    const youtubeVideos = videos.filter((video) => video.site === 'YouTube' && video.key);
+  private pickTmdbTrailer(
+    videos: Array<{
+      site?: string;
+      key?: string;
+      type?: string;
+      official?: boolean;
+    }>,
+  ) {
+    const youtubeVideos = videos.filter(
+      (video) => video.site === 'YouTube' && video.key,
+    );
     const selected =
-      youtubeVideos.find((video) => video.type === 'Trailer' && video.official) ||
+      youtubeVideos.find(
+        (video) => video.type === 'Trailer' && video.official,
+      ) ||
       youtubeVideos.find((video) => video.type === 'Trailer') ||
       youtubeVideos.find((video) => video.type === 'Teaser') ||
       youtubeVideos[0];

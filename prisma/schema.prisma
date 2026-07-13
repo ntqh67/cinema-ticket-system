@@ -58,6 +58,7 @@ enum TicketStatus {
 
 model User {
   id            String         @id @default(cuid())
+  username      String?        @unique
   email         String         @unique
   passwordHash  String
   firstName     String?
@@ -90,18 +91,18 @@ model RefreshToken {
 }
 
 model Movie {
-  id          String       @id @default(cuid())
+  id          String        @id @default(cuid())
   tmdbId      Int?
   title       String
-  description String?      @db.Text
+  description String?       @db.Text
   posterUrl   String?
   trailerUrl  String?
   durationMin Int
   releaseDate DateTime?
-  ageRating   String       @default("P")
-  status      MovieStatus  @default(DRAFT)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  ageRating   String        @default("P")
+  status      MovieStatus   @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   genres      MovieGenre[]
   showtimes   Showtime[]
   reviews     MovieReview[]
@@ -166,20 +167,20 @@ model CinemaChain {
 }
 
 model Cinema {
-  id        String   @id @default(cuid())
-  chainId   String?
-  chain     CinemaChain? @relation(fields: [chainId], references: [id], onDelete: SetNull)
-  code      String?  @unique
-  name      String
-  address   String?
-  ward      String?
-  city      String?
-  phone     String?
-  email     String?
-  imageUrl  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  rooms     Room[]
+  id           String              @id @default(cuid())
+  chainId      String?
+  chain        CinemaChain?        @relation(fields: [chainId], references: [id], onDelete: SetNull)
+  code         String?             @unique
+  name         String
+  address      String?
+  ward         String?
+  city         String?
+  phone        String?
+  email        String?
+  imageUrl     String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  rooms        Room[]
   ticketPrices CinemaTicketPrice[]
 
   @@index([chainId])
@@ -228,12 +229,14 @@ model Seat {
   room          Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
   row           String
   number        Int
+  position      Int
   type          SeatType       @default(STANDARD)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   showtimeSeats ShowtimeSeat[]
 
   @@unique([roomId, row, number])
+  @@unique([roomId, row, position])
   @@index([roomId])
   @@index([type])
   @@map("seats")
@@ -279,19 +282,19 @@ model ShowtimeSeat {
 }
 
 model Booking {
-  id           String        @id @default(cuid())
+  id           String             @id @default(cuid())
   userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   showtimeId   String
-  showtime     Showtime      @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
-  status       BookingStatus @default(PENDING)
-  totalAmount  Decimal       @db.Decimal(10, 2)
-  currency     String        @default("VND")
+  showtime     Showtime           @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  status       BookingStatus      @default(PENDING)
+  totalAmount  Decimal            @db.Decimal(10, 2)
+  currency     String             @default("VND")
   expiresAt    DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   bookingItems BookingItem[]
-  comboItems    BookingComboItem[]
+  comboItems   BookingComboItem[]
   payments     Payment[]
   tickets      Ticket[]
 
@@ -302,14 +305,14 @@ model Booking {
 }
 
 model ConcessionCombo {
-  id          String             @id @default(cuid())
-  name        String
-  description String?            @db.Text
-  price       Decimal            @db.Decimal(10, 2)
-  imageUrl    String?
-  isActive    Boolean            @default(true)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id           String             @id @default(cuid())
+  name         String
+  description  String?            @db.Text
+  price        Decimal            @db.Decimal(10, 2)
+  imageUrl     String?
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   bookingItems BookingComboItem[]
 
   @@index([isActive])
@@ -318,15 +321,15 @@ model ConcessionCombo {
 }
 
 model BookingComboItem {
-  id        String           @id @default(cuid())
+  id        String          @id @default(cuid())
   bookingId String
-  booking   Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking   Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   comboId   String
-  combo     ConcessionCombo  @relation(fields: [comboId], references: [id], onDelete: Restrict)
+  combo     ConcessionCombo @relation(fields: [comboId], references: [id], onDelete: Restrict)
   quantity  Int
-  unitPrice Decimal          @db.Decimal(10, 2)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  unitPrice Decimal         @db.Decimal(10, 2)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
   @@unique([bookingId, comboId])
   @@index([bookingId])
@@ -352,17 +355,18 @@ model BookingItem {
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  bookingId   String
-  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  provider    String?
-  providerRef String?
-  amount      Decimal       @db.Decimal(10, 2)
-  currency    String        @default("VND")
-  status      PaymentStatus @default(PENDING)
-  paidAt      DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  bookingId             String
+  booking               Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  provider              String?
+  providerRef           String?
+  providerTransactionId String?       @unique
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("VND")
+  status                PaymentStatus @default(PENDING)
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@index([bookingId, status])
   @@index([status, createdAt])

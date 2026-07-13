@@ -3,7 +3,7 @@ const PaymentController = {
   async handleSubmit(event, method) {
     event.preventDefault();
     if (!AuthController.checkAuth()) return;
-    const onlineMethods = ['vnpay', 'card', 'momo', 'zalopay'];
+    const onlineMethods = ['sepay', 'vnpay', 'card', 'momo', 'zalopay'];
     if (!onlineMethods.includes(method)) {
       Toast.error('Phương thức thanh toán không hợp lệ');
       return;
@@ -48,7 +48,10 @@ const PaymentController = {
     PaymentView.showProcessing();
     try {
       const result = await PaymentModel.process(paymentData);
-      if (result.success && result.redirect && result.paymentUrl) {
+      if (result.success && result.sepay) {
+        PaymentView.hideProcessing();
+        PaymentView.showSepayQr(result.payment, booking);
+      } else if (result.success && result.redirect && result.paymentUrl) {
         PaymentView._clearHoldCountdown();
         window.location.href = result.paymentUrl;
       } else if (result.success) {

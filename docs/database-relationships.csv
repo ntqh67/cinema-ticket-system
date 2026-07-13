@@ -1,0 +1,20 @@
+From Table,Relationship,To Table,Meaning
+users,1 - n,bookings,Mot user co nhieu booking
+users,1 - n,refresh_tokens,Mot user co nhieu refresh token
+users,1 - n,movie_reviews,Mot user co nhieu review phim
+movies,n - n,genres,Phim co nhieu the loai thong qua movie_genres
+movies,1 - n,showtimes,Mot phim co nhieu suat chieu
+movies,1 - n,movie_reviews,Mot phim co nhieu review
+cinema_chains,1 - n,cinemas,Mot chuoi rap co nhieu rap
+cinemas,1 - n,cinema_seat_prices,Mot rap co nhieu dong gia theo loai ghe
+cinemas,1 - n,rooms,Mot rap co nhieu phong
+rooms,1 - n,seats,Mot phong co nhieu ghe vat ly
+rooms,1 - n,showtimes,Mot phong co nhieu suat chieu
+showtimes,1 - n,showtime_seats,Mot suat chieu co nhieu ghe theo suat
+seats,1 - n,showtime_seats,Mot ghe vat ly xuat hien trong nhieu suat chieu
+bookings,1 - n,booking_items,Mot booking co nhieu ghe dat
+bookings,1 - n,payments,Mot booking co the co nhieu lan thanh toan
+bookings,1 - n,tickets,Mot booking co nhieu ve
+booking_items,1 - n,tickets,Moi dong booking sinh ve tuong ung
+showtime_seats,1 - n,booking_items,Ghe theo suat duoc gan vao booking item khi dat
+tickets,1 - 0..1,ticket_check_ins,Mot ve co toi da mot lan check-in

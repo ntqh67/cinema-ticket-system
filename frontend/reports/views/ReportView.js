@@ -1,6 +1,14 @@
 /* CineTicket - Report View */
 const ReportView = {
-  async renderDashboard() {
+  async renderReport() {
+    await this.renderDashboard({ reportMode: true });
+  },
+
+  async renderRevenue() {
+    await this.renderDashboard({ revenueOnly: true });
+  },
+
+  async renderDashboard(options = {}) {
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
     const main = document.getElementById('main-content');
@@ -8,9 +16,9 @@ const ReportView = {
 
     main.innerHTML = `
       <div class="admin-layout-wrap">
-        ${UserView._renderAdminSidebar('dashboard')}
+        ${UserView._renderAdminSidebar(options.revenueOnly ? 'revenue' : options.reportMode ? 'reports' : 'dashboard')}
         <div class="admin-main">
-          ${UserView._renderAdminTopbar('Dashboard', 'admin')}
+          ${UserView._renderAdminTopbar(options.revenueOnly ? 'Quản Lý Doanh Thu' : options.reportMode ? 'Báo Cáo' : 'Dashboard', 'admin')}
           <div class="admin-content">
             <div class="admin-table-card">
               <div class="admin-table-empty">Dang tai dashboard tu PostgreSQL...</div>
@@ -38,21 +46,24 @@ const ReportView = {
       { label: 'Dat Ve Da Thanh Toan', value: summary.bookings, icon: 'ticket-alt', color: 'var(--color-accent)' },
       { label: 'Doanh Thu', value: Helpers.formatCurrency(summary.revenue), icon: 'chart-line', color: 'var(--color-danger)' }
     ];
+    const visibleCards = options.revenueOnly
+      ? cards.filter((card) => ['Dat Ve Da Thanh Toan', 'Doanh Thu'].includes(card.label))
+      : cards;
 
     main.innerHTML = `
       <div class="admin-layout-wrap">
-        ${UserView._renderAdminSidebar('dashboard')}
+        ${UserView._renderAdminSidebar(options.revenueOnly ? 'revenue' : options.reportMode ? 'reports' : 'dashboard')}
         <div class="admin-main">
-          ${UserView._renderAdminTopbar('Dashboard', 'admin')}
+          ${UserView._renderAdminTopbar(options.revenueOnly ? 'Quản Lý Doanh Thu' : options.reportMode ? 'Báo Cáo' : 'Dashboard', 'admin')}
           <div class="admin-content">
             <div class="admin-page-header">
               <div>
-                <h1 class="admin-page-title">Tong Quan</h1>
-                <p class="admin-page-subtitle">Du lieu that tu PostgreSQL</p>
+                <h1 class="admin-page-title">${options.revenueOnly ? 'Doanh Thu' : options.reportMode ? 'Báo Cáo Hệ Thống' : 'Tổng Quan'}</h1>
+                <p class="admin-page-subtitle">Dữ liệu thanh toán thành công từ PostgreSQL</p>
               </div>
             </div>
             <div class="dashboard-grid">
-              ${cards.map(card => `
+              ${visibleCards.map(card => `
                 <div class="dashboard-card">
                   <div class="dashboard-card-body">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">

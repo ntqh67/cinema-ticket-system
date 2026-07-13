@@ -23,9 +23,11 @@ const App = {
     Router.register('/ticket/:id', (params) => TicketView.render(params));
 
     Router.register('/admin', () => ReportView.renderDashboard());
-    Router.register('/admin/reports', () => ReportView.renderDashboard());
+    Router.register('/admin/reports', () => ReportView.renderReport());
     Router.register('/admin/movies', () => MovieView.renderAdmin());
     Router.register('/admin/cinemas', () => CinemaView.renderAdmin());
+    Router.register('/admin/cinemas/:id', (params) => CinemaView.renderAdminDetail(params));
+    Router.register('/admin/revenue', () => ReportView.renderRevenue());
     Router.register('/admin/rooms', () => RoomView.renderAdmin());
     Router.register('/admin/showtimes', () => ShowtimeView.renderAdmin());
     Router.register('/admin/bookings', () => BookingView.renderAdmin());

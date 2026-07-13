@@ -1,4 +1,4 @@
-import { ArrayNotEmpty, IsArray, IsOptional, IsString } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsString } from 'class-validator';
 
 export class CreateBookingDto {
   @IsString()
@@ -12,7 +12,6 @@ export class CreateBookingDto {
   @IsString({ each: true })
   showtimeSeatIds: string[];
 
-  @IsOptional()
   @IsString()
-  sessionId?: string;
+  sessionId: string;
 }

@@ -41,13 +41,13 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const email = loginDto.email.trim().toLowerCase();
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+    const identifier = loginDto.identifier.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ username: identifier }, { email: identifier }] },
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid username/email or password');
     }
 
     const validPassword = await bcrypt.compare(
@@ -56,7 +56,7 @@ export class AuthService {
     );
 
     if (!validPassword) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid username/email or password');
     }
 
     return {
@@ -81,6 +81,7 @@ export class AuthService {
 
   private toPublicUser(user: {
     id: string;
+    username: string | null;
     email: string;
     firstName: string | null;
     lastName: string | null;
@@ -94,6 +95,7 @@ export class AuthService {
       id: user.id,
       backendUserId: user.id,
       email: user.email,
+      username: user.username,
       name: name || user.email,
       role: user.role === Role.ADMIN ? 'admin' : 'user',
       isActive: user.isActive,

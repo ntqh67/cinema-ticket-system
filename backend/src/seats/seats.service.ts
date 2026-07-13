@@ -52,7 +52,10 @@ export class SeatsService {
       ],
     });
 
-    const holds = await this.seatHoldsService.listByShowtime(showtimeId);
+    const holds = await this.seatHoldsService.listByShowtime(
+      showtimeId,
+      showtimeSeats.map((showtimeSeat) => showtimeSeat.id),
+    );
     const holdsBySeatId = new Map(
       holds.map((hold) => [hold.showtimeSeatId, hold]),
     );
@@ -97,6 +100,7 @@ export class SeatsService {
           seatId: showtimeSeat.seatId,
           row: showtimeSeat.seat.row,
           number: showtimeSeat.seat.number,
+          position: showtimeSeat.seat.position,
           type: showtimeSeat.seat.type,
           price: Number(showtimeSeat.price),
           status: hold && showtimeSeat.status === 'AVAILABLE'

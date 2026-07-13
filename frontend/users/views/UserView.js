@@ -224,18 +224,15 @@ const UserView = {
       <nav class="admin-nav">
         <div class="admin-nav-section">
           <div class="admin-nav-section-title">Tổng Quan</div>
-          <a class="admin-nav-item ${active === "dashboard" ? "active" : ""}" onclick="Router.navigate('/admin')"><i class="fas fa-chart-line"></i> Dashboard</a>
+          <a class="admin-nav-item ${active === "dashboard" ? "active" : ""}" onclick="Router.navigate('/admin')"><i class="fas fa-chart-pie"></i> Dashboard</a>
           <a class="admin-nav-item ${active === "reports" ? "active" : ""}" onclick="Router.navigate('/admin/reports')"><i class="fas fa-chart-bar"></i> Báo Cáo</a>
         </div>
         <div class="admin-nav-section">
           <div class="admin-nav-section-title">Quản Lý</div>
           <a class="admin-nav-item ${active === "movies" ? "active" : ""}" onclick="Router.navigate('/admin/movies')"><i class="fas fa-film"></i> Phim</a>
           <a class="admin-nav-item ${active === "cinemas" ? "active" : ""}" onclick="Router.navigate('/admin/cinemas')"><i class="fas fa-building"></i> Rạp Chiếu</a>
-          <a class="admin-nav-item ${active === "rooms" ? "active" : ""}" onclick="Router.navigate('/admin/rooms')"><i class="fas fa-door-open"></i> Phòng Chiếu</a>
-          <a class="admin-nav-item ${active === "showtimes" ? "active" : ""}" onclick="Router.navigate('/admin/showtimes')"><i class="fas fa-calendar-alt"></i> Lịch Chiếu</a>
-          <a class="admin-nav-item ${active === "bookings" ? "active" : ""}" onclick="Router.navigate('/admin/bookings')"><i class="fas fa-ticket-alt"></i> Đặt Vé</a>
+          <a class="admin-nav-item ${active === "revenue" ? "active" : ""}" onclick="Router.navigate('/admin/revenue')"><i class="fas fa-chart-line"></i> Doanh Thu</a>
           <a class="admin-nav-item ${active === "concessions" ? "active" : ""}" onclick="Router.navigate('/admin/concessions')"><i class="fas fa-shopping-basket"></i> Combo</a>
-          <a class="admin-nav-item ${active === "users" ? "active" : ""}" onclick="Router.navigate('/admin/users')"><i class="fas fa-users"></i> Người Dùng</a>
         </div>
       </nav>
       <div class="admin-sidebar-footer">

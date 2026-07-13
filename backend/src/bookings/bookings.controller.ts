@@ -7,6 +7,7 @@ import {
   Post,
   Patch,
   Query,
+  Headers,
   Req,
   Res,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import type { Request, Response } from 'express';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingCombosDto } from './dto/update-booking-combos.dto';
+import { OnlineDemoPaymentDto } from './dto/online-demo-payment.dto';
 
 @Controller('bookings')
 export class BookingsController {
@@ -46,6 +48,14 @@ export class BookingsController {
     const redirectUrl =
       await this.bookingsService.handleVnpayDemoReturn(providerRef);
     return response.redirect(redirectUrl);
+  }
+
+  @Post('sepay-webhook')
+  handleSepayWebhook(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() payload: Record<string, unknown>,
+  ) {
+    return this.bookingsService.handleSepayWebhook(authorization, payload);
   }
 
   @Get('qr/:bookingQrToken')
@@ -97,12 +107,17 @@ export class BookingsController {
     return this.bookingsService.createVnpayPayment(bookingId, request);
   }
 
+  @Post(':bookingId/sepay')
+  createSepayPayment(@Param('bookingId') bookingId: string) {
+    return this.bookingsService.createSepayPayment(bookingId);
+  }
+
   @Post(':bookingId/online-demo-pay')
   onlineDemoPay(
     @Param('bookingId') bookingId: string,
-    @Body() body: { provider?: string },
+    @Body() body: OnlineDemoPaymentDto,
   ) {
-    return this.bookingsService.onlineDemoPay(bookingId, body?.provider);
+    return this.bookingsService.onlineDemoPay(bookingId, body.provider);
   }
 
   @Delete(':bookingId')

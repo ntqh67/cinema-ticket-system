@@ -1,0 +1,129 @@
+Group,Table,Column,Type,Key / Constraint,References,Description
+User & Auth,users,id,String,Primary key,,Ma dinh danh user
+User & Auth,users,email,String,Unique,,Email dang nhap
+User & Auth,users,passwordHash,String,,,Mat khau da hash bang bcrypt
+User & Auth,users,firstName,String?,,,Ten
+User & Auth,users,lastName,String?,,,Ho / ten cuoi
+User & Auth,users,role,Role,Index,,Vai tro CUSTOMER / ADMIN / STAFF
+User & Auth,users,isActive,Boolean,,,Trang thai tai khoan
+User & Auth,users,createdAt,DateTime,,,Ngay tao
+User & Auth,users,updatedAt,DateTime,,,Ngay cap nhat
+User & Auth,refresh_tokens,id,String,Primary key,,Ma refresh token
+User & Auth,refresh_tokens,tokenHash,String,Unique,,Refresh token da hash
+User & Auth,refresh_tokens,userId,String,Foreign key,users.id,User so huu token
+User & Auth,refresh_tokens,expiresAt,DateTime,Index,,Thoi diem het han
+User & Auth,refresh_tokens,revokedAt,DateTime?,, ,Thoi diem thu hoi token
+User & Auth,refresh_tokens,createdAt,DateTime,,,Ngay tao
+Movie,movies,id,String,Primary key,,Ma phim
+Movie,movies,tmdbId,Int?,Index,,Ma phim tren TMDB
+Movie,movies,title,String,Index,,Ten phim
+Movie,movies,description,String?,,,Mo ta phim
+Movie,movies,posterUrl,String?,,,Anh poster
+Movie,movies,trailerUrl,String?,,,Link trailer
+Movie,movies,durationMin,Int,,,Thoi luong phim tinh bang phut
+Movie,movies,releaseDate,DateTime?,Index,,Ngay khoi chieu
+Movie,movies,status,MovieStatus,Index,,DRAFT / NOW_SHOWING / COMING_SOON / ENDED
+Movie,movies,createdAt,DateTime,,,Ngay tao
+Movie,movies,updatedAt,DateTime,,,Ngay cap nhat
+Movie,genres,id,String,Primary key,,Ma the loai
+Movie,genres,name,String,Unique,,Ten the loai
+Movie,genres,createdAt,DateTime,,,Ngay tao
+Movie,genres,updatedAt,DateTime,,,Ngay cap nhat
+Movie,movie_genres,movieId,String,Composite primary key, movies.id,Phim
+Movie,movie_genres,genreId,String,Composite primary key / Index, genres.id,The loai
+Movie,movie_reviews,id,String,Primary key,,Ma review
+Movie,movie_reviews,userId,String,Unique with movieId / Index,users.id,User danh gia
+Movie,movie_reviews,movieId,String,Unique with userId / Index,movies.id,Phim duoc danh gia
+Movie,movie_reviews,rating,Int,,,Diem danh gia
+Movie,movie_reviews,comment,String?,,,Noi dung danh gia
+Movie,movie_reviews,createdAt,DateTime,,,Ngay tao
+Movie,movie_reviews,updatedAt,DateTime,,,Ngay cap nhat
+Cinema,cinema_chains,id,String,Primary key,,Ma chuoi rap
+Cinema,cinema_chains,name,String,Unique with city / Index,,Ten chuoi rap nhu CGV Galaxy Lotte
+Cinema,cinema_chains,city,String?,Unique with name / Index,,Thanh pho mac dinh Da Nang
+Cinema,cinema_chains,createdAt,DateTime,,,Ngay tao
+Cinema,cinema_chains,updatedAt,DateTime,,,Ngay cap nhat
+Cinema,cinemas,id,String,Primary key,,Ma rap
+Cinema,cinemas,chainId,String?,Foreign key / Index,cinema_chains.id,Chuoi rap
+Cinema,cinemas,name,String,Index,,Ten rap
+Cinema,cinemas,address,String?,,,Dia chi rap
+Cinema,cinemas,city,String?,Index,,Thanh pho
+Cinema,cinemas,phone,String?,,,So dien thoai
+Cinema,cinemas,email,String?,,,Email rap
+Cinema,cinemas,createdAt,DateTime,,,Ngay tao
+Cinema,cinemas,updatedAt,DateTime,,,Ngay cap nhat
+Cinema,cinema_seat_prices,id,String,Primary key,,Ma dong gia ghe theo rap
+Cinema,cinema_seat_prices,cinemaId,String,Foreign key / Unique with seatType / Index,cinemas.id,Rap ap dung bang gia
+Cinema,cinema_seat_prices,seatType,SeatType,Unique with cinemaId / Index,,Loai ghe STANDARD / VIP / COUPLE
+Cinema,cinema_seat_prices,price,Decimal(10 2),,,Gia ve theo rap va loai ghe
+Cinema,cinema_seat_prices,createdAt,DateTime,,,Ngay tao
+Cinema,cinema_seat_prices,updatedAt,DateTime,,,Ngay cap nhat
+Cinema,rooms,id,String,Primary key,,Ma phong chieu
+Cinema,rooms,cinemaId,String,Foreign key / Unique with name / Index,cinemas.id,Rap so huu phong
+Cinema,rooms,name,String,Unique with cinemaId,,Ten phong
+Cinema,rooms,capacity,Int,,,Tong so ghe
+Cinema,rooms,createdAt,DateTime,,,Ngay tao
+Cinema,rooms,updatedAt,DateTime,,,Ngay cap nhat
+Seat,seats,id,String,Primary key,,Ma ghe vat ly
+Seat,seats,roomId,String,Foreign key / Unique with row number / Index,rooms.id,Phong chieu
+Seat,seats,row,String,Unique with roomId number,,Hang ghe
+Seat,seats,number,Int,Unique with roomId row,,So ghe
+Seat,seats,type,SeatType,Index,,STANDARD / VIP / COUPLE
+Seat,seats,createdAt,DateTime,,,Ngay tao
+Seat,seats,updatedAt,DateTime,,,Ngay cap nhat
+Showtime,showtimes,id,String,Primary key,,Ma suat chieu
+Showtime,showtimes,movieId,String,Foreign key / Index with startAt,movies.id,Phim duoc chieu
+Showtime,showtimes,roomId,String,Foreign key / Index with startAt,rooms.id,Phong chieu
+Showtime,showtimes,startAt,DateTime,Index,,Thoi gian bat dau
+Showtime,showtimes,endAt,DateTime,,,Thoi gian ket thuc
+Showtime,showtimes,basePrice,Decimal(10 2),,,Gia co ban
+Showtime,showtimes,createdAt,DateTime,,,Ngay tao
+Showtime,showtimes,updatedAt,DateTime,,,Ngay cap nhat
+Showtime,showtime_seats,id,String,Primary key,,Ma ghe theo suat chieu
+Showtime,showtime_seats,showtimeId,String,Foreign key / Unique with seatId / Index with status,showtimes.id,Suat chieu
+Showtime,showtime_seats,seatId,String,Foreign key / Unique with showtimeId / Index with status,seats.id,Ghe vat ly
+Showtime,showtime_seats,status,ShowtimeSeatStatus,Index,,AVAILABLE / HELD / BOOKED / BLOCKED
+Showtime,showtime_seats,price,Decimal(10 2),,,Gia ghe trong suat chieu nay
+Showtime,showtime_seats,createdAt,DateTime,,,Ngay tao
+Showtime,showtime_seats,updatedAt,DateTime,,,Ngay cap nhat
+Booking,bookings,id,String,Primary key,,Ma booking
+Booking,bookings,userId,String,Foreign key / Index with createdAt,users.id,Khach hang dat ve
+Booking,bookings,showtimeId,String,Foreign key / Index with status,showtimes.id,Suat chieu
+Booking,bookings,status,BookingStatus,Index with createdAt,,PENDING / PAID / CANCELLED / EXPIRED / REFUNDED
+Booking,bookings,totalAmount,Decimal(10 2),,,Tong tien
+Booking,bookings,currency,String,,,Tien te mac dinh VND
+Booking,bookings,expiresAt,DateTime?,,,Thoi diem booking pending het han
+Booking,bookings,createdAt,DateTime,,,Ngay tao
+Booking,bookings,updatedAt,DateTime,,,Ngay cap nhat
+Booking,booking_items,id,String,Primary key,,Ma dong booking
+Booking,booking_items,bookingId,String,Foreign key / Unique with showtimeSeatId / Index,bookings.id,Booking cha
+Booking,booking_items,showtimeSeatId,String,Foreign key / Unique with bookingId / Index,showtime_seats.id,Ghe da chon
+Booking,booking_items,unitPrice,Decimal(10 2),,,Gia ghe da chot luc dat
+Booking,booking_items,createdAt,DateTime,,,Ngay tao
+Booking,booking_items,updatedAt,DateTime,,,Ngay cap nhat
+Payment,payments,id,String,Primary key,,Ma thanh toan
+Payment,payments,bookingId,String,Foreign key / Index with status,bookings.id,Booking duoc thanh toan
+Payment,payments,provider,String?,,,Nha cung cap mock vnpay momo-demo
+Payment,payments,providerRef,String?,,,Ma giao dich ben nha cung cap
+Payment,payments,amount,Decimal(10 2),,,So tien thanh toan
+Payment,payments,currency,String,,,Tien te mac dinh VND
+Payment,payments,status,PaymentStatus,Index with createdAt,,PENDING / SUCCESS / FAILED / CANCELLED / REFUNDED
+Payment,payments,paidAt,DateTime?,,,Thoi diem thanh toan thanh cong
+Payment,payments,createdAt,DateTime,,,Ngay tao
+Payment,payments,updatedAt,DateTime,,,Ngay cap nhat
+Ticket,tickets,id,String,Primary key,,Ma ve
+Ticket,tickets,bookingId,String,Foreign key / Index,bookings.id,Booking sinh ra ve
+Ticket,tickets,bookingItemId,String,Foreign key / Index,booking_items.id,Dong booking tuong ung
+Ticket,tickets,qrToken,String,Unique,,Ma QR cua ve
+Ticket,tickets,status,TicketStatus,Index with expiresAt,,VALID / USED / CANCELLED / EXPIRED
+Ticket,tickets,issuedAt,DateTime,,,Thoi diem phat hanh ve
+Ticket,tickets,expiresAt,DateTime?,,,Thoi diem ve het han neu co
+Ticket,tickets,createdAt,DateTime,,,Ngay tao
+Ticket,tickets,updatedAt,DateTime,,,Ngay cap nhat
+Ticket,ticket_check_ins,id,String,Primary key,,Ma check-in
+Ticket,ticket_check_ins,ticketId,String,Foreign key / Unique,tickets.id,Ve duoc check-in
+Ticket,ticket_check_ins,checkedInAt,DateTime,Index,,Thoi diem check-in
+Ticket,ticket_check_ins,checkedInBy,String?,,,Nhan vien check-in
+Ticket,ticket_check_ins,notes,String?,,,Ghi chu check-in
+Ticket,ticket_check_ins,createdAt,DateTime,,,Ngay tao
+Ticket,ticket_check_ins,updatedAt,DateTime,,,Ngay cap nhat

@@ -1,7 +1,8 @@
 /* CineTicket - Ticket Model */
 const TicketModel = {
-  getByBookingId(bookingId) {
-    return null;
+  async getByBookingId(bookingId) {
+    if (!bookingId) throw new Error('Thieu ma booking');
+    return API.getBookingTickets(bookingId);
   },
 
   async getByUser(userId) {

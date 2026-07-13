@@ -32,7 +32,9 @@ const AuthController = {
       if (result.user.role === 'admin') {
         Router.navigate('/admin');
       } else {
-        Router.navigate('/');
+        const returnRoute = sessionStorage.getItem('post_login_route');
+        sessionStorage.removeItem('post_login_route');
+        Router.navigate(returnRoute || '/');
       }
     }, 500);
   },

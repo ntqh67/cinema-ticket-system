@@ -113,10 +113,57 @@ const CINEMAS = [
 ];
 
 const ROOM_LAYOUTS = [
-  { rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], columns: 10, label: 'Small' },
-  { rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'], columns: 12, label: 'Standard' },
-  { rows: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], columns: 14, label: 'Large' },
+  {
+    label: 'Layout 1 - Split Sweetbox',
+    seatRows: [
+      ...makeRows('ABCDEFGH', makePositions(14, 1, 6)),
+      ...makeRows('IJ', makePositions(16, 1, 6)),
+      makeCoupleRow('K', [1, 3, 5, 8, 10, 12, 14]),
+    ],
+  },
+  {
+    label: 'Layout 2 - Standard',
+    seatRows: makeRows('ABCDEFGHI', makePositions(16)),
+  },
+  {
+    label: 'Layout 3 - Compact Sweetbox',
+    seatRows: [
+      ...makeRows('ABCDEFG', makePositions(10, 3)),
+      { row: 'H', positions: makePositions(12) },
+      makeCoupleRow('I', [1, 4, 7, 10, 13]),
+    ],
+  },
+  {
+    label: 'Layout 4 - Large Sweetbox',
+    seatRows: [
+      ...makeRows('ABCDEFGHIJKL', makePositions(16, 1, 10)),
+      makeCoupleRow('M', [1, 3, 5, 7, 11, 13, 15, 17]),
+    ],
+  },
+  {
+    label: 'Layout 5 - Premium Sweetbox',
+    seatRows: [
+      ...makeRows('ABCDEFGHI', makePositions(10, 3)),
+      { row: 'J', positions: makePositions(12) },
+      makeCoupleRow('K', [1, 3, 5, 7, 9, 11]),
+    ],
+  },
 ];
+
+function makePositions(count, start = 1, aisleAfter = 0) {
+  return Array.from({ length: count }, (_, index) => {
+    const position = start + index;
+    return aisleAfter && position > aisleAfter ? position + 1 : position;
+  });
+}
+
+function makeRows(labels, positions) {
+  return [...labels].map((row) => ({ row, positions }));
+}
+
+function makeCoupleRow(row, positions) {
+  return { row, positions, type: 'COUPLE' };
+}
 
 const GENRES = [
   'Hành Động',
@@ -235,23 +282,26 @@ async function main() {
   await clearDatabase();
 
   const adminUser = await createUser({
+    username: 'admin',
     email: 'admin@cinema.test',
-    password: 'DevAdmin123!',
+    password: '123123123',
     firstName: 'Admin',
     lastName: 'User',
     role: 'ADMIN',
   });
   const staffUser = await createUser({
+    username: 'staff',
     email: 'staff@cinema.test',
-    password: 'DevStaff123!',
+    password: '123123123',
     firstName: 'Staff',
     lastName: 'User',
     role: 'STAFF',
   });
   const customerUser = await createUser({
+    username: 'customer',
     id: 'cmr4ezer0000256u181u0ijfy',
     email: 'customer@cinema.test',
-    password: 'DevCustomer123!',
+    password: '123123123',
     firstName: 'Customer',
     lastName: 'User',
     role: 'CUSTOMER',
@@ -310,10 +360,11 @@ async function clearDatabase() {
   await prisma.user.deleteMany();
 }
 
-function createUser({ id, email, password, firstName, lastName, role }) {
+function createUser({ id, username, email, password, firstName, lastName, role }) {
   return prisma.user.create({
     data: {
       id,
+      username,
       email,
       passwordHash: bcrypt.hashSync(password, 10),
       firstName,
@@ -396,7 +447,7 @@ async function createCinemasRoomsAndSeats(chains) {
     await createCinemaTicketPrices(cinema.id, cinemaConfig.chain);
 
     for (let roomIndex = 0; roomIndex < cinemaConfig.roomCount; roomIndex += 1) {
-      const layout = ROOM_LAYOUTS[(roomIndex + cinemaConfig.roomCount) % ROOM_LAYOUTS.length];
+      const layout = ROOM_LAYOUTS[roomIndex % ROOM_LAYOUTS.length];
       const seatCount = countSeats(layout);
       const room = await prisma.room.create({
         data: {
@@ -405,12 +456,7 @@ async function createCinemasRoomsAndSeats(chains) {
           capacity: seatCount,
         },
       });
-      const seats = await createSeatLayout({
-        roomId: room.id,
-        rows: layout.rows,
-        columns: layout.columns,
-        coupleRows: [layout.rows[layout.rows.length - 1]],
-      });
+      const seats = await createSeatLayout({ roomId: room.id, seatRows: layout.seatRows });
       roomSeatMap.push({ cinema, chainName: cinemaConfig.chain, room, seats, layout });
     }
   }
@@ -431,8 +477,7 @@ async function createCinemaTicketPrices(cinemaId, chainName) {
 }
 
 function countSeats(layout) {
-  const regularRows = layout.rows.length - 1;
-  return regularRows * layout.columns + Math.floor(layout.columns / 2);
+  return layout.seatRows.reduce((total, seatRow) => total + seatRow.positions.length, 0);
 }
 
 function getVipZone(rows, columns) {
@@ -448,26 +493,17 @@ function getVipZone(rows, columns) {
   };
 }
 
-async function createSeatLayout({ roomId, rows, columns, coupleRows }) {
+async function createSeatLayout({ roomId, seatRows }) {
   const seats = [];
-  const vipZone = getVipZone(rows, columns);
-
-  for (const row of rows) {
-    const isCoupleRow = coupleRows.includes(row);
-    const seatCount = isCoupleRow ? Math.floor(columns / 2) : columns;
-
-    for (let number = 1; number <= seatCount; number += 1) {
-      const isVipSeat =
-        !isCoupleRow &&
-        vipZone.rows.has(row) &&
-        number >= vipZone.colStart &&
-        number <= vipZone.colEnd;
+  for (const seatRow of seatRows) {
+    for (const [index, position] of seatRow.positions.entries()) {
       const seat = await prisma.seat.create({
         data: {
           roomId,
-          row,
-          number,
-          type: isCoupleRow ? 'COUPLE' : isVipSeat ? 'VIP' : 'STANDARD',
+          row: seatRow.row,
+          number: index + 1,
+          position,
+          type: seatRow.type || 'STANDARD',
         },
       });
       seats.push(seat);
