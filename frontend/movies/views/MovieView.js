@@ -1,10 +1,15 @@
-/* CineTicket - Movie View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền phim và đánh giá phim.
+ */
+/* CineTicket - View phim */
+// Đối tượng MovieView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const MovieView = {
   _currentStatus: 'nowShowing',
   _currentGenre: '',
   _searchQuery: '',
   _sortBy: 'rating',
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối renderList trước khi tiếp tục.
   renderList(params) {
     const qs = Helpers.parseQueryString();
     const status = qs.status || 'nowShowing';
@@ -14,12 +19,14 @@ const MovieView = {
     document.getElementById('footer').style.display = '';
 
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
     main.innerHTML = this._buildListPage();
     this._bindListEvents();
     this._renderMovieGrid();
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _buildListPage trước khi tiếp tục.
   _buildListPage() {
     const genres = MovieModel.getGenres();
     return `
@@ -29,14 +36,14 @@ const MovieView = {
           <h1 class="section-title movies-page-title" style="margin-bottom:0;">Danh Sách Phim</h1>
         </div>
 
-        <!-- Status Tabs -->
+        <!-- Các tab lọc phim theo trạng thái phát hành -->
         <div class="movies-status-tabs">
           <button class="status-tab ${this._currentStatus === 'nowShowing' ? 'active' : ''}" data-status="nowShowing">Đang Chiếu</button>
           <button class="status-tab ${this._currentStatus === 'comingSoon' ? 'active' : ''}" data-status="comingSoon">Sắp Chiếu</button>
           <button class="status-tab ${this._currentStatus === 'all' ? 'active' : ''}" data-status="all">Tất Cả</button>
         </div>
 
-        <!-- Filter Bar -->
+        <!-- Thanh lọc theo trạng thái, từ khóa, thể loại và cách sắp xếp -->
         <div class="movies-filter-bar">
           <div class="filter-group filter-search">
             <i class="fas fa-search" style="color:var(--color-text-muted);"></i>
@@ -63,23 +70,24 @@ const MovieView = {
           </button>
         </div>
 
-        <!-- Result Info -->
+        <!-- Thông tin số lượng kết quả sau khi lọc -->
         <div class="movies-result-info" id="movies-result-info"></div>
 
-        <!-- Genre Pills -->
+        <!-- Danh sách nhãn thể loại có thể chọn nhanh -->
         <div class="genre-pills" id="genre-pills">
           <button class="genre-pill active" data-genre="">Tất Cả</button>
           ${genres.map(g => `<button class="genre-pill" data-genre="${Helpers.escapeHtml(g)}">${Helpers.escapeHtml(g)}</button>`).join('')}
         </div>
 
-        <!-- Grid -->
+        <!-- Lưới thẻ phim; nội dung được cập nhật khi bộ lọc thay đổi -->
         <div class="movies-grid" id="movies-grid"></div>
       </div>
     </div>`;
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _bindListEvents trước khi tiếp tục.
   _bindListEvents() {
-    // Status tabs
+    // Gắn sự kiện đổi tab trạng thái phim.
     document.querySelectorAll('.status-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         this._currentStatus = tab.dataset.status;
@@ -88,16 +96,18 @@ const MovieView = {
         this._renderMovieGrid();
       });
     });
-    // Search
+    // Gắn sự kiện tìm kiếm theo từ khóa.
     const searchEl = document.getElementById('movie-search');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (searchEl) {
       searchEl.addEventListener('input', Helpers.debounce((e) => {
         this._searchQuery = e.target.value;
         this._renderMovieGrid();
       }, 300));
     }
-    // Genre filter
+    // Gắn sự kiện lọc theo thể loại.
     const genreEl = document.getElementById('genre-filter');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (genreEl) {
       genreEl.addEventListener('change', (e) => {
         this._currentGenre = e.target.value;
@@ -105,32 +115,37 @@ const MovieView = {
         this._renderMovieGrid();
       });
     }
-    // Sort
+    // Gắn sự kiện thay đổi thứ tự sắp xếp.
     const sortEl = document.getElementById('sort-filter');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (sortEl) {
       sortEl.addEventListener('change', (e) => {
         this._sortBy = e.target.value;
         this._renderMovieGrid();
       });
     }
-    // Genre pills
+    // Gắn sự kiện cho các nhãn thể loại dạng viên.
     document.getElementById('genre-pills').addEventListener('click', (e) => {
       const pill = e.target.closest('.genre-pill');
+      // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
       if (!pill) return;
       this._currentGenre = pill.dataset.genre;
       this._updateGenrePills();
       const genreEl2 = document.getElementById('genre-filter');
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if (genreEl2) genreEl2.value = this._currentGenre;
       this._renderMovieGrid();
     });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối _updateGenrePills.
   _updateGenrePills() {
     document.querySelectorAll('.genre-pill').forEach(p => {
       p.classList.toggle('active', p.dataset.genre === this._currentGenre);
     });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối _resetFilters.
   _resetFilters() {
     this._currentStatus = 'nowShowing';
     this._currentGenre = '';
@@ -144,13 +159,18 @@ const MovieView = {
     this._renderMovieGrid();
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderMovieGrid.
   _renderMovieGrid() {
     const filters = {};
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (this._currentStatus !== 'all') filters.status = this._currentStatus;
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (this._currentGenre) filters.genre = this._currentGenre;
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (this._searchQuery) filters.search = this._searchQuery;
 
     let movies = MovieModel.getAll(filters);
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (this._sortBy === 'newest') movies.sort((a, b) => new Date(b.releaseDate) - new Date(a.releaseDate));
     else if (this._sortBy === 'title') movies.sort((a, b) => a.title.localeCompare(b.title));
     else if (this._sortBy === 'duration') movies.sort((a, b) => b.duration - a.duration);
@@ -158,9 +178,12 @@ const MovieView = {
 
     const grid = document.getElementById('movies-grid');
     const info = document.getElementById('movies-result-info');
+    // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
     if (info) info.innerHTML = `<span class="movies-result-count">Hiển thị <strong>${movies.length}</strong> phim</span>`;
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!grid) return;
 
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (movies.length === 0) {
       const isBackendIssue = !API.catalogLoadedFromBackend;
       grid.innerHTML = `
@@ -175,6 +198,7 @@ const MovieView = {
     grid.innerHTML = movies.map(m => this._movieCard(m)).join('');
   },
 
+  // Dựng phần giao diện tương ứng trong khối _movieCard.
   _movieCard(movie) {
     const isNew = new Date(movie.releaseDate) > new Date(Date.now() - 14 * 86400000);
     const ratingLabel = movie.ratingCount ? movie.rating : 'Chua co';
@@ -210,9 +234,12 @@ const MovieView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _showTrailer.
   _showTrailer(movieId) {
     const movie = MovieModel.getById(movieId);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!movie) return;
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!movie.trailer) {
       Toast.info('Trailer dang cap nhat');
       return;
@@ -226,8 +253,10 @@ const MovieView = {
     Modal.show(`Trailer: ${movie.title}`, content, { size: 'lg' });
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderDetail.
   renderDetail(params) {
     const movie = MovieModel.getById(params.id);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!movie) { Router.notFound(); return; }
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
@@ -243,7 +272,7 @@ const MovieView = {
 
     main.innerHTML = `
     <div>
-      <!-- Hero -->
+      <!-- Khối nổi bật chứa poster và thông tin chính của phim -->
       <div class="movie-detail-hero">
         <div class="movie-detail-backdrop" style="background-image:url('${movie.banner}')"></div>
         <div class="movie-detail-overlay"></div>
@@ -284,14 +313,14 @@ const MovieView = {
         </div>
       </div>
 
-      <!-- Cast -->
+      <!-- Danh sách diễn viên của phim -->
       <div class="container" style="padding-top:40px;">
         <div style="margin-bottom:40px;">
           <h3 class="section-title">Diễn Viên</h3>
           <div class="cast-grid">${castHtml}</div>
         </div>
 
-        <!-- Booking Section -->
+        <!-- Khu vực chọn rạp và suất chiếu để bắt đầu đặt vé -->
         ${movie.status === 'nowShowing' ? `
         <div id="booking-section">
           <h3 class="section-title">Chọn Suất Chiếu</h3>
@@ -306,12 +335,14 @@ const MovieView = {
       </div>
     </div>`;
 
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (movie.status === 'nowShowing') {
       ShowtimeView.renderForMovie(movie.id, 'movie-booking-section');
     }
     this._loadReviewSection(movie.id);
   },
 
+  // Thực hiện trách nhiệm riêng của khối _ageWarning.
   _ageWarning(movie) {
     const warnings = {
       C13: 'Phim dành cho khán giả từ 13 tuổi trở lên.',
@@ -319,6 +350,7 @@ const MovieView = {
       C18: 'Phim dành cho khán giả từ 18 tuổi trở lên.',
     };
     const message = warnings[movie.ageRating];
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!message) return '';
 
     return `
@@ -328,11 +360,14 @@ const MovieView = {
       </div>`;
   },
 
+  // Thực hiện trách nhiệm riêng của khối scrollToBooking.
   scrollToBooking(movieId) {
     const bookingSection = document.getElementById('booking-section');
+    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
     if (bookingSection) bookingSection.scrollIntoView({ behavior: 'smooth' });
   },
 
+  // Dựng phần giao diện tương ứng trong khối _reviewSection.
   _reviewSection(movie) {
     return `
       <div id="movie-review-section" style="margin-top:40px;background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:24px;">
@@ -345,10 +380,13 @@ const MovieView = {
       </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _loadReviewSection.
   async _loadReviewSection(movieId) {
     const section = document.getElementById('movie-review-section');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!section) return;
     const user = State.get('currentUser');
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       const data = await API.getMovieReviews(movieId, user && user.backendUserId);
       const current = data.currentUserReview || {};
@@ -373,10 +411,13 @@ const MovieView = {
     }
   },
 
+  // Thực hiện trách nhiệm riêng của khối _reviewAction.
   _reviewAction(movieId, user, canReview, current) {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!user || !user.backendUserId) {
       return `<button class="btn btn-outline" onclick="Router.navigate('/login')">Dang nhap de danh gia</button>`;
     }
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!canReview) {
       return `<div class="alert alert-info">Ban can mua ve va thanh toan thanh cong phim nay de danh gia.</div>`;
     }
@@ -396,6 +437,7 @@ const MovieView = {
       </form>`;
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối _submitReview.
   async _submitReview(event, movieId) {
     event.preventDefault();
     const user = State.get('currentUser');
@@ -419,7 +461,9 @@ const MovieView = {
     }
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderAdmin.
   renderAdmin() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
     const movies = MovieModel.getAll();
@@ -465,6 +509,7 @@ const MovieView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _adminRow.
   _adminRow(m) {
     return `<tr data-id="${m.id}">
       <td><div class="admin-movie-mini">
@@ -487,14 +532,17 @@ const MovieView = {
     </tr>`;
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối _filterTable.
   _filterTable(query) {
     const tbody = document.getElementById('movies-admin-tbody');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!tbody) return;
     tbody.querySelectorAll('tr').forEach(row => {
       row.style.display = row.textContent.toLowerCase().includes(query.toLowerCase()) ? '' : 'none';
     });
   },
 
+  // Tạo dữ liệu mới trong khối _showTmdbAddForm và trả về kết quả đã chuẩn hóa.
   _showTmdbAddForm() {
     const content = `
       <form onsubmit="MovieController.handleCreateFromTmdb(event)">
@@ -525,6 +573,7 @@ const MovieView = {
     Modal.show('Them Phim Bang TMDB ID', content, { size: 'md' });
   },
 
+  // Tạo dữ liệu mới trong khối _showAddForm và trả về kết quả đã chuẩn hóa.
   _showAddForm() {
     const content = `
       <form onsubmit="MovieController.handleCreate(event)">
@@ -558,8 +607,10 @@ const MovieView = {
     Modal.show('Thêm Phim Mới', content, { size: 'lg' });
   },
 
+  // Dựng phần giao diện tương ứng trong khối _showEditForm.
   _showEditForm(id) {
     const m = MovieModel.getById(id);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!m) return;
     const statusMap = {
       nowShowing: 'NOW_SHOWING',
@@ -620,6 +671,7 @@ const MovieView = {
     Modal.show('Chỉnh Sửa Phim', content, { size: 'lg' });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối saveEdit.
   async saveEdit(event, id) {
     event.preventDefault();
     const releaseDate = document.getElementById('edit-movie-release').value;
@@ -633,6 +685,7 @@ const MovieView = {
       status: document.getElementById('edit-movie-status').value,
       ageRating: document.getElementById('edit-movie-age').value,
     };
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!payload.title || !payload.durationMin) {
       Toast.error('Vui lòng nhập tên phim và thời lượng hợp lệ');
       return;

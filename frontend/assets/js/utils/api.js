@@ -1,4 +1,8 @@
-/* CineTicket - API Layer with Mock Data */
+/**
+ * Mục đích: Mã nguồn phục vụ khởi tạo và tiện ích dùng chung; các khối bên dưới được giữ tách biệt theo trách nhiệm.
+ */
+/* CineTicket - Lớp giao tiếp API và dữ liệu mô phỏng */
+// Đối tượng API gom toàn bộ lời gọi backend và bước ánh xạ dữ liệu trả về.
 const API = {
   baseUrl: '/api',
   backendBaseUrl: localStorage.getItem('cineticket_api_base') || `${window.location.protocol}//${window.location.hostname}:3000/api`,
@@ -181,6 +185,7 @@ const API = {
   },
 
   // ========== SEED SHOWTIMES ==========
+  // Dựng phần giao diện tương ứng trong khối _seedShowtimes.
   _seedShowtimes() {
     const showtimes = [];
     const today = new Date();
@@ -193,6 +198,7 @@ const API = {
     const times = ['09:00', '11:30', '14:00', '16:30', '19:00', '21:30'];
     const prices = { 'IMAX': { normal: 80000, vip: 120000, couple: 180000 }, '4DX': { normal: 80000, vip: 120000, couple: 180000 }, 'Dolby': { normal: 80000, vip: 120000, couple: 180000 }, '2D': { normal: 80000, vip: 120000, couple: 180000 }, '3D': { normal: 80000, vip: 120000, couple: 180000 }, 'VIP': { normal: 80000, vip: 120000, couple: 180000 } };
 
+    // Duyệt danh sách để dựng hoặc cập nhật từng phần tử giao diện.
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const date = new Date(today);
       date.setDate(today.getDate() + dayOffset);
@@ -202,10 +208,12 @@ const API = {
         roomSets.forEach(({ cinemaId, rooms }) => {
           rooms.slice(0, 2).forEach(roomId => {
             const room = this.mockData.rooms.find(r => r.id === roomId);
+            // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
             if (!room) return;
             const roomTimes = times.slice(0, 4);
             roomTimes.forEach(startTime => {
               const movieData = this.mockData.movies.find(m => m.id === movieId);
+              // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
               if (!movieData) return;
               const startParts = startTime.split(':');
               const startMins = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
@@ -232,7 +240,9 @@ const API = {
   },
 
   // ========== INIT ==========
+  // Khởi tạo luồng init và chuẩn bị các phụ thuộc cần thiết.
   async init() {
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!localStorage.getItem('cineticket_seeded')) {
       this.mockData.showtimes = this._seedShowtimes();
       localStorage.setItem('cineticket_movies', JSON.stringify(this.mockData.movies));
@@ -255,25 +265,32 @@ const API = {
     await this.syncBackendCatalog();
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối syncBackendCatalog.
   async syncBackendCatalog() {
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       const data = await this.getBackendMovies();
       const movies = (data.movies || []).map((movie) => this._mapBackendMovie(movie));
+      // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
       if (movies.length === 0) return;
 
       const showtimes = [];
       const cinemasById = new Map();
       const roomsById = new Map();
 
+      // Duyệt danh sách để dựng hoặc cập nhật từng phần tử giao diện.
       for (const movie of movies) {
         const showtimeData = await this.getBackendMovieShowtimes(movie.id);
         (showtimeData.showtimes || []).forEach((showtime) => {
           showtimes.push(this._mapBackendShowtime(showtime));
+          // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
           if (showtime.cinema) cinemasById.set(showtime.cinema.id, this._mapBackendCinema(showtime.cinema));
+          // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
           if (showtime.room) roomsById.set(showtime.room.id, this._mapBackendRoom(showtime.room, showtime.cinema));
         });
       }
 
+      // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
       try {
         const adminCinemas = await this.getAdminCinemas();
         (adminCinemas || []).forEach((cinema) => {
@@ -288,7 +305,9 @@ const API = {
 
       this.mockData.movies = movies;
       this.mockData.showtimes = showtimes;
+      // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
       if (cinemasById.size > 0) this.mockData.cinemas = [...cinemasById.values()];
+      // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
       if (roomsById.size > 0) this.mockData.rooms = [...roomsById.values()];
       this.catalogLoadedFromBackend = true;
 
@@ -302,6 +321,7 @@ const API = {
     }
   },
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối _mapBackendMovie.
   _mapBackendMovie(movie) {
     return {
       id: movie.id,
@@ -325,6 +345,7 @@ const API = {
     };
   },
 
+  // Dựng phần giao diện tương ứng trong khối _mapBackendShowtime.
   _mapBackendShowtime(showtime) {
     return {
       id: showtime.id,
@@ -343,6 +364,7 @@ const API = {
     };
   },
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối _mapBackendCinema.
   _mapBackendCinema(cinema) {
     return {
       id: cinema.id,
@@ -361,6 +383,7 @@ const API = {
     };
   },
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối _mapBackendRoom.
   _mapBackendRoom(room, cinema) {
     return {
       id: room.id,
@@ -374,16 +397,20 @@ const API = {
     };
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getBackendUserId.
   getBackendUserId() {
     const user = State && State.get ? State.get('currentUser') : null;
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!user || !user.backendUserId) {
       throw new Error('Tài khoản hiện tại chưa liên kết database. Vui lòng đăng xuất và đăng nhập lại.');
     }
     return user.backendUserId;
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getSeatHoldSessionId.
   getSeatHoldSessionId() {
     let sessionId = localStorage.getItem('cineticket_hold_session_id');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!sessionId) {
       sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       localStorage.setItem('cineticket_hold_session_id', sessionId);
@@ -391,6 +418,7 @@ const API = {
     return sessionId;
   },
 
+  // Thực hiện trách nhiệm riêng của khối backendRequest.
   async backendRequest(path, options = {}) {
     const response = await fetch(`${this.backendBaseUrl}${path}`, {
       headers: {
@@ -401,6 +429,7 @@ const API = {
     });
     const text = await response.text();
     const payload = text ? JSON.parse(text) : null;
+    // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
     if (!response.ok) {
       const message = payload && payload.message
         ? Array.isArray(payload.message) ? payload.message.join(', ') : payload.message
@@ -410,15 +439,18 @@ const API = {
     return payload;
   },
 
+  // Dựng phần giao diện tương ứng trong khối getShowtimeSeats.
   getShowtimeSeats(showtimeId) {
     const params = new URLSearchParams({
       sessionId: this.getSeatHoldSessionId(),
     });
     const user = State && State.get ? State.get('currentUser') : null;
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (user && user.backendUserId) params.set('userId', user.backendUserId);
     return this.backendRequest(`/showtimes/${showtimeId}/seats?${params.toString()}`);
   },
 
+  // Áp dụng quy tắc ghế và quyền sở hữu giữ ghế trong khối holdSeat.
   holdSeat(data) {
     const user = State && State.get ? State.get('currentUser') : null;
     return this.backendRequest('/seat-holds', {
@@ -431,6 +463,7 @@ const API = {
     });
   },
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối releaseSeat.
   releaseSeat(showtimeSeatId) {
     const params = new URLSearchParams({
       sessionId: this.getSeatHoldSessionId(),
@@ -442,6 +475,7 @@ const API = {
     });
   },
 
+  // Thực hiện trách nhiệm riêng của khối login.
   login(data) {
     return this.backendRequest('/auth/login', {
       method: 'POST',
@@ -449,6 +483,7 @@ const API = {
     });
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối register trước khi tiếp tục.
   register(data) {
     return this.backendRequest('/auth/register', {
       method: 'POST',
@@ -456,25 +491,31 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getBackendMovies.
   getBackendMovies() {
     return this.backendRequest('/movies');
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getBackendMovie.
   getBackendMovie(movieId) {
     return this.backendRequest(`/movies/${movieId}`);
   },
 
+  // Dựng phần giao diện tương ứng trong khối getBackendMovieShowtimes.
   getBackendMovieShowtimes(movieId) {
     return this.backendRequest(`/movies/${movieId}/showtimes`);
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getMovieReviews.
   getMovieReviews(movieId, userId) {
     const params = new URLSearchParams();
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (userId) params.set('userId', userId);
     const query = params.toString();
     return this.backendRequest(`/movies/${movieId}/reviews${query ? `?${query}` : ''}`);
   },
 
+  // Tạo dữ liệu mới trong khối createMovieReview và trả về kết quả đã chuẩn hóa.
   createMovieReview(movieId, data) {
     return this.backendRequest(`/movies/${movieId}/reviews`, {
       method: 'POST',
@@ -482,6 +523,7 @@ const API = {
     });
   },
 
+  // Tạo dữ liệu mới trong khối createBooking và trả về kết quả đã chuẩn hóa.
   createBooking(data) {
     return this.backendRequest('/bookings', {
       method: 'POST',
@@ -489,26 +531,31 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getPaymentMethods.
   getPaymentMethods() {
     return this.backendRequest('/bookings/payment-methods');
   },
 
+  // Thực hiện bước thanh toán trong khối payBooking với kiểm tra trạng thái an toàn.
   payBooking(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}/pay`, {
       method: 'POST'
     });
   },
 
+  // Tạo dữ liệu mới trong khối createVnpayPayment và trả về kết quả đã chuẩn hóa.
   createVnpayPayment(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}/vnpay`, {
       method: 'POST'
     });
   },
 
+  // Tạo dữ liệu mới trong khối createSepayPayment và trả về kết quả đã chuẩn hóa.
   createSepayPayment(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}/sepay`, { method: 'POST' });
   },
 
+  // Thực hiện bước thanh toán trong khối onlineDemoPay với kiểm tra trạng thái an toàn.
   onlineDemoPay(bookingId, provider) {
     return this.backendRequest(`/bookings/${bookingId}/online-demo-pay`, {
       method: 'POST',
@@ -516,10 +563,12 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getConcessionCombos.
   getConcessionCombos() {
     return this.backendRequest('/concession-combos');
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateBookingCombos.
   updateBookingCombos(bookingId, items) {
     return this.backendRequest(`/bookings/${bookingId}/combos`, {
       method: 'PATCH',
@@ -527,34 +576,41 @@ const API = {
     });
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối cancelBooking trước khi tiếp tục.
   cancelBooking(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}`, {
       method: 'DELETE'
     });
   },
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối expireBookings.
   expireBookings() {
     return this.backendRequest('/bookings/expire', {
       method: 'POST'
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getAdminBookings.
   getAdminBookings() {
     return this.backendRequest('/bookings');
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getAdminBookingDetail.
   getAdminBookingDetail(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}`);
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getAdminDashboard.
   getAdminDashboard() {
     return this.backendRequest('/admin/dashboard');
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getAdminCinemas.
   getAdminCinemas() {
     return this.backendRequest('/admin/cinemas');
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateAdminCinema.
   updateAdminCinema(id, data) {
     return this.backendRequest(`/admin/cinemas/${id}`, {
       method: 'PATCH',
@@ -562,10 +618,12 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getAdminRooms.
   getAdminRooms() {
     return this.backendRequest('/admin/rooms');
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateAdminRoom.
   updateAdminRoom(id, data) {
     return this.backendRequest(`/admin/rooms/${id}`, {
       method: 'PATCH',
@@ -573,19 +631,23 @@ const API = {
     });
   },
 
+  // Dựng phần giao diện tương ứng trong khối getAdminShowtimes.
   getAdminShowtimes() {
     return this.backendRequest('/admin/showtimes');
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getAdminRoomAvailableSlots.
   getAdminRoomAvailableSlots(roomId, movieId, date) {
     const params = new URLSearchParams({ movieId, date });
     return this.backendRequest(`/admin/rooms/${roomId}/available-slots?${params.toString()}`);
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getCinemaTicketPrices.
   getCinemaTicketPrices(cinemaId) {
     return this.backendRequest(`/admin/cinemas/${cinemaId}/ticket-prices`);
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối upsertCinemaTicketPrice.
   upsertCinemaTicketPrice(cinemaId, data) {
     return this.backendRequest(`/admin/cinemas/${cinemaId}/ticket-prices`, {
       method: 'POST',
@@ -593,10 +655,12 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getAdminConcessionCombos.
   getAdminConcessionCombos() {
     return this.backendRequest('/admin/concession-combos');
   },
 
+  // Tạo dữ liệu mới trong khối createAdminConcessionCombo và trả về kết quả đã chuẩn hóa.
   createAdminConcessionCombo(data) {
     return this.backendRequest('/admin/concession-combos', {
       method: 'POST',
@@ -604,6 +668,7 @@ const API = {
     });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateAdminConcessionCombo.
   updateAdminConcessionCombo(id, data) {
     return this.backendRequest(`/admin/concession-combos/${id}`, {
       method: 'PATCH',
@@ -611,12 +676,14 @@ const API = {
     });
   },
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteAdminConcessionCombo.
   deleteAdminConcessionCombo(id) {
     return this.backendRequest(`/admin/concession-combos/${id}`, {
       method: 'DELETE'
     });
   },
 
+  // Tạo dữ liệu mới trong khối createAdminShowtime và trả về kết quả đã chuẩn hóa.
   createAdminShowtime(data) {
     return this.backendRequest('/admin/showtimes', {
       method: 'POST',
@@ -624,6 +691,7 @@ const API = {
     });
   },
 
+  // Tạo dữ liệu mới trong khối createAdminMovieFromTmdb và trả về kết quả đã chuẩn hóa.
   createAdminMovieFromTmdb(tmdbId, status = 'NOW_SHOWING') {
     return this.backendRequest('/admin/movies/tmdb', {
       method: 'POST',
@@ -631,6 +699,7 @@ const API = {
     });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateAdminMovie.
   updateAdminMovie(id, data) {
     return this.backendRequest(`/admin/movies/${id}`, {
       method: 'PATCH',
@@ -638,12 +707,14 @@ const API = {
     });
   },
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteAdminMovie.
   deleteAdminMovie(movieId) {
     return this.backendRequest(`/admin/movies/${movieId}`, {
       method: 'DELETE'
     });
   },
 
+  // Thực hiện trách nhiệm riêng của khối importUpcomingMoviesFromTmdb.
   importUpcomingMoviesFromTmdb({ page = 1, limit = 10 } = {}) {
     return this.backendRequest('/admin/movies/tmdb/upcoming', {
       method: 'POST',
@@ -651,14 +722,17 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getBookingTickets.
   getBookingTickets(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}/tickets`);
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getBookingByQr.
   getBookingByQr(bookingQrToken) {
     return this.backendRequest(`/bookings/qr/${encodeURIComponent(bookingQrToken)}`);
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối checkInBookingByQr trước khi tiếp tục.
   checkInBookingByQr(bookingQrToken, data = {}) {
     return this.backendRequest(`/bookings/qr/${encodeURIComponent(bookingQrToken)}/check-in`, {
       method: 'POST',
@@ -666,10 +740,12 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getTicketByQr.
   getTicketByQr(qrToken) {
     return this.backendRequest(`/tickets/qr/${encodeURIComponent(qrToken)}`);
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối checkInTicket trước khi tiếp tục.
   checkInTicket(qrToken, data = {}) {
     return this.backendRequest(`/tickets/qr/${encodeURIComponent(qrToken)}/check-in`, {
       method: 'POST',
@@ -677,24 +753,29 @@ const API = {
     });
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getUserTickets.
   getUserTickets(userId) {
     return this.backendRequest(`/users/${userId}/tickets`);
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getUserBookings.
   getUserBookings(userId) {
     return this.backendRequest(`/users/${encodeURIComponent(userId)}/bookings`);
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối _save.
   _save(key) {
     localStorage.setItem('cineticket_' + key, JSON.stringify(this.mockData[key]));
   },
 
   // ========== HTTP-LIKE METHODS (MOCK) ==========
+  // Đọc và lọc dữ liệu cần thiết trong khối get.
   async get(endpoint) {
     await this._delay();
     const parts = endpoint.replace('/api/', '').split('/');
     const resource = parts[0];
     const id = parts[1];
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (id) {
       const item = (this.mockData[resource] || []).find(i => i.id === id);
       return item ? { data: item } : { error: 'Not found', status: 404 };
@@ -702,28 +783,33 @@ const API = {
     return { data: this.mockData[resource] || [] };
   },
 
+  // Thực hiện trách nhiệm riêng của khối post.
   async post(endpoint, data) {
     await this._delay();
     const resource = endpoint.replace('/api/', '').split('/')[0];
     const newItem = { ...data, id: data.id || Helpers.generateId(), createdAt: new Date().toISOString() };
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!this.mockData[resource]) this.mockData[resource] = [];
     this.mockData[resource].push(newItem);
     this._save(resource);
     return { data: newItem };
   },
 
+  // Thực hiện trách nhiệm riêng của khối put.
   async put(endpoint, data) {
     await this._delay();
     const parts = endpoint.replace('/api/', '').split('/');
     const resource = parts[0];
     const id = parts[1];
     const idx = (this.mockData[resource] || []).findIndex(i => i.id === id);
+    // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
     if (idx === -1) return { error: 'Not found', status: 404 };
     this.mockData[resource][idx] = { ...this.mockData[resource][idx], ...data };
     this._save(resource);
     return { data: this.mockData[resource][idx] };
   },
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối delete.
   async delete(endpoint) {
     await this._delay();
     const parts = endpoint.replace('/api/', '').split('/');
@@ -736,6 +822,7 @@ const API = {
     return { data: { success: true } };
   },
 
+  // Thực hiện trách nhiệm riêng của khối _delay.
   _delay(ms = 50) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }

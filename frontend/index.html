@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!--
+  Tài liệu gốc của ứng dụng SPA CineTicket.
+  Các khối script được nạp theo thứ tự tiện ích, thành phần dùng chung, module MVC rồi mới khởi chạy ứng dụng.
+-->
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
@@ -20,91 +24,91 @@
 </head>
 <body>
   <div id="app">
-    <!-- Navbar -->
+    <!-- Thanh điều hướng chính -->
     <nav id="navbar"></nav>
-    <!-- Main Content -->
+    <!-- Nội dung của trang hiện tại được router gắn vào đây -->
     <main id="main-content"></main>
-    <!-- Footer -->
+    <!-- Chân trang dùng chung -->
     <footer id="footer"></footer>
-    <!-- Modal Container -->
+    <!-- Vùng chứa hộp thoại dùng chung -->
     <div id="modal-container"></div>
-    <!-- Toast Container -->
+    <!-- Vùng chứa thông báo nhanh -->
     <div id="toast-container"></div>
   </div>
 
-  <!-- Utilities -->
+  <!-- Nạp các tiện ích nền tảng trước những module nghiệp vụ -->
   <script src="assets/js/utils/helpers.js"></script>
   <script src="assets/js/utils/state.js"></script>
   <script src="assets/js/utils/api.js"></script>
   <script src="assets/js/utils/qr.js"></script>
   <script src="assets/js/utils/router.js"></script>
 
-  <!-- Shared Components -->
+  <!-- Các thành phần giao diện dùng chung -->
   <script src="assets/js/components/Toast.js"></script>
   <script src="assets/js/components/Modal.js"></script>
   <script src="assets/js/components/Navbar.js"></script>
   <script src="assets/js/components/Footer.js"></script>
 
-  <!-- Auth Module -->
+  <!-- Module xác thực -->
   <script src="auth/models/AuthModel.js"></script>
   <script src="auth/controllers/AuthController.js"></script>
   <script src="auth/views/AuthView.js"></script>
 
-  <!-- Users Module -->
+  <!-- Module người dùng -->
   <script src="users/models/UserModel.js"></script>
   <script src="users/controllers/UserController.js"></script>
   <script src="users/views/UserView.js"></script>
 
-  <!-- Movies Module -->
+  <!-- Module phim -->
   <script src="movies/models/MovieModel.js"></script>
   <script src="movies/controllers/MovieController.js"></script>
   <script src="movies/views/MovieView.js"></script>
 
-  <!-- Cinemas Module -->
+  <!-- Module cụm rạp -->
   <script src="cinemas/models/CinemaModel.js"></script>
   <script src="cinemas/controllers/CinemaController.js"></script>
   <script src="cinemas/views/CinemaView.js"></script>
 
-  <!-- Rooms Module -->
+  <!-- Module phòng chiếu -->
   <script src="rooms/models/RoomModel.js"></script>
   <script src="rooms/controllers/RoomController.js"></script>
   <script src="rooms/views/RoomView.js"></script>
 
-  <!-- Seats Module -->
+  <!-- Module ghế -->
   <script src="seats/models/SeatModel.js"></script>
   <script src="seats/controllers/SeatController.js"></script>
   <script src="seats/views/SeatView.js"></script>
 
-  <!-- Showtimes Module -->
+  <!-- Module suất chiếu -->
   <script src="showtimes/models/ShowtimeModel.js"></script>
   <script src="showtimes/controllers/ShowtimeController.js"></script>
   <script src="showtimes/views/ShowtimeView.js"></script>
 
-  <!-- Bookings Module -->
+  <!-- Module đặt vé -->
   <script src="bookings/models/BookingModel.js"></script>
   <script src="bookings/controllers/BookingController.js"></script>
   <script src="bookings/views/BookingView.js"></script>
 
-  <!-- Payments Module -->
+  <!-- Module thanh toán -->
   <script src="payments/models/PaymentModel.js"></script>
   <script src="payments/controllers/PaymentController.js"></script>
   <script src="payments/views/PaymentView.js"></script>
 
-  <!-- Tickets Module -->
+  <!-- Module vé điện tử -->
   <script src="tickets/models/TicketModel.js"></script>
   <script src="tickets/controllers/TicketController.js"></script>
   <script src="tickets/views/TicketView.js"></script>
 
-  <!-- Concessions Module -->
+  <!-- Module combo bắp nước -->
   <script src="concessions/controllers/ConcessionController.js"></script>
   <script src="concessions/views/ConcessionView.js"></script>
 
-  <!-- Reports Module -->
+  <!-- Module báo cáo -->
   <script src="reports/models/ReportModel.js"></script>
   <script src="reports/controllers/ReportController.js"></script>
   <script src="reports/views/ReportView.js"></script>
 
-  <!-- App Entry -->
+  <!-- Điểm khởi chạy ứng dụng; phải được nạp sau mọi phụ thuộc -->
   <script src="assets/js/app.js"></script>
 </body>
 </html>

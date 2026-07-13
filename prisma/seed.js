@@ -1,7 +1,14 @@
+/**
+ * Mục đích: Tạo dữ liệu mẫu cho các rạp, phim, suất chiếu và ghế tại Đà Nẵng.
+ */
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 const { normalizeGenreName } = require('../scripts/genre-map');
+const {
+  addMinutes,
+  getVipZone,
+} = require('../backend/src/common/seat-layout');
 
 dotenv.config();
 
@@ -9,12 +16,14 @@ const prisma = new PrismaClient();
 
 const CLEANUP_MINUTES = 30;
 const SEED_DAY_COUNT = 7;
+// Đối tượng PRICE_BY_SEAT_TYPE gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const PRICE_BY_SEAT_TYPE = {
   STANDARD: 80000,
   VIP: 120000,
   COUPLE: 180000,
 };
 
+// Đối tượng CINEMA_PRICE_BY_CHAIN gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const CINEMA_PRICE_BY_CHAIN = {
   'CR Cinema': { STANDARD: 85000, VIP: 125000, COUPLE: 200000 },
 };
@@ -150,6 +159,7 @@ const ROOM_LAYOUTS = [
   },
 ];
 
+// Tạo dữ liệu mới trong khối makePositions và trả về kết quả đã chuẩn hóa.
 function makePositions(count, start = 1, aisleAfter = 0) {
   return Array.from({ length: count }, (_, index) => {
     const position = start + index;
@@ -157,10 +167,12 @@ function makePositions(count, start = 1, aisleAfter = 0) {
   });
 }
 
+// Tạo dữ liệu mới trong khối makeRows và trả về kết quả đã chuẩn hóa.
 function makeRows(labels, positions) {
   return [...labels].map((row) => ({ row, positions }));
 }
 
+// Tạo dữ liệu mới trong khối makeCoupleRow và trả về kết quả đã chuẩn hóa.
 function makeCoupleRow(row, positions) {
   return { row, positions, type: 'COUPLE' };
 }
@@ -278,6 +290,7 @@ const BASE_SCHEDULES = [
   ['10:30', '13:15', '16:00', '18:45', '21:30'],
 ];
 
+// Khởi tạo luồng main và chuẩn bị các phụ thuộc cần thiết.
 async function main() {
   await clearDatabase();
 
@@ -337,6 +350,7 @@ async function main() {
   });
 }
 
+// Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối clearDatabase.
 async function clearDatabase() {
   await prisma.ticketCheckIn.deleteMany();
   await prisma.ticket.deleteMany();
@@ -360,6 +374,7 @@ async function clearDatabase() {
   await prisma.user.deleteMany();
 }
 
+// Tạo dữ liệu mới trong khối createUser và trả về kết quả đã chuẩn hóa.
 function createUser({ id, username, email, password, firstName, lastName, role }) {
   return prisma.user.create({
     data: {
@@ -374,6 +389,7 @@ function createUser({ id, username, email, password, firstName, lastName, role }
   });
 }
 
+// Tạo dữ liệu mới trong khối createGenres và trả về kết quả đã chuẩn hóa.
 async function createGenres() {
   const genreEntries = await Promise.all(
     GENRES.map((name) => prisma.genre.create({ data: { name } })),
@@ -381,9 +397,11 @@ async function createGenres() {
   return new Map(genreEntries.map((genre) => [genre.name, genre]));
 }
 
+// Tạo dữ liệu mới trong khối createMovies và trả về kết quả đã chuẩn hóa.
 async function createMovies(genres) {
   const movies = [];
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const movieConfig of NOW_SHOWING_MOVIES) {
     const movie = await prisma.movie.create({
       data: {
@@ -409,10 +427,12 @@ async function createMovies(genres) {
   return movies;
 }
 
+// Tạo dữ liệu mới trong khối createCinemaChains và trả về kết quả đã chuẩn hóa.
 async function createCinemaChains() {
   const chainNames = [...new Set(CINEMAS.map((cinema) => cinema.chain))];
   const chains = new Map();
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const name of chainNames) {
     const chain = await prisma.cinemaChain.create({
       data: {
@@ -426,9 +446,11 @@ async function createCinemaChains() {
   return chains;
 }
 
+// Tạo dữ liệu mới trong khối createCinemasRoomsAndSeats và trả về kết quả đã chuẩn hóa.
 async function createCinemasRoomsAndSeats(chains) {
   const roomSeatMap = [];
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const cinemaConfig of CINEMAS) {
     const cinema = await prisma.cinema.create({
       data: {
@@ -446,6 +468,7 @@ async function createCinemasRoomsAndSeats(chains) {
 
     await createCinemaTicketPrices(cinema.id, cinemaConfig.chain);
 
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (let roomIndex = 0; roomIndex < cinemaConfig.roomCount; roomIndex += 1) {
       const layout = ROOM_LAYOUTS[roomIndex % ROOM_LAYOUTS.length];
       const seatCount = countSeats(layout);
@@ -464,6 +487,7 @@ async function createCinemasRoomsAndSeats(chains) {
   return roomSeatMap;
 }
 
+// Tạo dữ liệu mới trong khối createCinemaTicketPrices và trả về kết quả đã chuẩn hóa.
 async function createCinemaTicketPrices(cinemaId, chainName) {
   const priceSet = CINEMA_PRICE_BY_CHAIN[chainName] || PRICE_BY_SEAT_TYPE;
   await prisma.cinemaTicketPrice.createMany({
@@ -476,26 +500,17 @@ async function createCinemaTicketPrices(cinemaId, chainName) {
   });
 }
 
+// Áp dụng quy tắc ghế và quyền sở hữu giữ ghế trong khối countSeats.
 function countSeats(layout) {
   return layout.seatRows.reduce((total, seatRow) => total + seatRow.positions.length, 0);
 }
 
-function getVipZone(rows, columns) {
-  const zoneRowCount = Math.min(3, rows.length);
-  const zoneColCount = Math.min(5, columns);
-  const rowStart = Math.max(0, Math.round((rows.length - zoneRowCount) / 2));
-  const colStart = Math.max(1, Math.round((columns - zoneColCount) / 2) + 1);
-
-  return {
-    rows: new Set(rows.slice(rowStart, rowStart + zoneRowCount)),
-    colStart,
-    colEnd: colStart + zoneColCount - 1,
-  };
-}
-
+// Tạo dữ liệu mới trong khối createSeatLayout và trả về kết quả đã chuẩn hóa.
 async function createSeatLayout({ roomId, seatRows }) {
   const seats = [];
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const seatRow of seatRows) {
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const [index, position] of seatRow.positions.entries()) {
       const seat = await prisma.seat.create({
         data: {
@@ -513,20 +528,24 @@ async function createSeatLayout({ roomId, seatRows }) {
   return seats;
 }
 
+// Tạo dữ liệu mới trong khối createShowtimes và trả về kết quả đã chuẩn hóa.
 async function createShowtimes(movies, roomSeatMap) {
   const showtimes = [];
   const seedStartDate = startOfTodayInBangkok();
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (let dayOffset = 0; dayOffset < SEED_DAY_COUNT; dayOffset += 1) {
     const date = new Date(seedStartDate);
     date.setDate(seedStartDate.getDate() + dayOffset);
     const dateText = formatSeedDate(date);
 
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (let roomIndex = 0; roomIndex < roomSeatMap.length; roomIndex += 1) {
       const roomInfo = roomSeatMap[roomIndex];
       const starts = BASE_SCHEDULES[(roomIndex + dayOffset) % BASE_SCHEDULES.length];
       const slotLimit = Math.min(starts.length, 4 + ((roomIndex + dayOffset) % 3));
 
+      // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
       for (let slotIndex = 0; slotIndex < slotLimit; slotIndex += 1) {
         const movie = movies[(dayOffset + roomIndex + slotIndex) % movies.length];
         const startAt = dateTimeAt(dateText, starts[slotIndex]);
@@ -538,6 +557,7 @@ async function createShowtimes(movies, roomSeatMap) {
           endAt,
         };
 
+        // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
         if (await canCreateShowtime(candidate)) {
           showtimes.push(await createShowtime(candidate));
         }
@@ -548,6 +568,7 @@ async function createShowtimes(movies, roomSeatMap) {
   return showtimes;
 }
 
+// Kiểm tra điều kiện nghiệp vụ trong khối canCreateShowtime trước khi tiếp tục.
 async function canCreateShowtime({ roomId, startAt, endAt }) {
   const conflict = await prisma.showtime.findFirst({
     where: {
@@ -559,6 +580,7 @@ async function canCreateShowtime({ roomId, startAt, endAt }) {
   return !conflict;
 }
 
+// Tạo dữ liệu mới trong khối createShowtime và trả về kết quả đã chuẩn hóa.
 function createShowtime({ movieId, roomId, startAt, endAt }) {
   return prisma.showtime.create({
     data: {
@@ -571,9 +593,11 @@ function createShowtime({ movieId, roomId, startAt, endAt }) {
   });
 }
 
+// Tạo dữ liệu mới trong khối createShowtimeSeats và trả về kết quả đã chuẩn hóa.
 async function createShowtimeSeats(showtimes, roomSeatMap) {
   const roomInfoByRoomId = new Map(roomSeatMap.map((roomInfo) => [roomInfo.room.id, roomInfo]));
 
+  // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
   for (const showtime of showtimes) {
     const roomInfo = roomInfoByRoomId.get(showtime.roomId);
     const seats = roomInfo?.seats || [];
@@ -593,6 +617,7 @@ async function createShowtimeSeats(showtimes, roomSeatMap) {
   }
 }
 
+// Tạo dữ liệu mới trong khối createConcessionCombos và trả về kết quả đã chuẩn hóa.
 async function createConcessionCombos() {
   await prisma.concessionCombo.createMany({
     data: CONCESSION_COMBOS.map((combo) => ({
@@ -602,6 +627,7 @@ async function createConcessionCombos() {
   });
 }
 
+// Thực hiện trách nhiệm riêng của khối startOfTodayInBangkok.
 function startOfTodayInBangkok() {
   const now = new Date();
   const bangkokDate = new Intl.DateTimeFormat('en-CA', {
@@ -613,18 +639,17 @@ function startOfTodayInBangkok() {
   return new Date(`${bangkokDate}T00:00:00.000+07:00`);
 }
 
+// Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối formatSeedDate.
 function formatSeedDate(date) {
   return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
 }
 
+// Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối dateTimeAt.
 function dateTimeAt(dateText, timeText) {
   return new Date(`${dateText}T${timeText}:00.000+07:00`);
 }
 
-function addMinutes(date, minutes) {
-  return new Date(date.getTime() + minutes * 60 * 1000);
-}
-
+// Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối slugify.
 function slugify(value) {
   return value
     .toLowerCase()

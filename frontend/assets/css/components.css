@@ -1,6 +1,9 @@
-/* CineTicket - Component Styles (Navbar, Footer, Modal, Toast) */
+/*
+ * Mục đích: Các quy tắc trình bày cho components; được nhóm theo khu vực giao diện và trạng thái tương tác.
+ */
+/* Kiểu các thành phần dùng chung: điều hướng, chân trang, hộp thoại và thông báo */
 
-/* ============ NAVBAR ============ */
+/* ============ THANH ĐIỀU HƯỚNG ============ */
 #navbar {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -26,7 +29,7 @@
   gap: var(--spacing-6);
 }
 
-/* Logo */
+/* Biểu trưng */
 .navbar-logo {
   display: flex;
   align-items: center;
@@ -53,7 +56,7 @@
 }
 .navbar-logo-text span { color: var(--color-primary); }
 
-/* Nav Links */
+/* Liên kết điều hướng */
 .navbar-nav {
   display: flex;
   align-items: center;
@@ -76,7 +79,7 @@
 }
 .nav-link.active { color: var(--color-primary); }
 
-/* Search */
+/* Tìm kiếm */
 .navbar-search {
   position: relative;
   margin-left: auto;
@@ -135,7 +138,7 @@
 .search-result-title { font-size: var(--font-size-sm); color: var(--color-text); }
 .search-result-meta { font-size: var(--font-size-xs); color: var(--color-text-muted); }
 
-/* Auth / User Area */
+/* Khu vực xác thực và người dùng */
 .navbar-actions {
   display: flex;
   align-items: center;
@@ -156,7 +159,7 @@
 }
 .navbar-auth-btn:hover { background: var(--color-primary-dark); }
 
-/* User Dropdown */
+/* Menu thả xuống người dùng */
 .navbar-user {
   position: relative;
 }
@@ -222,7 +225,7 @@
 .user-dropdown-item.danger:hover i { color: var(--color-danger); }
 .user-dropdown-divider { height: 1px; background: var(--color-border); margin: var(--spacing-2) 0; }
 
-/* Mobile Hamburger */
+/* Nút menu trên di động */
 .navbar-hamburger {
   display: none;
   flex-direction: column; gap: 5px;
@@ -242,7 +245,7 @@
 .navbar-hamburger.open .hamburger-line:nth-child(2) { opacity: 0; transform: scaleX(0); }
 .navbar-hamburger.open .hamburger-line:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
 
-/* Mobile Menu */
+/* Menu trên di động */
 .navbar-mobile-menu {
   display: none;
   position: fixed;
@@ -279,7 +282,7 @@
   .user-name { display: none; }
 }
 
-/* ============ FOOTER ============ */
+/* ============ CHÂN TRANG ============ */
 #footer {
   background: var(--color-secondary);
   border-top: 1px solid var(--color-border);
@@ -378,7 +381,7 @@
   .footer-bottom { flex-direction: column; gap: var(--spacing-3); text-align: center; }
 }
 
-/* ============ MODAL ============ */
+/* ============ HỘP THOẠI ============ */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -440,7 +443,7 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* Confirm modal icon */
+/* Biểu tượng hộp thoại xác nhận */
 .modal-confirm-icon {
   width: 64px; height: 64px;
   border-radius: 50%;
@@ -453,7 +456,7 @@
 .modal-confirm-icon.success { background: rgba(40,167,69,0.15); color: var(--color-success); }
 .modal-confirm-icon.info { background: rgba(23,162,184,0.15); color: var(--color-info); }
 
-/* ============ TOAST ============ */
+/* ============ THÔNG BÁO NHANH ============ */
 #toast-container {
   position: fixed;
   bottom: var(--spacing-6);

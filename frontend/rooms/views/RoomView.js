@@ -1,16 +1,24 @@
-/* CineTicket - Room View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền phòng chiếu.
+ */
+/* CineTicket - View phòng chiếu */
+// Đối tượng RoomView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const RoomView = {
   _adminSelectedCinema: null,
   _adminCinemas: [],
 
+  // Dựng phần giao diện tương ứng trong khối renderAdmin.
   async renderAdmin() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
 
     let rooms = [];
     let cinemas = [];
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       [rooms, cinemas] = await Promise.all([
         API.getAdminRooms(),
@@ -23,6 +31,7 @@ const RoomView = {
     }
     cinemas.sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'vi', { numeric: true }));
     this._adminCinemas = cinemas;
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!this._adminSelectedCinema || !cinemas.some((cinema) => cinema.id === this._adminSelectedCinema)) {
       this._adminSelectedCinema = cinemas[0]?.id || '';
     }
@@ -81,15 +90,18 @@ const RoomView = {
     </div>`;
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối selectAdminCinema.
   selectAdminCinema(cinemaId) {
     this._adminSelectedCinema = cinemaId;
     this.renderAdmin();
   },
 
+  // Thực hiện trách nhiệm riêng của khối _roomCinemaId.
   _roomCinemaId(room) {
     return room.cinemaId || room.cinema?.id || '';
   },
 
+  // Dựng phần giao diện tương ứng trong khối _roomRow.
   _roomRow(room) {
     const cinema = room.cinema || CinemaModel.getById(room.cinemaId);
     const seatSummary = room.seatTypeSummary || {};
@@ -116,8 +128,10 @@ const RoomView = {
     </tr>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối showEditForm.
   showEditForm(roomId) {
     const room = (this._adminRooms || []).find((item) => item.id === roomId) || RoomModel.getById(roomId);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!room) {
       Toast.error('Không tìm thấy phòng chiếu');
       return;
@@ -146,12 +160,14 @@ const RoomView = {
     Modal.show('Chỉnh Sửa Phòng Chiếu', content, { size: 'md' });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối saveEdit.
   async saveEdit(event, roomId) {
     event.preventDefault();
     const payload = {
       name: document.getElementById('edit-room-name').value.trim(),
       capacity: Number(document.getElementById('edit-room-capacity').value),
     };
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!payload.name || !payload.capacity) {
       Toast.error('Vui lòng nhập tên phòng và sức chứa hợp lệ');
       return;

@@ -1,22 +1,32 @@
-/* CineTicket - Payment View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền thanh toán.
+ */
+/* CineTicket - View thanh toán */
+// Đối tượng PaymentView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const PaymentView = {
   _selectedMethod: null,
   _processing: false,
   _holdTimer: null,
   _methodAvailability: {},
 
+  // Dựng phần giao diện tương ứng trong khối render.
   async render() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.checkAuth()) return;
     this._clearHoldCountdown();
     const booking = State.get('currentBooking');
+    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
     if (!booking) {
       Toast.warning('Không có thông tin đặt vé');
       Router.navigate('/');
       return;
     }
+    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
     if (booking.backendBookingId) {
+      // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
       try {
         const persistedBooking = await API.getAdminBookingDetail(booking.backendBookingId);
+        // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
         if (persistedBooking.status === 'PAID') {
           State.set('currentBooking', null);
           SeatController.selectedSeats = [];
@@ -24,6 +34,7 @@ const PaymentView = {
           Toast.info('Đơn hàng đã được thanh toán. Đang mở vé của bạn.');
           return;
         }
+        // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
         if (['CANCELLED', 'EXPIRED'].includes(persistedBooking.status)) {
           State.set('currentBooking', null);
           SeatController.selectedSeats = [];
@@ -42,6 +53,7 @@ const PaymentView = {
     await this._loadPaymentMethods();
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
 
     const seatNames = booking.seats.map((seat) => typeof seat === 'object' ? seat.id : seat).join(', ');
@@ -156,19 +168,23 @@ const PaymentView = {
 
     document.querySelectorAll('.payment-method-option').forEach((option) => {
       option.addEventListener('click', () => {
+        // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
         if (option.classList.contains('disabled')) return;
         this._selectedMethod = option.dataset.method;
         document.querySelectorAll('.payment-method-option').forEach((item) => item.classList.remove('selected'));
         option.classList.add('selected');
         const cardForm = document.getElementById('card-form');
+        // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
         if (cardForm) cardForm.classList.toggle('show', this._selectedMethod === 'card');
       });
     });
     this._startHoldCountdown(booking.expiresAt, booking.showtimeId);
   },
 
+  // Đọc và lọc dữ liệu cần thiết trong khối _loadPaymentMethods.
   async _loadPaymentMethods() {
     let methods;
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       const response = await API.getPaymentMethods();
       methods = response.methods;
@@ -187,11 +203,13 @@ const PaymentView = {
       methods.map((method) => [method.id, method]),
     );
     const selected = this._methodAvailability[this._selectedMethod];
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!selected?.enabled) {
       this._selectedMethod = methods.find((method) => method.enabled)?.id || null;
     }
   },
 
+  // Tính toán giá trị tổng hợp trong khối _comboSummary.
   _comboSummary(comboItems) {
     return comboItems.map((combo) => `
       <div class="order-row">
@@ -201,9 +219,12 @@ const PaymentView = {
     `).join('');
   },
 
+  // Áp dụng quy tắc ghế và quyền sở hữu giữ ghế trong khối _startHoldCountdown.
   _startHoldCountdown(expiresAt, showtimeId) {
     const el = document.getElementById('booking-hold-countdown');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!el) return;
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!expiresAt) {
       el.textContent = 'Không giới hạn';
       return;
@@ -211,9 +232,11 @@ const PaymentView = {
 
     const update = async () => {
       const remaining = new Date(expiresAt).getTime() - Date.now();
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if (remaining <= 0) {
         this._clearHoldCountdown();
         el.textContent = 'Đã hết hạn';
+        // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
         try {
           await API.expireBookings();
         } catch (error) {
@@ -235,13 +258,16 @@ const PaymentView = {
     this._holdTimer = setInterval(update, 1000);
   },
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối _clearHoldCountdown.
   _clearHoldCountdown() {
+    // Kiểm tra trạng thái ghế và lượt giữ ghế trước khi cập nhật lựa chọn.
     if (this._holdTimer) {
       clearInterval(this._holdTimer);
       this._holdTimer = null;
     }
   },
 
+  // Dựng phần giao diện tương ứng trong khối _methodOption.
   _methodOption(method, iconClass, iconType, label, desc) {
     const availability = this._methodAvailability[method] || { enabled: false, mode: 'live' };
     const selected = availability.enabled && method === this._selectedMethod;
@@ -259,6 +285,7 @@ const PaymentView = {
     </label>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối showSepayQr.
   showSepayQr(payment, booking) {
     const content = `
       <div style="text-align:center;">
@@ -273,6 +300,7 @@ const PaymentView = {
       try {
         const detail = await API.getAdminBookingDetail(payment.bookingId);
         const status = detail.booking?.status || detail.status;
+        // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
         if (status === 'PAID') {
           clearInterval(poll);
           Modal.close();
@@ -289,40 +317,53 @@ const PaymentView = {
     setTimeout(() => clearInterval(poll), 10 * 60 * 1000);
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateTotal.
   updateTotal(total, discount) {
     const finalEl = document.getElementById('final-total');
     const discountLine = document.getElementById('discount-line');
     const discountVal = document.getElementById('discount-value');
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (finalEl) finalEl.textContent = Helpers.formatCurrency(total - discount);
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (discountLine) discountLine.style.display = discount > 0 ? '' : 'none';
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (discountVal) discountVal.textContent = '- ' + Helpers.formatCurrency(discount);
   },
 
+  // Dựng phần giao diện tương ứng trong khối showPromoResult.
   showPromoResult(promo, discount) {
     const container = document.getElementById('promo-result-container');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!container) return;
     container.innerHTML = `<div class="promo-result"><span class="promo-result-success"><i class="fas fa-check-circle"></i> ${Helpers.escapeHtml(promo.title)} - Giảm ${Helpers.formatCurrency(discount)}</span></div>`;
   },
 
+  // Thực hiện trách nhiệm riêng của khối hidePromoResult.
   hidePromoResult() {
     const container = document.getElementById('promo-result-container');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (container) container.innerHTML = '';
   },
 
+  // Dựng phần giao diện tương ứng trong khối showProcessing.
   showProcessing() {
     this._processing = true;
     const overlay = document.getElementById('payment-processing-overlay');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (overlay) overlay.style.display = 'flex';
     const btn = document.getElementById('pay-btn');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = '<div class="spinner spinner-sm"></div> Đang xử lý...';
     }
   },
 
+  // Thực hiện trách nhiệm riêng của khối hideProcessing.
   hideProcessing() {
     this._processing = false;
     const overlay = document.getElementById('payment-processing-overlay');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (overlay) overlay.style.display = 'none';
     const btn = document.getElementById('pay-btn');
     if (btn) {

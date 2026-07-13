@@ -1,13 +1,19 @@
-/* CineTicket - Modal Component */
+/**
+ * Mục đích: Mã nguồn phục vụ khởi tạo và tiện ích dùng chung; các khối bên dưới được giữ tách biệt theo trách nhiệm.
+ */
+/* CineTicket - Thành phần hộp thoại */
+// Đối tượng Modal gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const Modal = {
   _activeModal: null,
   _resolveConfirm: null,
 
+  // Dựng phần giao diện tương ứng trong khối show.
   show(title, content, options = {}) {
     const { size = '', buttons = [], onClose = null, id = 'main-modal', className = '' } = options;
     this.close();
 
     const container = document.getElementById('modal-container');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!container) return;
 
     const buttonsHtml = buttons.length > 0
@@ -26,19 +32,22 @@ const Modal = {
         </div>
       </div>`;
 
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (typeof content !== 'string') {
-      // DOM element or render function
+      // Chấp nhận trực tiếp phần tử DOM hoặc một hàm dựng nội dung.
     }
 
     const overlay = container.querySelector('.modal-overlay');
     this._activeModal = overlay;
 
-    // Bind close actions
+    // Gắn các hành động dùng để đóng hộp thoại.
     container.querySelectorAll('[data-modal-action]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const action = btn.getAttribute('data-modal-action');
+        // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
         if (action === 'close') {
           this.close();
+          // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
           if (onClose) onClose();
         } else if (action === 'confirm' && this._resolveConfirm) {
           this._resolveConfirm(true);
@@ -52,11 +61,14 @@ const Modal = {
       });
     });
 
-    // Close on overlay click
+    // Đóng hộp thoại khi người dùng nhấp vào lớp phủ bên ngoài.
     overlay.addEventListener('click', (e) => {
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if (e.target === overlay) {
         this.close();
+        // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
         if (onClose) onClose();
+        // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
         if (this._resolveConfirm) {
           this._resolveConfirm(false);
           this._resolveConfirm = null;
@@ -64,8 +76,9 @@ const Modal = {
       }
     });
 
-    // Close on Escape
+    // Đóng hộp thoại khi người dùng nhấn phím Escape.
     document.addEventListener('keydown', this._escHandler = (e) => {
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if (e.key === 'Escape') {
         this.close();
         if (onClose) onClose();
@@ -79,16 +92,20 @@ const Modal = {
     return overlay;
   },
 
+  // Thực hiện trách nhiệm riêng của khối close.
   close() {
     const container = document.getElementById('modal-container');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (container) container.innerHTML = '';
     this._activeModal = null;
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (this._escHandler) {
       document.removeEventListener('keydown', this._escHandler);
       this._escHandler = null;
     }
   },
 
+  // Thực hiện trách nhiệm riêng của khối confirm.
   confirm(message, title = 'Xác Nhận', type = 'warning') {
     return new Promise((resolve) => {
       this._resolveConfirm = resolve;
@@ -106,6 +123,7 @@ const Modal = {
     });
   },
 
+  // Thực hiện trách nhiệm riêng của khối alert.
   alert(message, title = 'Thông Báo') {
     return new Promise((resolve) => {
       this._resolveConfirm = (v) => resolve(v);

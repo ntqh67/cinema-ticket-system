@@ -1,6 +1,9 @@
-/* CineTicket - Home Page Styles */
+/*
+ * Mục đích: Các quy tắc trình bày cho home; được nhóm theo khu vực giao diện và trạng thái tương tác.
+ */
+/* Kiểu giao diện trang chủ CineTicket */
 
-/* ============ HERO ============ */
+/* ============ KHỐI NỔI BẬT ============ */
 .hero {
   position: relative;
   height: 600px;
@@ -82,7 +85,7 @@
 }
 .hero-actions { display: flex; gap: var(--spacing-3); flex-wrap: wrap; }
 
-/* Hero Controls */
+/* Điều khiển khối nổi bật */
 .hero-controls {
   position: absolute;
   bottom: var(--spacing-6);
@@ -124,7 +127,7 @@
 .hero-arrow-prev { left: var(--spacing-4); }
 .hero-arrow-next { right: var(--spacing-4); }
 
-/* ============ SECTIONS ============ */
+/* ============ CÁC PHÂN KHU ============ */
 .home-section { padding: var(--spacing-12) 0; }
 .home-section-header {
   display: flex;
@@ -146,7 +149,7 @@
 }
 .view-all-link:hover { color: var(--color-primary-dark); }
 
-/* ============ MOVIE GRID ============ */
+/* ============ LƯỚI PHIM ============ */
 .movies-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -299,7 +302,7 @@
 }
 .movie-book-btn:hover { background: var(--color-primary-dark); }
 
-/* ============ DATE PICKER ============ */
+/* ============ BỘ CHỌN NGÀY ============ */
 .date-picker {
   display: flex;
   gap: var(--spacing-2);
@@ -331,7 +334,7 @@
 .date-num { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); line-height: 1.2; }
 .date-month { font-size: var(--font-size-xs); opacity: 0.8; }
 
-/* ============ CINEMA TABS ============ */
+/* ============ TAB CỤM RẠP ============ */
 .cinema-tabs {
   display: flex;
   gap: var(--spacing-2);
@@ -361,7 +364,7 @@
   color: #fff;
 }
 
-/* ============ SHOWTIME LIST ============ */
+/* ============ DANH SÁCH SUẤT CHIẾU ============ */
 .showtime-movie-item {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -442,7 +445,7 @@
 .showtime-btn:hover .showtime-btn-end { opacity: 0.8; }
 .showtime-btn.almost-full { border-color: var(--color-warning); }
 
-/* ============ PROMO BANNER ============ */
+/* ============ BANNER KHUYẾN MÃI ============ */
 .promo-banner {
   background: linear-gradient(135deg, var(--color-primary) 0%, #7c0210 100%);
   border-radius: var(--radius-2xl);
@@ -497,7 +500,7 @@
 }
 .promo-banner-actions { position: relative; z-index: 1; flex-shrink: 0; }
 
-/* ============ STATS ============ */
+/* ============ THỐNG KÊ ============ */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -528,7 +531,7 @@
 }
 .stat-label { font-size: var(--font-size-sm); color: var(--color-text-muted); }
 
-/* ============ PROMOTIONS GRID ============ */
+/* ============ LƯỚI KHUYẾN MÃI ============ */
 .promotions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -536,7 +539,7 @@
   align-items: stretch;
 }
 
-/* Card layout */
+/* Bố cục thẻ */
 .promo-card {
   overflow: hidden;
   display: flex;
@@ -563,7 +566,7 @@
   margin-bottom: var(--spacing-4);
 }
 
-/* Footer: badge trên, button dưới */
+/* Chân thẻ: nhãn ở trên, nút ở dưới */
 .promo-card-footer {
   display: flex;
   flex-direction: column;
@@ -577,7 +580,7 @@
   justify-content: center;
 }
 
-/* ============ RESPONSIVE ============ */
+/* ============ GIAO DIỆN THÍCH ỨNG ============ */
 @media (max-width: 900px) {
   .hero { height: 500px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }

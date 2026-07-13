@@ -1,5 +1,10 @@
-/* CineTicket - Footer Component */
+/**
+ * Mục đích: Mã nguồn phục vụ khởi tạo và tiện ích dùng chung; các khối bên dưới được giữ tách biệt theo trách nhiệm.
+ */
+/* CineTicket - Thành phần chân trang */
+// Đối tượng Footer gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const Footer = {
+  // Dựng phần giao diện tương ứng trong khối render.
   render() {
     return `
       <div class="container">
@@ -66,8 +71,10 @@ const Footer = {
       </div>`;
   },
 
+  // Thực hiện trách nhiệm riêng của khối mount.
   mount() {
     const footer = document.getElementById('footer');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!footer) return;
     footer.innerHTML = this.render();
   }

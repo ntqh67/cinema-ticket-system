@@ -1,4 +1,7 @@
-/* CineTicket - Movies Page Styles */
+/*
+ * Mục đích: Các quy tắc trình bày cho movies; được nhóm theo khu vực giao diện và trạng thái tương tác.
+ */
+/* Kiểu giao diện trang phim CineTicket */
 .movies-page { padding: var(--spacing-8) 0 var(--spacing-12); }
 .movies-page-header {
   display: flex;
@@ -10,7 +13,7 @@
 }
 .movies-page-title { margin-bottom: 0; }
 
-/* Filter Bar */
+/* Thanh bộ lọc */
 .movies-filter-bar {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -53,7 +56,7 @@
 }
 .filter-reset-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
-/* Status Tabs */
+/* Tab trạng thái */
 .movies-status-tabs {
   display: flex;
   gap: var(--spacing-2);
@@ -77,7 +80,7 @@
 .status-tab.active { background: var(--color-primary); color: #fff; }
 .status-tab:hover:not(.active) { color: var(--color-text); }
 
-/* Result Info */
+/* Thông tin kết quả */
 .movies-result-info {
   display: flex;
   align-items: center;
@@ -90,11 +93,11 @@
 }
 .movies-result-count strong { color: var(--color-text); }
 
-/* Sort */
+/* Sắp xếp */
 .movies-sort { display: flex; align-items: center; gap: var(--spacing-2); }
 .movies-sort select.form-control { width: auto; padding-top: var(--spacing-2); padding-bottom: var(--spacing-2); }
 
-/* Genre Tag Pills */
+/* Nhãn thể loại dạng viên */
 .genre-pills {
   display: flex;
   gap: var(--spacing-2);
@@ -119,7 +122,7 @@
   color: #fff;
 }
 
-/* ============ MOVIE DETAIL ============ */
+/* ============ CHI TIẾT PHIM ============ */
 .movie-detail-hero {
   position: relative;
   min-height: 420px;
@@ -218,7 +221,7 @@
 }
 .movie-detail-actions { display: flex; gap: var(--spacing-3); flex-wrap: wrap; }
 
-/* Booking Section */
+/* Khu vực đặt vé */
 .movie-booking-section {
   background: var(--color-bg);
   padding: var(--spacing-10) 0;
@@ -227,7 +230,7 @@
   margin-bottom: var(--spacing-6);
 }
 
-/* Cast */
+/* Diễn viên */
 .cast-grid {
   display: flex;
   gap: var(--spacing-4);
@@ -254,7 +257,7 @@
 .cast-name { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-text); margin-bottom: 2px; }
 .cast-role { font-size: 0.7rem; color: var(--color-text-muted); }
 
-/* Trailer */
+/* Đoạn giới thiệu */
 .trailer-wrapper {
   position: relative;
   padding-top: 56.25%;

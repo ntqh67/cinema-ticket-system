@@ -1,3 +1,4 @@
+-- Mục đích: Migration PostgreSQL; mỗi khối lần lượt thay đổi cấu trúc, chỉ mục hoặc khóa ngoại.
 ALTER TABLE "seats" ADD COLUMN "position" INTEGER;
 
 UPDATE "seats" SET "position" = "number" WHERE "position" IS NULL;

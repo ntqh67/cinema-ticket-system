@@ -1,17 +1,26 @@
-/* CineTicket - Report View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền báo cáo.
+ */
+/* CineTicket - View báo cáo */
+// Đối tượng ReportView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const ReportView = {
+  // Dựng phần giao diện tương ứng trong khối renderReport.
   async renderReport() {
     await this.renderDashboard({ reportMode: true });
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderRevenue.
   async renderRevenue() {
     await this.renderDashboard({ revenueOnly: true });
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderDashboard.
   async renderDashboard(options = {}) {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
 
     main.innerHTML = `
@@ -28,6 +37,7 @@ const ReportView = {
       </div>`;
 
     let summary;
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       summary = await ReportController.getSummary();
     } catch (error) {

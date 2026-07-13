@@ -1,14 +1,21 @@
-/* CineTicket - Hash-Based Router */
+/**
+ * Mục đích: Mã nguồn phục vụ khởi tạo và tiện ích dùng chung; các khối bên dưới được giữ tách biệt theo trách nhiệm.
+ */
+/* CineTicket - Bộ định tuyến dựa trên hash */
+// Đối tượng Router quản lý hash route và vòng đời hiển thị từng trang.
 const Router = {
   routes: {},
   currentRoute: null,
   currentParams: {},
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối register trước khi tiếp tục.
   register(path, handler) {
     this.routes[path] = handler;
   },
 
+  // Thực hiện trách nhiệm riêng của khối navigate.
   navigate(path, replaceState = false) {
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (replaceState) {
       window.history.replaceState(null, '', '#' + path);
       window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -17,34 +24,41 @@ const Router = {
     }
   },
 
+  // Khởi tạo luồng init và chuẩn bị các phụ thuộc cần thiết.
   init() {
     window.addEventListener('hashchange', () => this._handleRoute());
     window.addEventListener('load', () => this._handleRoute());
     this._handleRoute();
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối _handleRoute.
   _handleRoute() {
     const hash = window.location.hash || '#/';
     const path = hash.replace(/^#/, '').split('?')[0] || '/';
 
-    // Reset admin body class
+    // Gỡ trạng thái trang quản trị trước khi xác định route mới.
     document.body.classList.remove('admin-layout');
 
-    // Try exact match first
+    // Ưu tiên route tĩnh khớp hoàn toàn để tránh bị route động bắt nhầm.
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (this.routes[path]) {
       this.currentRoute = path;
       this.currentParams = {};
+      // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
       try { this.routes[path]({}); } catch (e) { console.error('Route handler error:', e); this._renderError(e); }
       this._scrollTop();
       return;
     }
 
-    // Try dynamic match (e.g. /movies/:id)
+    // Nếu chưa khớp, thử route động, ví dụ /movies/:id.
+    // Duyệt danh sách để dựng hoặc cập nhật từng phần tử giao diện.
     for (const routePath in this.routes) {
       const params = this._matchRoute(routePath, path);
+      // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
       if (params !== null) {
         this.currentRoute = routePath;
         this.currentParams = params;
+        // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
         try { this.routes[routePath](params); } catch (e) { console.error('Route handler error:', e); this._renderError(e); }
         this._scrollTop();
         return;
@@ -54,12 +68,16 @@ const Router = {
     this.notFound();
   },
 
+  // Thực hiện trách nhiệm riêng của khối _matchRoute.
   _matchRoute(pattern, path) {
     const patternParts = pattern.split('/').filter(Boolean);
     const pathParts = path.split('/').filter(Boolean);
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (patternParts.length !== pathParts.length) return null;
     const params = {};
+    // Duyệt danh sách để dựng hoặc cập nhật từng phần tử giao diện.
     for (let i = 0; i < patternParts.length; i++) {
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if (patternParts[i].startsWith(':')) {
         params[patternParts[i].slice(1)] = decodeURIComponent(pathParts[i]);
       } else if (patternParts[i] !== pathParts[i]) {
@@ -69,8 +87,10 @@ const Router = {
     return params;
   },
 
+  // Thực hiện trách nhiệm riêng của khối notFound.
   notFound() {
     const main = document.getElementById('main-content');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (main) {
       main.innerHTML = `
         <div class="page-wrapper">
@@ -88,6 +108,7 @@ const Router = {
     }
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderError.
   _renderError(err) {
     const main = document.getElementById('main-content');
     if (main) {
@@ -105,6 +126,7 @@ const Router = {
     }
   },
 
+  // Thực hiện trách nhiệm riêng của khối _scrollTop.
   _scrollTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }

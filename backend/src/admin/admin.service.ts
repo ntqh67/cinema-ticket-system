@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Cài đặt nghiệp vụ quản trị; dữ liệu bền vững được truy cập qua Prisma.
+ */
 import {
   BadRequestException,
   ConflictException,
@@ -30,6 +33,7 @@ import {
   UpsertCinemaTicketPriceDto,
 } from './dto/admin.dto';
 import { normalizeGenreName } from '../common/genre-map';
+import { addMinutes, getVipZone } from '../common/seat-layout';
 
 const CLEANUP_MINUTES = 30;
 const SHOWTIME_DAY_OPEN = '08:00';
@@ -40,25 +44,31 @@ const TMDB_IMAGE_BASE_URL =
   process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 
 @Injectable()
+// Lớp AdminService tập trung các quy tắc nghiệp vụ và phối hợp truy cập dữ liệu.
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listGenres trước khi tiếp tục.
   listGenres() {
     return this.prisma.genre.findMany({ orderBy: { name: 'asc' } });
   }
 
+  // Tạo dữ liệu mới trong khối createGenre và trả về kết quả đã chuẩn hóa.
   createGenre(dto: CreateGenreDto) {
     return this.prisma.genre.create({ data: dto });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateGenre.
   updateGenre(id: string, dto: UpdateGenreDto) {
     return this.prisma.genre.update({ where: { id }, data: dto });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteGenre.
   deleteGenre(id: string) {
     return this.prisma.genre.delete({ where: { id } });
   }
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getDashboard.
   async getDashboard() {
     const [movies, cinemas, showtimes, users, paidBookings, revenue] =
       await Promise.all([
@@ -84,6 +94,7 @@ export class AdminService {
     };
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listMovies trước khi tiếp tục.
   listMovies() {
     return this.prisma.movie.findMany({
       include: { genres: { include: { genre: true } }, _count: true },
@@ -91,6 +102,7 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối createMovie và trả về kết quả đã chuẩn hóa.
   createMovie(dto: CreateMovieDto) {
     return this.prisma.movie.create({
       data: this.movieData(dto),
@@ -98,10 +110,12 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối createMovieFromTmdb và trả về kết quả đã chuẩn hóa.
   async createMovieFromTmdb(dto: CreateMovieFromTmdbDto) {
     return this.upsertMovieFromTmdb(dto.tmdbId, dto.status || 'NOW_SHOWING');
   }
 
+  // Thực hiện trách nhiệm riêng của khối importUpcomingMoviesFromTmdb.
   async importUpcomingMoviesFromTmdb(dto: ImportUpcomingMoviesFromTmdbDto) {
     const page = dto.page || 1;
     const limit = dto.limit || 10;
@@ -113,6 +127,7 @@ export class AdminService {
     const results = (upcoming.results || []).slice(0, limit);
     const movies: unknown[] = [];
 
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const item of results) {
       movies.push(await this.upsertMovieFromTmdb(item.id, 'COMING_SOON'));
     }
@@ -123,6 +138,7 @@ export class AdminService {
     };
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối upsertMovieFromTmdb.
   private async upsertMovieFromTmdb(tmdbId: number, status: string) {
     const detailsVi = await this.fetchTmdb(`/movie/${tmdbId}`, {
       language: 'vi-VN',
@@ -170,6 +186,7 @@ export class AdminService {
 
       await tx.movieGenre.deleteMany({ where: { movieId: movie.id } });
 
+      // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
       for (const genre of details.genres || detailsEn.genres || []) {
         const name = normalizeGenreName(genre.name);
         const genreRecord = await tx.genre.upsert({
@@ -192,9 +209,11 @@ export class AdminService {
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateMovie.
   async updateMovie(id: string, dto: UpdateMovieDto) {
     await this.ensureMovie(id);
     return this.prisma.$transaction(async (tx) => {
+      // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
       if (dto.genreIds) {
         await tx.movieGenre.deleteMany({ where: { movieId: id } });
       }
@@ -206,10 +225,12 @@ export class AdminService {
     });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteMovie.
   deleteMovie(id: string) {
     return this.prisma.movie.delete({ where: { id } });
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listCinemaChains trước khi tiếp tục.
   listCinemaChains() {
     return this.prisma.cinemaChain.findMany({
       where: { city: 'Đà Nẵng' },
@@ -218,20 +239,24 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối createCinemaChain và trả về kết quả đã chuẩn hóa.
   createCinemaChain(dto: CreateCinemaChainDto) {
     return this.prisma.cinemaChain.create({
       data: { ...dto, city: dto.city || 'Đà Nẵng' },
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateCinemaChain.
   updateCinemaChain(id: string, dto: UpdateCinemaChainDto) {
     return this.prisma.cinemaChain.update({ where: { id }, data: dto });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteCinemaChain.
   deleteCinemaChain(id: string) {
     return this.prisma.cinemaChain.delete({ where: { id } });
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listCinemas trước khi tiếp tục.
   listCinemas() {
     return this.prisma.cinema.findMany({
       where: { city: 'Đà Nẵng' },
@@ -240,21 +265,26 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối createCinema và trả về kết quả đã chuẩn hóa.
   async createCinema(dto: CreateCinemaDto) {
+    // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (dto.chainId) await this.ensureCinemaChain(dto.chainId);
     return this.prisma.cinema.create({
       data: { ...dto, city: dto.city || 'Đà Nẵng' },
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateCinema.
   updateCinema(id: string, dto: UpdateCinemaDto) {
     return this.prisma.cinema.update({ where: { id }, data: dto });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteCinema.
   deleteCinema(id: string) {
     return this.prisma.cinema.delete({ where: { id } });
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listCinemaTicketPrices trước khi tiếp tục.
   async listCinemaTicketPrices(cinemaId: string) {
     await this.ensureCinema(cinemaId);
     return this.prisma.cinemaTicketPrice.findMany({
@@ -263,6 +293,7 @@ export class AdminService {
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối upsertCinemaTicketPrice.
   async upsertCinemaTicketPrice(
     cinemaId: string,
     dto: UpsertCinemaTicketPriceDto,
@@ -288,6 +319,7 @@ export class AdminService {
     });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deactivateCinemaTicketPrice.
   async deactivateCinemaTicketPrice(cinemaId: string, seatType: string) {
     await this.ensureCinema(cinemaId);
     return this.prisma.cinemaTicketPrice.update({
@@ -301,12 +333,14 @@ export class AdminService {
     });
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listConcessionCombos trước khi tiếp tục.
   listConcessionCombos() {
     return this.prisma.concessionCombo.findMany({
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
   }
 
+  // Tạo dữ liệu mới trong khối createConcessionCombo và trả về kết quả đã chuẩn hóa.
   createConcessionCombo(dto: CreateConcessionComboDto) {
     return this.prisma.concessionCombo.create({
       data: {
@@ -316,6 +350,7 @@ export class AdminService {
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateConcessionCombo.
   updateConcessionCombo(id: string, dto: UpdateConcessionComboDto) {
     return this.prisma.concessionCombo.update({
       where: { id },
@@ -323,6 +358,7 @@ export class AdminService {
     });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteConcessionCombo.
   deleteConcessionCombo(id: string) {
     return this.prisma.concessionCombo.update({
       where: { id },
@@ -330,6 +366,7 @@ export class AdminService {
     });
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listRooms trước khi tiếp tục.
   async listRooms() {
     const rooms = await this.prisma.room.findMany({
       include: {
@@ -371,6 +408,7 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối createRoom và trả về kết quả đã chuẩn hóa.
   async createRoom(dto: CreateRoomDto) {
     await this.ensureCinema(dto.cinemaId);
     return this.prisma.room.create({
@@ -378,6 +416,7 @@ export class AdminService {
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateRoom.
   async updateRoom(id: string, dto: UpdateRoomDto) {
     await this.ensureRoom(id);
     const seatCount = await this.prisma.seat.count({ where: { roomId: id } });
@@ -387,10 +426,12 @@ export class AdminService {
     });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteRoom.
   deleteRoom(id: string) {
     return this.prisma.room.delete({ where: { id } });
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listSeats trước khi tiếp tục.
   listSeats() {
     return this.prisma.seat.findMany({
       include: { room: { include: { cinema: { include: { chain: true } } } } },
@@ -398,6 +439,7 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối createSeat và trả về kết quả đã chuẩn hóa.
   async createSeat(dto: CreateSeatDto) {
     await this.ensureRoom(dto.roomId);
     return this.prisma.$transaction(async (tx) => {
@@ -414,15 +456,18 @@ export class AdminService {
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateSeat.
   updateSeat(id: string, dto: UpdateSeatDto) {
     return this.prisma.seat.update({ where: { id }, data: dto });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteSeat.
   async deleteSeat(id: string) {
     const seat = await this.prisma.seat.findUnique({
       where: { id },
       select: { roomId: true },
     });
+    // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
     if (!seat) throw new NotFoundException('Seat not found');
     return this.prisma.$transaction(async (tx) => {
       const deleted = await tx.seat.delete({ where: { id } });
@@ -432,15 +477,18 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối generateSeats và trả về kết quả đã chuẩn hóa.
   async generateSeats(roomId: string, dto: GenerateSeatsDto) {
     const room = await this.ensureRoom(roomId);
     const coupleRows = new Set(dto.coupleRows || []);
-    const vipZone = this.getVipZone(dto.rows, dto.columns);
+    const vipZone = getVipZone(dto.rows, dto.columns);
     const seats: Prisma.SeatCreateManyInput[] = [];
 
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const row of dto.rows) {
       const isCoupleRow = coupleRows.has(row);
       const seatCount = isCoupleRow ? Math.floor(dto.columns / 2) : dto.columns;
+      // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
       for (let number = 1; number <= seatCount; number += 1) {
         const isVip =
           !isCoupleRow &&
@@ -469,6 +517,7 @@ export class AdminService {
     return { roomId, createdSeatCount: seats.length };
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối listShowtimes trước khi tiếp tục.
   async listShowtimes() {
     const showtimes = await this.prisma.showtime.findMany({
       include: {
@@ -495,6 +544,7 @@ export class AdminService {
         (prices, showtimeSeat) => {
           const seatType = showtimeSeat.seat.type;
           const price = Number(showtimeSeat.price);
+          // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
           if (prices[seatType] === undefined || price < prices[seatType]) {
             prices[seatType] = price;
           }
@@ -538,6 +588,7 @@ export class AdminService {
     });
   }
 
+  // Tạo dữ liệu mới trong khối createShowtime và trả về kết quả đã chuẩn hóa.
   async createShowtime(dto: CreateShowtimeDto) {
     await this.validateShowtime(dto);
     const { priceBySeatType, basePrice } = await this.getRoomPriceMap(
@@ -570,6 +621,7 @@ export class AdminService {
     });
   }
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối updateShowtime.
   async updateShowtime(id: string, dto: UpdateShowtimeDto) {
     await this.ensureShowtime(id);
     await this.validateShowtime(dto, id);
@@ -585,10 +637,12 @@ export class AdminService {
     });
   }
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối deleteShowtime.
   deleteShowtime(id: string) {
     return this.prisma.showtime.delete({ where: { id } });
   }
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getRoomAvailableSlots.
   async getRoomAvailableSlots(
     roomId: string,
     query: RoomAvailableSlotsQueryDto,
@@ -601,7 +655,9 @@ export class AdminService {
       this.prisma.movie.findUnique({ where: { id: query.movieId } }),
     ]);
 
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!room) throw new NotFoundException('Room not found');
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!movie) throw new NotFoundException('Movie not found');
 
     const windowStart = this.dateTimeInDaNang(query.date, SHOWTIME_DAY_OPEN);
@@ -627,7 +683,7 @@ export class AdminService {
       movieTitle: showtime.movie.title,
       startAt: showtime.startAt,
       endAt: showtime.endAt,
-      cleanupEndAt: this.addMinutes(showtime.endAt, CLEANUP_MINUTES),
+      cleanupEndAt: addMinutes(showtime.endAt, CLEANUP_MINUTES),
     }));
 
     const availableSlots: Array<{
@@ -638,8 +694,9 @@ export class AdminService {
     }> = [];
 
     let cursor = windowStart;
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const item of occupied) {
-      const nextShowtimeStartWithCleanup = this.addMinutes(
+      const nextShowtimeStartWithCleanup = addMinutes(
         item.startAt,
         -CLEANUP_MINUTES,
       );
@@ -648,25 +705,28 @@ export class AdminService {
           ? nextShowtimeStartWithCleanup
           : windowEnd;
       const slotMinutes = this.minutesBetween(cursor, slotEnd);
+      // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
       if (slotMinutes >= requiredMinutes) {
         availableSlots.push({
           startAt: cursor,
           endAt: slotEnd,
-          latestStartAt: this.addMinutes(slotEnd, -requiredMinutes),
+          latestStartAt: addMinutes(slotEnd, -requiredMinutes),
           durationMinutes: slotMinutes,
         });
       }
       const cleanupEndAt =
         item.cleanupEndAt > windowStart ? item.cleanupEndAt : windowStart;
+      // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
       if (cleanupEndAt > cursor) cursor = cleanupEndAt;
     }
 
     const tailMinutes = this.minutesBetween(cursor, windowEnd);
+    // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (tailMinutes >= requiredMinutes) {
       availableSlots.push({
         startAt: cursor,
         endAt: windowEnd,
-        latestStartAt: this.addMinutes(windowEnd, -requiredMinutes),
+        latestStartAt: addMinutes(windowEnd, -requiredMinutes),
         durationMinutes: tailMinutes,
       });
     }
@@ -703,6 +763,7 @@ export class AdminService {
     };
   }
 
+  // Thực hiện trách nhiệm riêng của khối movieData.
   private movieData(dto: CreateMovieDto | UpdateMovieDto, movieId?: string) {
     const { genreIds, releaseDate, status, ...rest } = dto;
     return {
@@ -721,12 +782,15 @@ export class AdminService {
     };
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối validateShowtime trước khi tiếp tục.
   private async validateShowtime(dto: CreateShowtimeDto, ignoreId?: string) {
     const startAt = new Date(dto.startAt);
     const endAt = new Date(dto.endAt);
+    // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
       throw new BadRequestException('Invalid showtime date');
     }
+    // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (startAt >= endAt) {
       throw new BadRequestException('Showtime startAt must be before endAt');
     }
@@ -737,6 +801,7 @@ export class AdminService {
     ]);
     if (!movie) throw new NotFoundException('Movie not found');
     if (!room) throw new NotFoundException('Room not found');
+    // Rẽ nhánh theo trạng thái hiện tại để chỉ cho phép luồng nghiệp vụ hợp lệ.
     if (movie.status === 'DRAFT' || movie.status === 'ENDED') {
       throw new BadRequestException('Movie must be available for scheduling');
     }
@@ -745,11 +810,12 @@ export class AdminService {
       where: {
         id: ignoreId ? { not: ignoreId } : undefined,
         roomId: dto.roomId,
-        startAt: { lt: this.addMinutes(endAt, CLEANUP_MINUTES) },
-        endAt: { gt: this.addMinutes(startAt, -CLEANUP_MINUTES) },
+        startAt: { lt: addMinutes(endAt, CLEANUP_MINUTES) },
+        endAt: { gt: addMinutes(startAt, -CLEANUP_MINUTES) },
       },
     });
 
+    // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (conflict) {
       throw new ConflictException(
         'Showtime overlaps this room or violates 30-minute cleanup time',
@@ -757,6 +823,7 @@ export class AdminService {
     }
   }
 
+  // Đọc và lọc dữ liệu cần thiết trong khối getRoomPriceMap.
   private async getRoomPriceMap(roomId: string) {
     const room = await this.prisma.room.findUnique({
       where: { id: roomId },
@@ -777,6 +844,7 @@ export class AdminService {
     const missing = seatTypes.filter(
       (seatType) => priceBySeatType[seatType] === undefined,
     );
+    // Kiểm tra số lượng phần tử để xử lý trường hợp rỗng hoặc vượt giới hạn.
     if (missing.length) {
       throw new BadRequestException(
         `Cinema ticket price is missing for seat type(s): ${missing.join(', ')}`,
@@ -790,33 +858,21 @@ export class AdminService {
     };
   }
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối parseSeatType.
   private parseSeatType(value: string) {
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!['STANDARD', 'VIP', 'COUPLE'].includes(value)) {
       throw new BadRequestException('Invalid seat type');
     }
     return value as 'STANDARD' | 'VIP' | 'COUPLE';
   }
 
-  private getVipZone(rows: string[], columns: number) {
-    const zoneRowCount = Math.min(3, rows.length);
-    const zoneColCount = Math.min(5, columns);
-    const rowStart = Math.max(0, Math.round((rows.length - zoneRowCount) / 2));
-    const colStart = Math.max(1, Math.round((columns - zoneColCount) / 2) + 1);
-    return {
-      rows: new Set(rows.slice(rowStart, rowStart + zoneRowCount)),
-      colStart,
-      colEnd: colStart + zoneColCount - 1,
-    };
-  }
-
-  private addMinutes(date: Date, minutes: number) {
-    return new Date(date.getTime() + minutes * 60 * 1000);
-  }
-
+  // Thực hiện trách nhiệm riêng của khối minutesBetween.
   private minutesBetween(startAt: Date, endAt: Date) {
     return Math.floor((endAt.getTime() - startAt.getTime()) / 60000);
   }
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối dateTimeInDaNang.
   private dateTimeInDaNang(date: string, time: string) {
     const [hourRaw, minuteRaw] = time.split(':').map(Number);
     const hour = Number.isFinite(hourRaw) ? hourRaw : 0;
@@ -830,6 +886,7 @@ export class AdminService {
     return result;
   }
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối suggestStartTimes.
   private suggestStartTimes(
     startAt: Date,
     latestStartAt: Date,
@@ -848,12 +905,13 @@ export class AdminService {
         }),
         startAt: new Date(cursor),
       });
-      cursor = this.addMinutes(cursor, stepMinutes);
+      cursor = addMinutes(cursor, stepMinutes);
     }
 
     return times;
   }
 
+  // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối formatTimeValue.
   private formatTimeValue(date: Date) {
     const parts = new Intl.DateTimeFormat('en-GB', {
       hour: '2-digit',
@@ -866,6 +924,7 @@ export class AdminService {
     return `${hour}:${minute}`;
   }
 
+  // Đọc và lọc dữ liệu cần thiết trong khối fetchTmdb.
   private async fetchTmdb(
     path: string,
     params: Record<string, string | number | boolean> = {},
@@ -873,6 +932,7 @@ export class AdminService {
     const apiKey = process.env.TMDB_API_KEY;
     const readAccessToken = process.env.TMDB_READ_ACCESS_TOKEN;
 
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!apiKey && !readAccessToken) {
       throw new BadRequestException('TMDB API key is not configured');
     }
@@ -881,6 +941,7 @@ export class AdminService {
     Object.entries(params).forEach(([key, value]) =>
       url.searchParams.set(key, String(value)),
     );
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!readAccessToken && apiKey) {
       url.searchParams.set('api_key', apiKey);
     }
@@ -894,6 +955,7 @@ export class AdminService {
         : { Accept: 'application/json' },
     });
 
+    // Kiểm tra kết quả thao tác và chuyển sang nhánh lỗi khi cần.
     if (!response.ok) {
       throw new BadRequestException(`TMDB request failed: ${response.status}`);
     }
@@ -901,17 +963,21 @@ export class AdminService {
     return response.json();
   }
 
+  // Đọc và lọc dữ liệu cần thiết trong khối fetchTmdbTrailer.
   private async fetchTmdbTrailer(tmdbId: number) {
+    // Duyệt tập dữ liệu để xử lý từng phần tử theo cùng một quy tắc.
     for (const language of ['vi-VN', 'en-US']) {
       const videos = await this.fetchTmdb(`/movie/${tmdbId}/videos`, {
         language,
       });
       const trailerUrl = this.pickTmdbTrailer(videos.results || []);
+      // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
       if (trailerUrl) return trailerUrl;
     }
     return null;
   }
 
+  // Thực hiện trách nhiệm riêng của khối pickTmdbTrailer.
   private pickTmdbTrailer(
     videos: Array<{
       site?: string;
@@ -933,36 +999,45 @@ export class AdminService {
     return selected ? `https://www.youtube.com/embed/${selected.key}` : null;
   }
 
+  // Thực hiện trách nhiệm riêng của khối tmdbImageUrl.
   private tmdbImageUrl(path: string | null | undefined, size: string) {
     return path ? `${TMDB_IMAGE_BASE_URL}/${size}${path}` : null;
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối ensureCinema trước khi tiếp tục.
   private async ensureCinema(id: string) {
     const cinema = await this.prisma.cinema.findUnique({ where: { id } });
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!cinema) throw new NotFoundException('Cinema not found');
     return cinema;
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối ensureCinemaChain trước khi tiếp tục.
   private async ensureCinemaChain(id: string) {
     const chain = await this.prisma.cinemaChain.findUnique({ where: { id } });
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!chain) throw new NotFoundException('Cinema chain not found');
     return chain;
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối ensureRoom trước khi tiếp tục.
   private async ensureRoom(id: string) {
     const room = await this.prisma.room.findUnique({ where: { id } });
     if (!room) throw new NotFoundException('Room not found');
     return room;
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối ensureMovie trước khi tiếp tục.
   private async ensureMovie(id: string) {
     const movie = await this.prisma.movie.findUnique({ where: { id } });
     if (!movie) throw new NotFoundException('Movie not found');
     return movie;
   }
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối ensureShowtime trước khi tiếp tục.
   private async ensureShowtime(id: string) {
     const showtime = await this.prisma.showtime.findUnique({ where: { id } });
+    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!showtime) throw new NotFoundException('Showtime not found');
     return showtime;
   }

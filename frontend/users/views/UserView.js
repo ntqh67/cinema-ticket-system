@@ -1,9 +1,16 @@
-/* CineTicket - User View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền người dùng.
+ */
+/* CineTicket - View người dùng */
+// Đối tượng UserView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const UserView = {
+  // Dựng phần giao diện tương ứng trong khối renderProfile.
   renderProfile() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.checkAuth()) return;
     const user = State.get("currentUser");
     const main = document.getElementById("main-content");
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
     main.innerHTML = `
     <div class="page-wrapper">
@@ -52,6 +59,7 @@ const UserView = {
     document.getElementById("footer").style.display = "";
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối renderHistory trước khi tiếp tục.
   async renderHistory() {
     if (!AuthController.checkAuth()) return;
     const main = document.getElementById("main-content");
@@ -71,6 +79,7 @@ const UserView = {
     </div>`;
 
     let tickets = [];
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       tickets = await UserController.loadBookingHistory();
     } catch (error) {
@@ -109,10 +118,12 @@ const UserView = {
     </div>`;
   },
 
+  // Thực hiện trách nhiệm riêng của khối _groupTicketsByBooking.
   _groupTicketsByBooking(tickets) {
     const groupsById = new Map();
     tickets.forEach((ticket) => {
       const bookingId = ticket.booking ? ticket.booking.id : ticket.id;
+      // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
       if (!groupsById.has(bookingId)) {
         groupsById.set(bookingId, {
           bookingId,
@@ -133,6 +144,7 @@ const UserView = {
         tickets: group.tickets.sort((a, b) => {
           const rowA = a.seat ? a.seat.row : "";
           const rowB = b.seat ? b.seat.row : "";
+          // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
           if (rowA !== rowB) return rowA.localeCompare(rowB);
           return (a.seat ? a.seat.number : 0) - (b.seat ? b.seat.number : 0);
         }),
@@ -144,13 +156,14 @@ const UserView = {
       });
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _bookingHistoryRow trước khi tiếp tục.
   _bookingHistoryRow(group) {
     const seat = group.tickets
       .map((ticket) => ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : "")
       .filter(Boolean)
       .join(", ");
     const firstTicket = group.tickets[0] || {};
-    const visual = this._movieVisual(group.movie);
+    const visual = Helpers.getMovieVisual(group.movie);
     const movieTitle = group.movie ? group.movie.title : "N/A";
     const showtime = group.showtime
       ? `${Helpers.formatDate(group.showtime.startAt)} ${new Date(group.showtime.startAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
@@ -180,17 +193,9 @@ const UserView = {
       </td>
     </tr>`;
   },
-
-  _movieVisual(movie) {
-    const movieId = movie ? movie.id : "unknown";
-    const localMovie = movie ? MovieModel.getById(movie.id) : null;
-    return {
-      poster: localMovie && localMovie.poster ? localMovie.poster : API.moviePosterFallback,
-      banner: localMovie && localMovie.banner ? localMovie.banner : API.moviePosterFallback,
-    };
-  },
-
+  // Dựng phần giao diện tương ứng trong khối renderAdmin.
   renderAdmin() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add("admin-layout");
     const users = UserModel.getAll();
@@ -213,6 +218,7 @@ const UserView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderAdminSidebar.
   _renderAdminSidebar(active) {
     return `
     <aside class="admin-sidebar">
@@ -250,6 +256,7 @@ const UserView = {
     </aside>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderAdminTopbar.
   _renderAdminTopbar(title) {
     return `
     <div class="admin-topbar">

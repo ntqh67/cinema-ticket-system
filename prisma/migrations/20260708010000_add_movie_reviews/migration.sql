@@ -1,3 +1,4 @@
+-- Mục đích: Migration PostgreSQL; mỗi khối lần lượt thay đổi cấu trúc, chỉ mục hoặc khóa ngoại.
 CREATE TABLE "movie_reviews" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,

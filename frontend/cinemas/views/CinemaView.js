@@ -1,9 +1,15 @@
-/* CineTicket - Cinema View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền cụm rạp.
+ */
+/* CineTicket - View rạp phim */
+// Đối tượng CinemaView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const CinemaView = {
+  // Kiểm tra điều kiện nghiệp vụ trong khối renderList trước khi tiếp tục.
   renderList() {
     document.getElementById('footer').style.display = '';
     const cinemas = CinemaModel.getAll();
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
     main.innerHTML = `
     <div class="page-wrapper">
@@ -16,6 +22,7 @@ const CinemaView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _cinemaCard.
   _cinemaCard(c) {
     const rooms = API.mockData.rooms.filter(r => r.cinemaId === c.id);
     return `
@@ -38,10 +45,13 @@ const CinemaView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderAdmin.
   async renderAdmin() {
+    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
     let cinemas = [];
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       cinemas = await API.getAdminCinemas();
     } catch (error) {
@@ -99,6 +109,7 @@ const CinemaView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderAdminDetail.
   async renderAdminDetail(params) {
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
@@ -109,6 +120,7 @@ const CinemaView = {
         API.getAdminCinemas(), API.getAdminRooms(), API.getAdminShowtimes()
       ]);
       const cinema = cinemas.find((item) => item.id === params.id);
+      // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
       if (!cinema) throw new Error('Không tìm thấy rạp');
       const cinemaRooms = rooms.filter((room) => room.cinemaId === cinema.id);
       const roomIds = new Set(cinemaRooms.map((room) => room.id));
@@ -138,6 +150,7 @@ const CinemaView = {
     }
   },
 
+  // Tính toán giá trị tổng hợp trong khối _ticketPriceText.
   _ticketPriceText(ticketPrices) {
     const prices = Object.fromEntries(ticketPrices.map((item) => [item.seatType, Number(item.price)]));
     return [
@@ -147,6 +160,7 @@ const CinemaView = {
     ].join(' | ');
   },
 
+  // Dựng phần giao diện tương ứng trong khối showTicketPriceForm.
   async showTicketPriceForm(cinemaId) {
     let prices = [];
     try {
@@ -176,6 +190,7 @@ const CinemaView = {
     Modal.show('Bang Gia Ve Theo Rap', content, { size: 'md' });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối saveTicketPrices.
   async saveTicketPrices(event, cinemaId) {
     event.preventDefault();
     const payloads = [
@@ -193,8 +208,10 @@ const CinemaView = {
     }
   },
 
+  // Dựng phần giao diện tương ứng trong khối showEditForm.
   showEditForm(cinemaId) {
     const cinema = (this._adminCinemas || []).find((item) => item.id === cinemaId) || CinemaModel.getById(cinemaId);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!cinema) {
       Toast.error('Không tìm thấy rạp chiếu');
       return;
@@ -243,6 +260,7 @@ const CinemaView = {
     Modal.show('Chỉnh Sửa Rạp Chiếu', content, { size: 'lg' });
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối saveEdit.
   async saveEdit(event, cinemaId) {
     event.preventDefault();
     const email = document.getElementById('edit-cinema-email').value.trim();
@@ -256,6 +274,7 @@ const CinemaView = {
       email: email || null,
       imageUrl: document.getElementById('edit-cinema-image-url').value.trim() || null,
     };
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!payload.name) {
       Toast.error('Vui lòng nhập tên rạp');
       return;

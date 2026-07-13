@@ -1,6 +1,8 @@
 version: '3.9'
 
+# Khởi chạy hai dịch vụ hạ tầng cục bộ: PostgreSQL là nguồn dữ liệu chính và Redis chỉ giữ ghế tạm thời.
 services:
+  # Cơ sở dữ liệu bền vững chứa phim, rạp, suất chiếu, booking, thanh toán và vé.
   postgres:
     image: postgres:15
     restart: unless-stopped
@@ -13,6 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Redis lưu khóa giữ ghế có TTL; ghế chỉ chuyển BOOKED trong PostgreSQL sau khi thanh toán thành công.
   redis:
     image: redis:7
     restart: unless-stopped
@@ -21,6 +24,7 @@ services:
     volumes:
       - redis_data:/data
 
+# Volume giúp dữ liệu PostgreSQL không mất khi container được tạo lại.
 volumes:
   postgres_data:
   redis_data:

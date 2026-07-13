@@ -1,8 +1,11 @@
-/* CineTicket - Ticket Page */
+/*
+ * Mục đích: Các quy tắc trình bày cho ticket; được nhóm theo khu vực giao diện và trạng thái tương tác.
+ */
+/* Trang vé CineTicket */
 .ticket-page { padding: var(--spacing-8) 0 var(--spacing-16); }
 .ticket-page-center { max-width: 480px; margin: 0 auto; }
 
-/* Success State */
+/* Trạng thái thành công */
 .ticket-success-banner {
   text-align: center;
   padding: var(--spacing-8);
@@ -24,7 +27,7 @@
 }
 .ticket-success-sub { color: var(--color-text-muted); font-size: var(--font-size-sm); }
 
-/* Ticket Card */
+/* Thẻ vé */
 .ticket-card {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -34,7 +37,7 @@
   box-shadow: var(--shadow-xl);
 }
 
-/* Ticket Header */
+/* Đầu vé */
 .ticket-header {
   position: relative;
   height: 180px;
@@ -92,7 +95,7 @@
   margin-top: var(--spacing-2);
 }
 
-/* Tear line */
+/* Đường xé vé */
 .ticket-tear {
   display: flex;
   align-items: center;
@@ -128,7 +131,7 @@
   border-top: 2px dashed var(--color-border);
 }
 
-/* Ticket Body */
+/* Nội dung vé */
 .ticket-body { padding: var(--spacing-5) var(--spacing-6); }
 .ticket-info-grid {
   display: grid;
@@ -163,7 +166,7 @@
   font-weight: var(--font-weight-bold);
 }
 
-/* Ticket Footer */
+/* Chân vé */
 .ticket-footer {
   padding: var(--spacing-5) var(--spacing-6);
   border-top: 1px solid var(--color-border);
@@ -253,7 +256,7 @@
   overflow-wrap: anywhere;
 }
 
-/* Actions */
+/* Các thao tác */
 .ticket-actions {
   display: flex;
   gap: var(--spacing-3);

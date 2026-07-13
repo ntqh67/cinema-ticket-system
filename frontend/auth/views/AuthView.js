@@ -1,15 +1,22 @@
-/* CineTicket - Auth View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền xác thực người dùng.
+ */
+/* CineTicket - View xác thực */
+// Đối tượng AuthView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const AuthView = {
   activeTab: 'login',
 
+  // Dựng phần giao diện tương ứng trong khối render.
   render() {
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
     main.innerHTML = this._renderPage();
     document.getElementById('footer').style.display = 'none';
     this._bindEvents();
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderPage.
   _renderPage() {
     return `
     <div class="auth-page">
@@ -55,6 +62,7 @@ const AuthView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderLoginForm.
   _renderLoginForm() {
     return `
     <h2 class="auth-form-title">Chào Mừng Trở Lại!</h2>
@@ -96,6 +104,7 @@ const AuthView = {
     `;
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối _renderRegisterForm trước khi tiếp tục.
   _renderRegisterForm() {
     return `
     <h2 class="auth-form-title">Tạo Tài Khoản Mới</h2>
@@ -158,43 +167,57 @@ const AuthView = {
     </div>`;
   },
 
+  // Thực hiện trách nhiệm riêng của khối switchTab.
   switchTab(tab) {
     this.activeTab = tab;
     const container = document.getElementById('auth-form-container');
     const tabs = document.querySelectorAll('.auth-tab');
     tabs.forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.auth-tab').forEach((t, i) => {
+      // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
       if ((i === 0 && tab === 'login') || (i === 1 && tab === 'register')) t.classList.add('active');
     });
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (container) {
       container.innerHTML = tab === 'login' ? this._renderLoginForm() : this._renderRegisterForm();
     }
     document.getElementById('footer').style.display = 'none';
   },
 
+  // Điều phối sự kiện và phản hồi người dùng trong khối _bindEvents.
   _bindEvents() {
-    // Show footer normally on other pages
+    // Hiển thị lại chân trang khi người dùng rời các trang xác thực.
     document.getElementById('footer').style.display = 'none';
   },
 
+  // Cập nhật trạng thái hoặc dữ liệu trong khối togglePassword.
   togglePassword(inputId, btn) {
     const input = document.getElementById(inputId);
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!input) return;
     const isHidden = input.type === 'password';
     input.type = isHidden ? 'text' : 'password';
     const icon = btn.querySelector('i');
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (icon) { icon.className = isHidden ? 'fas fa-eye-slash' : 'fas fa-eye'; }
   },
 
+  // Kiểm tra điều kiện nghiệp vụ trong khối checkPasswordStrength trước khi tiếp tục.
   checkPasswordStrength(password) {
     const fill = document.getElementById('strength-fill');
     const text = document.getElementById('strength-text');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!fill || !text) return;
     let strength = 0;
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (password.length >= 6) strength++;
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (password.length >= 10) strength++;
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (/[A-Z]/.test(password)) strength++;
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (/[0-9]/.test(password)) strength++;
+    // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.
     if (/[^A-Za-z0-9]/.test(password)) strength++;
     const levels = [
       { width: '0%', color: '', label: '' },
@@ -211,6 +234,7 @@ const AuthView = {
     text.style.color = level.color;
   },
 
+  // Dựng phần giao diện tương ứng trong khối showForgotPassword.
   showForgotPassword() {
     const content = `
       <p style="color:var(--color-text-muted);margin-bottom:20px;">Nhập email của bạn để nhận link đặt lại mật khẩu.</p>
@@ -224,21 +248,29 @@ const AuthView = {
     Modal.show('Quên Mật Khẩu', content, { size: 'sm' });
   },
 
+  // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối clearErrors.
   clearErrors(form) {
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!form) return;
     form.querySelectorAll('.form-control').forEach(el => el.classList.remove('error', 'success'));
     form.querySelectorAll('.form-error').forEach(el => el.textContent = '');
   },
 
+  // Dựng phần giao diện tương ứng trong khối showErrors.
   showErrors(form, errors, fieldMap) {
+    // Duyệt danh sách để dựng hoặc cập nhật từng phần tử giao diện.
     for (const [field, errorMsg] of Object.entries(errors)) {
       const selector = fieldMap[field];
+      // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
       if (!selector) continue;
+      // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
       if (selector.endsWith('-error')) {
         const errEl = form.querySelector(selector) || document.getElementById(selector.replace('#', ''));
+        // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
         if (errEl) errEl.textContent = errorMsg;
       } else {
         const input = form.querySelector(selector);
+        // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
         if (input) { input.classList.add('error'); }
         const errEl = form.querySelector(selector + '-error') || document.getElementById(selector.replace('#','') + '-error');
         if (errEl) errEl.textContent = errorMsg;

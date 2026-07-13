@@ -1,4 +1,7 @@
-/* CineTicket - Admin Panel Styles */
+/*
+ * Mục đích: Các quy tắc trình bày cho admin; được nhóm theo khu vực giao diện và trạng thái tương tác.
+ */
+/* Kiểu giao diện trang quản trị CineTicket */
 body.admin-layout { overflow: hidden; }
 body.admin-layout #navbar,
 body.admin-layout #footer { display: none !important; }
@@ -10,7 +13,7 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
   overflow: hidden;
 }
 
-/* ============ SIDEBAR ============ */
+/* ============ THANH BÊN ============ */
 .admin-sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
@@ -133,7 +136,7 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
 }
 .admin-logout-btn:hover { background: rgba(220,53,69,0.2); }
 
-/* ============ MAIN AREA ============ */
+/* ============ KHU VỰC CHÍNH ============ */
 .admin-main {
   flex: 1;
   display: flex;
@@ -198,7 +201,7 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
 .admin-page-subtitle { font-size: var(--font-size-sm); color: var(--color-text-muted); }
 .admin-page-actions { display: flex; gap: var(--spacing-3); align-items: center; }
 
-/* ============ STAT CARDS ============ */
+/* ============ THẺ THỐNG KÊ ============ */
 .admin-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -241,7 +244,7 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
 .admin-stat-change.up { color: var(--color-success); }
 .admin-stat-change.down { color: var(--color-danger); }
 
-/* ============ TABLE CARD ============ */
+/* ============ THẺ CHỨA BẢNG ============ */
 .admin-table-card {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -288,7 +291,7 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
   color: var(--color-text-muted);
 }
 
-/* Table Actions */
+/* Thao tác trong bảng */
 .table-actions { display: flex; gap: var(--spacing-1); }
 .action-btn {
   width: 30px; height: 30px;
@@ -306,7 +309,7 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
 .action-btn.view { background: rgba(40,167,69,0.1); color: var(--color-success); }
 .action-btn.view:hover { background: var(--color-success); color: #fff; }
 
-/* Movie mini in admin table */
+/* Thông tin phim thu gọn trong bảng quản trị */
 .admin-movie-mini {
   display: flex;
   align-items: center;
@@ -322,13 +325,13 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
 .admin-movie-name { font-weight: var(--font-weight-semibold); font-size: var(--font-size-sm); }
 .admin-movie-genre { font-size: var(--font-size-xs); color: var(--color-text-muted); }
 
-/* History in user view */
+/* Lịch sử trong trang người dùng */
 .history-poster { width: 36px; height: 50px; object-fit: cover; border-radius: var(--radius-sm); }
 .history-movie-cell { display: flex; align-items: center; gap: var(--spacing-3); }
 .history-movie-title { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
 .history-movie-cinema { font-size: var(--font-size-xs); color: var(--color-text-muted); }
 
-/* ============ FORM ============ */
+/* ============ BIỂU MẪU ============ */
 .admin-form-section {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
@@ -352,7 +355,7 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
 .admin-form-grid.cols-1 { grid-template-columns: 1fr; }
 .form-full { grid-column: 1 / -1; }
 
-/* ============ CHARTS PLACEHOLDER ============ */
+/* ============ KHUNG BIỂU ĐỒ ============ */
 .chart-placeholder {
   background: var(--color-bg-elevated);
   border-radius: var(--radius-lg);

@@ -1,3 +1,6 @@
+/**
+ * Mục đích: Kiểm thử các hành vi và ràng buộc quan trọng của miền giữ ghế tạm thời.
+ */
 import { ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -28,10 +31,12 @@ describe('SeatHoldsService', () => {
     userId: 'user-1',
   };
 
+  // Thực hiện trách nhiệm riêng của khối beforeEach.
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
+  // Thực hiện trách nhiệm riêng của khối it.
   it('holds an available seat with one atomic Redis command', async () => {
     findUnique.mockResolvedValue({
       id: dto.showtimeSeatId,
@@ -50,6 +55,7 @@ describe('SeatHoldsService', () => {
     ]);
   });
 
+  // Thực hiện trách nhiệm riêng của khối it.
   it('rejects a seat held by another owner', async () => {
     findUnique.mockResolvedValue({
       id: dto.showtimeSeatId,
@@ -61,6 +67,7 @@ describe('SeatHoldsService', () => {
     await expect(service.hold(dto)).rejects.toBeInstanceOf(ConflictException);
   });
 
+  // Thực hiện trách nhiệm riêng của khối it.
   it('rejects a booked or blocked database seat before Redis', async () => {
     findUnique.mockResolvedValue({
       id: dto.showtimeSeatId,
@@ -72,6 +79,7 @@ describe('SeatHoldsService', () => {
     expect(evalRedis).not.toHaveBeenCalled();
   });
 
+  // Thực hiện trách nhiệm riêng của khối it.
   it('binds all selected seats to the user atomically', async () => {
     evalRedis.mockResolvedValue(1);
 

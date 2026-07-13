@@ -1,7 +1,13 @@
-/* CineTicket - Ticket View */
+/**
+ * Mục đích: Lớp View dựng giao diện và cập nhật DOM cho miền vé điện tử.
+ */
+/* CineTicket - View vé */
+// Đối tượng TicketView đóng vai trò lớp hiển thị, dựng HTML và cập nhật DOM.
 const TicketView = {
+  // Dựng phần giao diện tương ứng trong khối render.
   render(params) {
     const booking = TicketController.getTicket(params.id);
+    // Kiểm tra trạng thái booking hoặc thanh toán để chọn bước giao diện tiếp theo.
     if (!booking) {
       this.renderBackendBooking(params.id);
       return;
@@ -9,9 +15,12 @@ const TicketView = {
     this._renderBookingTicket(booking);
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderBackendTicket.
   async renderBackendTicket(ticketId, providedTicket = null) {
     let ticket = providedTicket || null;
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!ticket) {
+      // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
       try {
         const tickets = await TicketModel.getByUser(API.getBackendUserId());
         ticket = tickets.find((item) => item.id === ticketId);
@@ -28,8 +37,10 @@ const TicketView = {
     this._renderBackendTicket(ticket);
   },
 
+  // Dựng phần giao diện tương ứng trong khối renderBackendBooking.
   async renderBackendBooking(bookingId, providedTickets = null) {
     let tickets = providedTickets;
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!tickets) {
       try {
         const data = await API.getBookingTickets(bookingId);
@@ -40,6 +51,7 @@ const TicketView = {
       }
     }
 
+    // Xử lý riêng trường hợp danh sách rỗng hoặc có số lượng không hợp lệ.
     if (!tickets || tickets.length === 0) {
       Router.notFound();
       return;
@@ -48,12 +60,14 @@ const TicketView = {
     this._renderBackendBooking(tickets);
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderBackendTicket.
   _renderBackendTicket(ticket) {
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!main) return;
 
-    const visual = this._movieVisual(ticket.movie);
+    const visual = Helpers.getMovieVisual(ticket.movie);
     const seatText = ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '';
     const bookingQrToken = ticket.booking && ticket.booking.qrToken
       ? ticket.booking.qrToken
@@ -107,6 +121,7 @@ const TicketView = {
     </div>`;
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderBackendBooking.
   _renderBackendBooking(tickets) {
     document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
@@ -116,10 +131,11 @@ const TicketView = {
     const booking = firstTicket.booking || {};
     const bookingQrToken = tickets.bookingQrToken || booking.qrToken || `CINETICKET:BOOKING:${booking.id}`;
     const bookingQrCode = this._qrCode(bookingQrToken, 'large');
-    const visual = this._movieVisual(firstTicket.movie);
+    const visual = Helpers.getMovieVisual(firstTicket.movie);
     const sortedTickets = [...tickets].sort((a, b) => {
       const rowA = a.seat ? a.seat.row : '';
       const rowB = b.seat ? b.seat.row : '';
+      // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
       if (rowA !== rowB) return rowA.localeCompare(rowB);
       return (a.seat ? a.seat.number : 0) - (b.seat ? b.seat.number : 0);
     });
@@ -174,6 +190,7 @@ const TicketView = {
     </div>`;
   },
 
+  // Tính toán giá trị tổng hợp trong khối _ticketSummaryDetails.
   _ticketSummaryDetails({ showtime, room, seats, qrCode, totalAmount, comboItems = [] }) {
     const startAt = showtime ? new Date(showtime.startAt) : null;
     const endAt = showtime ? new Date(showtime.endAt) : null;
@@ -221,20 +238,13 @@ const TicketView = {
         </div>
       </div>`;
   },
-
-  _movieVisual(movie) {
-    const movieId = movie ? movie.id : 'unknown';
-    const localMovie = movie ? MovieModel.getById(movie.id) : null;
-    return {
-      poster: localMovie && localMovie.poster ? localMovie.poster : API.moviePosterFallback,
-      banner: localMovie && localMovie.banner ? localMovie.banner : API.moviePosterFallback,
-    };
-  },
-
+  // Thực hiện trách nhiệm riêng của khối _qrCode.
   _qrCode(qrToken, size = 'small') {
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!qrToken) {
       return '<div class="ticket-qr-placeholder"><i class="fas fa-qrcode"></i></div>';
     }
+    // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       return QR.toSvg(qrToken, { scale: size === 'large' ? 7 : 3 });
     } catch (error) {
@@ -243,8 +253,10 @@ const TicketView = {
     }
   },
 
+  // Thực hiện trách nhiệm riêng của khối printCurrentTicket.
   printCurrentTicket() {
     const ticketCard = document.querySelector('.ticket-card');
+    // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
     if (!ticketCard) return;
 
     document.body.classList.add('print-ticket-only');
@@ -256,6 +268,7 @@ const TicketView = {
     }, 50);
   },
 
+  // Dựng phần giao diện tương ứng trong khối _renderBookingTicket.
   _renderBookingTicket(booking) {
     document.getElementById('footer').style.display = '';
     const movie = MovieModel.getById(booking.movieId);
