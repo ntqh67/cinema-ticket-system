@@ -55,6 +55,8 @@ enum PaymentStatus {
   FAILED
   CANCELLED
   REFUNDED
+  EXPIRED
+  REVIEW_REQUIRED
 }
 
 // Định nghĩa các giá trị hợp lệ của TicketStatus để tránh trạng thái tự do trong cơ sở dữ liệu.
@@ -393,12 +395,35 @@ model Payment {
   currency              String        @default("VND")
   status                PaymentStatus @default(PENDING)
   paidAt                DateTime?
+  expiredAt             DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
   @@index([bookingId, status])
+  @@index([provider, providerRef])
+  @@index([provider, status])
   @@index([status, createdAt])
   @@map("payments")
+}
+
+// Mô hình lưu lại webhook thanh toán để đối soát giao dịch ngân hàng và tránh xử lý trùng.
+model PaymentWebhookEvent {
+  id            String    @id @default(cuid())
+  provider      String
+  transactionId String?
+  providerRef   String?
+  amount        Decimal?  @db.Decimal(10, 2)
+  direction     String?
+  status        String
+  payload       Json
+  errorMessage  String?   @db.Text
+  receivedAt    DateTime  @default(now())
+  processedAt   DateTime?
+
+  @@index([provider, transactionId])
+  @@index([provider, providerRef])
+  @@index([status, receivedAt])
+  @@map("payment_webhook_events")
 }
 
 // Mô hình vé điện tử phát hành cho từng ghế.

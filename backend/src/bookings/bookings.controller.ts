@@ -94,6 +94,11 @@ export class BookingsController {
     return this.bookingsService.findAll();
   }
 
+  @Get(':bookingId/payment-status')
+  getPaymentStatus(@Param('bookingId') bookingId: string) {
+    return this.bookingsService.getPaymentStatus(bookingId);
+  }
+
   @Get(':bookingId')
   // Đọc và lọc dữ liệu cần thiết trong khối findOne.
   findOne(@Param('bookingId') bookingId: string) {

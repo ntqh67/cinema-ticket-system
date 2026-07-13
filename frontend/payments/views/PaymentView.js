@@ -206,21 +206,32 @@ const PaymentView = {
   },
 
   showSepayQr(payment, booking) {
+    const accountNumber = payment.bankAccount || payment.accountNumber || '';
+    const transferContent = payment.transferContent || payment.providerRef || payment.paymentCode || '';
+    const expiresAt = payment.expiresAt ? new Date(payment.expiresAt).getTime() : null;
     const content = `
-      <div style="text-align:center;">
-        <img src="${payment.qrUrl}" alt="SePay QR" style="width:min(320px,100%);border-radius:12px;background:#fff;padding:10px;" />
-        <h3 style="margin:16px 0 8px;">${Helpers.formatCurrency(payment.amount)}</h3>
-        <p style="color:var(--color-text-muted);">${Helpers.escapeHtml(payment.bankCode)} · ${Helpers.escapeHtml(payment.accountNumber)}</p>
-        <p style="margin-top:8px;">Nội dung: <strong style="color:var(--color-primary);">${Helpers.escapeHtml(payment.paymentCode)}</strong></p>
-        <p id="sepay-status" style="margin-top:16px;color:var(--color-warning);"><i class="fas fa-spinner fa-spin"></i> Đang chờ SePay xác nhận...</p>
+      <div class="sepay-box">
+        <div style="text-align:center;margin-bottom:18px;">
+          <img src="${payment.qrUrl}" alt="SePay QR" style="width:min(340px,100%);border-radius:16px;background:#fff;padding:12px;" />
+        </div>
+        <div class="order-line"><span class="order-line-label">Ngân hàng</span><span class="order-line-value">${Helpers.escapeHtml(payment.bankCode || '')}</span></div>
+        <div class="order-line"><span class="order-line-label">Số tài khoản</span><span class="order-line-value">${Helpers.escapeHtml(accountNumber)} <button class="btn btn-sm btn-outline" onclick="PaymentView.copySepayText('${Helpers.escapeHtml(accountNumber)}')">Copy</button></span></div>
+        <div class="order-line"><span class="order-line-label">Chủ tài khoản</span><span class="order-line-value">${Helpers.escapeHtml(payment.accountName || '')}</span></div>
+        <div class="order-line"><span class="order-line-label">Số tiền</span><span class="order-line-value" style="color:var(--color-primary);font-weight:800;">${Helpers.formatCurrency(payment.amount)} <button class="btn btn-sm btn-outline" onclick="PaymentView.copySepayText('${Math.round(Number(payment.amount || 0))}')">Copy</button></span></div>
+        <div class="order-line"><span class="order-line-label">Nội dung</span><span class="order-line-value" style="color:var(--color-primary);font-weight:800;">${Helpers.escapeHtml(transferContent)} <button class="btn btn-sm btn-outline" onclick="PaymentView.copySepayText('${Helpers.escapeHtml(transferContent)}')">Copy</button></span></div>
+        <div style="margin-top:14px;padding:12px;border:1px solid rgba(255,193,7,.35);border-radius:10px;color:var(--color-warning);">
+          Vui lòng chuyển khoản đúng số tiền và đúng nội dung. Hệ thống chỉ xác nhận khi SePay gửi webhook hợp lệ.
+        </div>
+        <p id="sepay-countdown" style="margin-top:14px;color:var(--color-text-muted);text-align:center;">Thời gian còn lại: --:--</p>
+        <p id="sepay-status" style="margin-top:10px;color:var(--color-warning);text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang chờ SePay xác nhận...</p>
       </div>`;
     Modal.show('Thanh toán SePay', content, { size: 'md' });
     const poll = setInterval(async () => {
       try {
-        const detail = await API.getAdminBookingDetail(payment.bookingId);
-        const status = detail.booking?.status || detail.status;
-        if (status === 'PAID') {
+        const status = await API.getPaymentStatus(payment.bookingId);
+        if (status.bookingStatus === 'PAID' || status.paymentStatus === 'SUCCESS') {
           clearInterval(poll);
+          clearInterval(countdown);
           Modal.close();
           this._clearHoldCountdown();
           State.set('currentBooking', null);
@@ -228,11 +239,47 @@ const PaymentView = {
           Router.navigate(`/ticket/${payment.bookingId}`);
           Toast.success('SePay đã xác nhận thanh toán!');
         }
+        if (status.bookingStatus === 'EXPIRED' || status.paymentStatus === 'EXPIRED') {
+          clearInterval(poll);
+          clearInterval(countdown);
+          const statusEl = document.getElementById('sepay-status');
+          if (statusEl) statusEl.innerHTML = '<i class="fas fa-clock"></i> Mã thanh toán đã hết hạn. Vui lòng đặt vé lại.';
+          Toast.error('Mã thanh toán SePay đã hết hạn.');
+        }
       } catch (error) {
         console.warn('SePay status poll failed:', error);
+        const statusEl = document.getElementById('sepay-status');
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra lại trạng thái thanh toán...';
       }
     }, 3000);
-    setTimeout(() => clearInterval(poll), 10 * 60 * 1000);
+
+    const countdown = setInterval(() => {
+      const el = document.getElementById('sepay-countdown');
+      if (!el || !expiresAt) return;
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        el.textContent = 'Thời gian còn lại: đã hết hạn';
+        clearInterval(countdown);
+        clearInterval(poll);
+        const statusEl = document.getElementById('sepay-status');
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-clock"></i> Mã thanh toán đã hết hạn.';
+        return;
+      }
+      const totalSeconds = Math.ceil(remaining / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      el.textContent = `Thời gian còn lại: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }, 1000);
+  },
+
+  async copySepayText(value) {
+    try {
+      await navigator.clipboard.writeText(value);
+      Toast.success('Đã copy thông tin chuyển khoản');
+    } catch (error) {
+      console.warn('Could not copy SePay text:', error);
+      Toast.warning('Không copy được, vui lòng sao chép thủ công');
+    }
   },
 
   updateTotal(total, discount) {

@@ -505,6 +505,10 @@ const API = {
     return this.backendRequest(`/bookings/${bookingId}/sepay`, { method: 'POST' });
   },
 
+  getPaymentStatus(bookingId) {
+    return this.backendRequest(`/bookings/${bookingId}/payment-status`);
+  },
+
   onlineDemoPay(bookingId, provider) {
     return this.backendRequest(`/bookings/${bookingId}/online-demo-pay`, {
       method: 'POST',
