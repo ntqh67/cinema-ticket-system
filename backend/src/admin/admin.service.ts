@@ -14,6 +14,7 @@ import {
   CreateMovieFromTmdbDto,
   CreateMovieDto,
   ImportUpcomingMoviesFromTmdbDto,
+  RoomAvailableSlotsQueryDto,
   CreateRoomDto,
   CreateSeatDto,
   CreateShowtimeDto,
@@ -28,14 +29,14 @@ import {
   UpdateShowtimeDto,
   UpsertCinemaTicketPriceDto,
 } from './dto/admin.dto';
+import { normalizeGenreName } from '../common/genre-map';
 
 const CLEANUP_MINUTES = 30;
+const SHOWTIME_DAY_OPEN = '08:00';
+const SHOWTIME_DAY_CLOSE = '26:00';
+const SHOWTIME_LAST_START = '23:45';
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
-const TMDB_GENRE_MAP: Record<string, string> = {
-  'Science Fiction': 'Sci-Fi',
-  'TV Movie': 'Drama',
-};
 
 @Injectable()
 export class AdminService {
@@ -67,7 +68,7 @@ export class AdminService {
       revenue,
     ] = await Promise.all([
       this.prisma.movie.count(),
-      this.prisma.cinema.count({ where: { city: 'Da Nang' } }),
+      this.prisma.cinema.count({ where: { city: 'Đà Nẵng' } }),
       this.prisma.showtime.count(),
       this.prisma.user.count(),
       this.prisma.booking.count({ where: { status: 'PAID' } }),
@@ -153,6 +154,7 @@ export class AdminService {
           : null,
         posterUrl: this.tmdbImageUrl(details.poster_path || detailsEn.poster_path, 'w500'),
         trailerUrl,
+        ageRating: 'P',
         status: status as MovieStatus,
       };
       const movie = existingMovie
@@ -162,7 +164,7 @@ export class AdminService {
       await tx.movieGenre.deleteMany({ where: { movieId: movie.id } });
 
       for (const genre of details.genres || detailsEn.genres || []) {
-        const name = TMDB_GENRE_MAP[genre.name] || genre.name;
+        const name = normalizeGenreName(genre.name);
         const genreRecord = await tx.genre.upsert({
           where: { name },
           update: {},
@@ -203,7 +205,7 @@ export class AdminService {
 
   listCinemaChains() {
     return this.prisma.cinemaChain.findMany({
-      where: { city: 'Da Nang' },
+      where: { city: 'Đà Nẵng' },
       include: { cinemas: true },
       orderBy: { name: 'asc' },
     });
@@ -211,7 +213,7 @@ export class AdminService {
 
   createCinemaChain(dto: CreateCinemaChainDto) {
     return this.prisma.cinemaChain.create({
-      data: { ...dto, city: dto.city || 'Da Nang' },
+      data: { ...dto, city: dto.city || 'Đà Nẵng' },
     });
   }
 
@@ -225,16 +227,16 @@ export class AdminService {
 
   listCinemas() {
     return this.prisma.cinema.findMany({
-      where: { city: 'Da Nang' },
+      where: { city: 'Đà Nẵng' },
       include: { chain: true, rooms: true, ticketPrices: true },
-      orderBy: { name: 'asc' },
+      orderBy: [{ code: 'asc' }, { name: 'asc' }],
     });
   }
 
   async createCinema(dto: CreateCinemaDto) {
     if (dto.chainId) await this.ensureCinemaChain(dto.chainId);
     return this.prisma.cinema.create({
-      data: { ...dto, city: dto.city || 'Da Nang' },
+      data: { ...dto, city: dto.city || 'Đà Nẵng' },
     });
   }
 
@@ -529,6 +531,104 @@ export class AdminService {
     return this.prisma.showtime.delete({ where: { id } });
   }
 
+  async getRoomAvailableSlots(roomId: string, query: RoomAvailableSlotsQueryDto) {
+    const [room, movie] = await Promise.all([
+      this.prisma.room.findUnique({
+        where: { id: roomId },
+        include: { cinema: true },
+      }),
+      this.prisma.movie.findUnique({ where: { id: query.movieId } }),
+    ]);
+
+    if (!room) throw new NotFoundException('Room not found');
+    if (!movie) throw new NotFoundException('Movie not found');
+
+    const windowStart = this.dateTimeInDaNang(query.date, SHOWTIME_DAY_OPEN);
+    const windowEnd = this.dateTimeInDaNang(query.date, SHOWTIME_DAY_CLOSE);
+    const durationMinutes = movie.durationMin;
+    const requiredMinutes = durationMinutes;
+
+    const showtimes = await this.prisma.showtime.findMany({
+      where: {
+        roomId,
+        startAt: { lt: windowEnd },
+        endAt: { gt: windowStart },
+      },
+      include: { movie: { select: { id: true, title: true, durationMin: true } } },
+      orderBy: { startAt: 'asc' },
+    });
+
+    const occupied = showtimes.map((showtime) => ({
+      id: showtime.id,
+      movieId: showtime.movieId,
+      movieTitle: showtime.movie.title,
+      startAt: showtime.startAt,
+      endAt: showtime.endAt,
+      cleanupEndAt: this.addMinutes(showtime.endAt, CLEANUP_MINUTES),
+    }));
+
+    const availableSlots: Array<{
+      startAt: Date;
+      endAt: Date;
+      latestStartAt: Date;
+      durationMinutes: number;
+    }> = [];
+
+    let cursor = windowStart;
+    for (const item of occupied) {
+      const nextShowtimeStartWithCleanup = this.addMinutes(item.startAt, -CLEANUP_MINUTES);
+      const slotEnd = nextShowtimeStartWithCleanup < windowEnd
+        ? nextShowtimeStartWithCleanup
+        : windowEnd;
+      const slotMinutes = this.minutesBetween(cursor, slotEnd);
+      if (slotMinutes >= requiredMinutes) {
+        availableSlots.push({
+          startAt: cursor,
+          endAt: slotEnd,
+          latestStartAt: this.addMinutes(slotEnd, -requiredMinutes),
+          durationMinutes: slotMinutes,
+        });
+      }
+      const cleanupEndAt = item.cleanupEndAt > windowStart ? item.cleanupEndAt : windowStart;
+      if (cleanupEndAt > cursor) cursor = cleanupEndAt;
+    }
+
+    const tailMinutes = this.minutesBetween(cursor, windowEnd);
+    if (tailMinutes >= requiredMinutes) {
+      availableSlots.push({
+        startAt: cursor,
+        endAt: windowEnd,
+        latestStartAt: this.addMinutes(windowEnd, -requiredMinutes),
+        durationMinutes: tailMinutes,
+      });
+    }
+
+    const latestStartBoundary = this.dateTimeInDaNang(query.date, SHOWTIME_LAST_START);
+    const suggestedStartTimes = availableSlots.flatMap((slot) => {
+      const latestStartAt = slot.latestStartAt < latestStartBoundary
+        ? slot.latestStartAt
+        : latestStartBoundary;
+      return latestStartAt >= slot.startAt ? this.suggestStartTimes(slot.startAt, latestStartAt, 15) : [];
+    });
+
+    return {
+      roomId,
+      roomName: room.name,
+      cinemaId: room.cinemaId,
+      cinemaName: room.cinema.name,
+      movieId: movie.id,
+      movieTitle: movie.title,
+      date: query.date,
+      movieDurationMin: durationMinutes,
+      cleanupMinutes: CLEANUP_MINUTES,
+      windowStartAt: windowStart,
+      windowEndAt: windowEnd,
+      occupied,
+      availableSlots,
+      suggestedStartTimes,
+    };
+  }
+
   private movieData(dto: CreateMovieDto | UpdateMovieDto, movieId?: string) {
     const { genreIds, releaseDate, status, ...rest } = dto;
     return {
@@ -634,6 +734,53 @@ export class AdminService {
 
   private addMinutes(date: Date, minutes: number) {
     return new Date(date.getTime() + minutes * 60 * 1000);
+  }
+
+  private minutesBetween(startAt: Date, endAt: Date) {
+    return Math.floor((endAt.getTime() - startAt.getTime()) / 60000);
+  }
+
+  private dateTimeInDaNang(date: string, time: string) {
+    const [hourRaw, minuteRaw] = time.split(':').map(Number);
+    const hour = Number.isFinite(hourRaw) ? hourRaw : 0;
+    const minute = Number.isFinite(minuteRaw) ? minuteRaw : 0;
+    const dayOffset = Math.floor(hour / 24);
+    const hourInDay = hour % 24;
+    const result = new Date(`${date}T${String(hourInDay).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000+07:00`);
+    result.setUTCDate(result.getUTCDate() + dayOffset);
+    return result;
+  }
+
+  private suggestStartTimes(startAt: Date, latestStartAt: Date, stepMinutes: number) {
+    const times: Array<{ value: string; label: string; startAt: Date }> = [];
+    let cursor = new Date(startAt);
+
+    while (cursor <= latestStartAt) {
+      times.push({
+        value: this.formatTimeValue(cursor),
+        label: cursor.toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Bangkok',
+        }),
+        startAt: new Date(cursor),
+      });
+      cursor = this.addMinutes(cursor, stepMinutes);
+    }
+
+    return times;
+  }
+
+  private formatTimeValue(date: Date) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Bangkok',
+    }).formatToParts(date);
+    const hour = parts.find((part) => part.type === 'hour')?.value || '00';
+    const minute = parts.find((part) => part.type === 'minute')?.value || '00';
+    return `${hour}:${minute}`;
   }
 
   private async fetchTmdb(path: string, params: Record<string, string | number | boolean> = {}) {

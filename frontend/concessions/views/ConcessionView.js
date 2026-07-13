@@ -26,9 +26,9 @@ const ConcessionView = {
     }
 
     main.innerHTML = `
-    <div class="payment-page">
+    <div class="payment-page concession-page">
       <div class="container">
-        <div class="booking-steps" style="max-width:680px;margin:0 auto 40px;">
+        <div class="booking-steps concession-steps">
           <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chọn phim</span></div>
           <div class="booking-step-divider done"></div>
           <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chọn ghế</span></div>
@@ -38,31 +38,38 @@ const ConcessionView = {
           <div class="booking-step"><div class="booking-step-num">4</div><span class="booking-step-label">Thanh toán</span></div>
         </div>
 
-        <div class="payment-layout">
-          <div class="booking-card">
-            <div class="booking-card-header">
-              <div class="booking-card-title"><span class="step-badge">3</span> Chọn Combo Bắp Nước</div>
-            </div>
-            <div class="booking-card-body">
-              ${this._checkoutComboList()}
-              <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
-                <button class="btn btn-outline" onclick="ConcessionView.skipCheckout()">Bỏ qua</button>
-                <button class="btn btn-primary" onclick="ConcessionView.continueToPayment()"><i class="fas fa-arrow-right"></i> Tiếp tục thanh toán</button>
+        <div class="concession-layout">
+          <div class="concession-catalog">
+            <div class="concession-hero">
+              <div>
+                <span class="concession-kicker">Bước 3</span>
+                <h2>Chọn combo bắp nước</h2>
+                <p>Thêm món ăn nhẹ cho buổi xem phim, hoặc bỏ qua nếu bạn chỉ muốn thanh toán vé.</p>
               </div>
+              <div class="concession-hero-icon"><i class="fas fa-shopping-basket"></i></div>
             </div>
+            ${this._checkoutComboList()}
           </div>
 
-          <div class="order-panel">
+          <div class="order-panel concession-summary-panel">
             <div class="order-panel-header"><i class="fas fa-receipt"></i> Tóm tắt đơn hàng</div>
             <div class="order-panel-body">
               <div class="order-line">
                 <span class="order-line-label">Tiền ghế</span>
                 <span class="order-line-value">${Helpers.formatCurrency(booking.seatSubtotal || booking.totalPrice || 0)}</span>
               </div>
+              <div class="order-line">
+                <span class="order-line-label">Tiền combo</span>
+                <span class="order-line-value" id="concession-subtotal">${Helpers.formatCurrency(0)}</span>
+              </div>
               <div id="concession-combo-summary"></div>
               <div class="order-final">
                 <span>Tổng cộng</span>
                 <span class="order-final-amount" id="concession-total">${Helpers.formatCurrency(booking.totalPrice || 0)}</span>
+              </div>
+              <div class="concession-actions">
+                <button class="btn btn-outline btn-block" onclick="ConcessionView.skipCheckout()">Bỏ qua</button>
+                <button class="btn btn-primary btn-block" onclick="ConcessionView.continueToPayment()"><i class="fas fa-arrow-right"></i> Tiếp tục thanh toán</button>
               </div>
             </div>
           </div>
@@ -75,24 +82,26 @@ const ConcessionView = {
 
   _checkoutComboList() {
     if (!this._combos.length) {
-      return '<div class="empty-state" style="padding:32px 0;"><i class="fas fa-shopping-basket"></i><h3>Chưa có combo đang bán</h3><p>Bạn có thể bỏ qua bước này.</p></div>';
+      return '<div class="empty-state concession-empty"><i class="fas fa-shopping-basket"></i><h3>Chưa có combo đang bán</h3><p>Bạn có thể bỏ qua bước này.</p></div>';
     }
 
     return `
-      <div class="grid grid-2" style="gap:16px;">
+      <div class="concession-grid">
         ${this._combos.map((combo) => `
-          <div class="card">
-            <div class="card-body" style="display:flex;gap:14px;align-items:center;">
-              <img src="${Helpers.escapeHtml(combo.imageUrl || API.moviePosterFallback)}" alt="" style="width:82px;height:82px;object-fit:cover;border-radius:8px;" onerror="this.src=API.moviePosterFallback" />
-              <div style="flex:1;min-width:0;">
-                <h4 style="margin-bottom:4px;">${Helpers.escapeHtml(combo.name)}</h4>
-                <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:8px;">${Helpers.escapeHtml(combo.description || '')}</p>
-                <div style="font-weight:800;color:var(--color-primary);">${Helpers.formatCurrency(Number(combo.price))}</div>
+          <div class="concession-card" id="checkout-combo-card-${combo.id}">
+            <img class="concession-card-image" src="${Helpers.escapeHtml(combo.imageUrl || API.moviePosterFallback)}" alt="${Helpers.escapeHtml(combo.name)}" onerror="this.src=API.moviePosterFallback" />
+            <div class="concession-card-body">
+              <div>
+                <h4>${Helpers.escapeHtml(combo.name)}</h4>
+                <p>${Helpers.escapeHtml(combo.description || 'Combo bắp nước cho buổi xem phim của bạn.')}</p>
               </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <button type="button" class="action-btn" onclick="ConcessionView.changeQuantity('${combo.id}', -1)">-</button>
-                <span id="checkout-combo-qty-${combo.id}" style="min-width:24px;text-align:center;font-weight:800;">0</span>
-                <button type="button" class="action-btn edit" onclick="ConcessionView.changeQuantity('${combo.id}', 1)">+</button>
+              <div class="concession-card-footer">
+                <div class="concession-price">${Helpers.formatCurrency(Number(combo.price))}</div>
+                <div class="concession-stepper">
+                  <button type="button" onclick="ConcessionView.changeQuantity('${combo.id}', -1)" aria-label="Giảm số lượng">-</button>
+                  <span id="checkout-combo-qty-${combo.id}">0</span>
+                  <button type="button" onclick="ConcessionView.changeQuantity('${combo.id}', 1)" aria-label="Tăng số lượng">+</button>
+                </div>
               </div>
             </div>
           </div>
@@ -106,6 +115,8 @@ const ConcessionView = {
     else this._selectedCombos[comboId] = next;
     const el = document.getElementById(`checkout-combo-qty-${comboId}`);
     if (el) el.textContent = String(next);
+    const card = document.getElementById(`checkout-combo-card-${comboId}`);
+    if (card) card.classList.toggle('selected', next > 0);
     this._renderCheckoutSummary();
   },
 
@@ -121,17 +132,22 @@ const ConcessionView = {
     const booking = State.get('currentBooking');
     if (!booking) return;
     const summary = document.getElementById('concession-combo-summary');
+    const subtotal = document.getElementById('concession-subtotal');
     const total = document.getElementById('concession-total');
     const selected = this._combos.filter((combo) => this._selectedCombos[combo.id]);
+    const comboSubtotal = this._comboSubtotal();
     if (summary) {
-      summary.innerHTML = selected.map((combo) => `
-        <div class="order-row">
-          <span class="order-row-label">${Helpers.escapeHtml(combo.name)} x${this._selectedCombos[combo.id]}</span>
-          <span class="order-row-value">${Helpers.formatCurrency(Number(combo.price) * this._selectedCombos[combo.id])}</span>
-        </div>
-      `).join('');
+      summary.innerHTML = selected.length
+        ? `<div class="concession-summary-list">${selected.map((combo) => `
+            <div class="order-line concession-summary-item">
+              <span class="order-line-label">${Helpers.escapeHtml(combo.name)} x${this._selectedCombos[combo.id]}</span>
+              <span class="order-line-value">${Helpers.formatCurrency(Number(combo.price) * this._selectedCombos[combo.id])}</span>
+            </div>
+          `).join('')}</div>`
+        : '<div class="concession-summary-empty">Chưa chọn combo nào</div>';
     }
-    if (total) total.textContent = Helpers.formatCurrency((booking.seatSubtotal || booking.totalPrice || 0) + this._comboSubtotal());
+    if (subtotal) subtotal.textContent = Helpers.formatCurrency(comboSubtotal);
+    if (total) total.textContent = Helpers.formatCurrency((booking.seatSubtotal || booking.totalPrice || 0) + comboSubtotal);
   },
 
   async skipCheckout() {

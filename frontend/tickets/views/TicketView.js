@@ -87,7 +87,7 @@ const TicketView = {
                 <div class="ticket-header-info">
                   <div class="ticket-movie-title">${Helpers.escapeHtml(ticket.movie ? ticket.movie.title : 'Cinema Ticket')}</div>
                   <div class="ticket-cinema-name"><i class="fas fa-map-marker-alt"></i> ${Helpers.escapeHtml(ticket.cinema ? ticket.cinema.name : '')}</div>
-                  <div class="ticket-logo-badge"><i class="fas fa-film"></i> CineTicket</div>
+                  <div class="ticket-logo-badge"><i class="fas fa-film"></i> CRTicket</div>
                 </div>
               </div>
             </div>
@@ -284,7 +284,7 @@ const TicketView = {
                 <div class="ticket-header-info">
                   <div class="ticket-movie-title">${movie ? Helpers.escapeHtml(movie.title) : ''}</div>
                   <div class="ticket-cinema-name"><i class="fas fa-map-marker-alt"></i> ${cinema ? Helpers.escapeHtml(cinema.name) : ''}</div>
-                  <div class="ticket-logo-badge"><i class="fas fa-film"></i> CineTicket</div>
+                  <div class="ticket-logo-badge"><i class="fas fa-film"></i> CRTicket</div>
                 </div>
               </div>
             </div>

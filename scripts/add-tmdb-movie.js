@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const dotenv = require('dotenv');
+const { normalizeGenreName } = require('./genre-map');
 
 dotenv.config();
 
@@ -9,11 +10,6 @@ const TMDB_API_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = process.env.TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 const apiKey = process.env.TMDB_API_KEY;
 const readAccessToken = process.env.TMDB_READ_ACCESS_TOKEN;
-
-const GENRE_NAME_MAP = {
-  'Science Fiction': 'Sci-Fi',
-  'TV Movie': 'Drama',
-};
 
 function requireCredential() {
   if (!apiKey && !readAccessToken) {
@@ -96,10 +92,6 @@ async function fetchTrailer(tmdbId) {
   }
 
   return null;
-}
-
-function normalizeGenreName(name) {
-  return GENRE_NAME_MAP[name] || name;
 }
 
 async function replaceMovieGenres(movieId, genres) {

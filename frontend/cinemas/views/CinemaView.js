@@ -20,11 +20,12 @@ const CinemaView = {
     const rooms = API.mockData.rooms.filter(r => r.cinemaId === c.id);
     return `
     <div class="card" style="cursor:pointer;" onclick="Toast.info('Chi tiết rạp đang phát triển')">
-      <img src="${c.image}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
+      <img src="${Helpers.escapeHtml(c.imageUrl || c.image || '')}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
       <div class="card-body">
         <h4 style="margin-bottom:8px;">${Helpers.escapeHtml(c.name)}</h4>
+        ${c.code ? `<div class="badge badge-secondary" style="margin-bottom:8px;">${Helpers.escapeHtml(c.code)}</div>` : ''}
         <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:12px;">
-          <i class="fas fa-map-marker-alt" style="color:var(--color-primary);"></i> ${Helpers.escapeHtml(c.address)}
+          <i class="fas fa-map-marker-alt" style="color:var(--color-primary);"></i> ${Helpers.escapeHtml([c.address, c.ward, c.city].filter(Boolean).join(', '))}
         </p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           ${c.facilities.map(f => `<span class="badge badge-secondary">${Helpers.escapeHtml(f)}</span>`).join('')}
@@ -47,6 +48,8 @@ const CinemaView = {
       Toast.error(error.message || 'Khong the tai danh sach rap');
       cinemas = CinemaModel.getAll();
     }
+    cinemas.sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'vi', { numeric: true }));
+    this._adminCinemas = cinemas;
     const main = document.getElementById('main-content');
     if (!main) return;
     main.innerHTML = `
@@ -70,10 +73,11 @@ const CinemaView = {
               const prices = this._ticketPriceText(c.ticketPrices || []);
               return `
               <div class="card">
-                <img src="${c.image}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
+                <img src="${Helpers.escapeHtml(c.imageUrl || c.image || '')}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
                 <div class="card-body">
                   <h4 style="margin-bottom:6px;">${Helpers.escapeHtml(c.name)}</h4>
-                  <p style="font-size:0.8rem;color:var(--color-text-muted);margin-bottom:8px;">${Helpers.escapeHtml(c.address)}</p>
+                  ${c.code ? `<div class="badge badge-secondary" style="margin-bottom:8px;">${Helpers.escapeHtml(c.code)}</div>` : ''}
+                  <p style="font-size:0.8rem;color:var(--color-text-muted);margin-bottom:8px;">${Helpers.escapeHtml([c.address, c.ward, c.city].filter(Boolean).join(', '))}</p>
                   <p style="font-size:0.78rem;color:var(--color-primary);font-weight:700;margin-bottom:8px;">${prices}</p>
                   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
                     ${(c.facilities || []).slice(0,3).map(f => `<span class="badge badge-secondary" style="font-size:0.65rem;">${Helpers.escapeHtml(f)}</span>`).join('')}
@@ -83,7 +87,7 @@ const CinemaView = {
                   </div>
                   <div class="table-actions">
                     <button class="action-btn edit" onclick="CinemaView.showTicketPriceForm('${c.id}')" title="Gia Ve"><i class="fas fa-dollar-sign"></i></button>
-                    <button class="action-btn edit" onclick="Toast.info('Chỉnh sửa rạp')" title="Sửa"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn edit" onclick="CinemaView.showEditForm('${c.id}')" title="Sửa"><i class="fas fa-edit"></i></button>
                     <button class="action-btn delete" onclick="CinemaController.handleDelete('${c.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
                   </div>
                 </div>
@@ -147,6 +151,83 @@ const CinemaView = {
       this.renderAdmin();
     } catch (error) {
       Toast.error(error.message || 'Khong the luu bang gia');
+    }
+  },
+
+  showEditForm(cinemaId) {
+    const cinema = (this._adminCinemas || []).find((item) => item.id === cinemaId) || CinemaModel.getById(cinemaId);
+    if (!cinema) {
+      Toast.error('Không tìm thấy rạp chiếu');
+      return;
+    }
+    const content = `
+      <form onsubmit="CinemaView.saveEdit(event, '${cinema.id}')">
+        <div class="admin-form-grid">
+          <div class="form-group">
+            <label class="form-label">Mã chi nhánh</label>
+            <input class="form-control" id="edit-cinema-code" value="${Helpers.escapeHtml(cinema.code || '')}" placeholder="CR01" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tên chi nhánh *</label>
+            <input class="form-control" id="edit-cinema-name" value="${Helpers.escapeHtml(cinema.name || '')}" required />
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label">Địa chỉ</label>
+            <input class="form-control" id="edit-cinema-address" value="${Helpers.escapeHtml(cinema.address || '')}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phường/Quận</label>
+            <input class="form-control" id="edit-cinema-ward" value="${Helpers.escapeHtml(cinema.ward || '')}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Thành phố</label>
+            <input class="form-control" id="edit-cinema-city" value="${Helpers.escapeHtml(cinema.city || 'Đà Nẵng')}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại</label>
+            <input class="form-control" id="edit-cinema-phone" value="${Helpers.escapeHtml(cinema.phone || '')}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="edit-cinema-email" value="${Helpers.escapeHtml(cinema.email || '')}" />
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label">Ảnh rạp</label>
+            <input class="form-control" id="edit-cinema-image-url" value="${Helpers.escapeHtml(cinema.imageUrl || cinema.image || '')}" placeholder="/assets/images/cinemas/cr01-riverside.jpg" />
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Hủy</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu thay đổi</button>
+        </div>
+      </form>`;
+    Modal.show('Chỉnh Sửa Rạp Chiếu', content, { size: 'lg' });
+  },
+
+  async saveEdit(event, cinemaId) {
+    event.preventDefault();
+    const email = document.getElementById('edit-cinema-email').value.trim();
+    const payload = {
+      code: document.getElementById('edit-cinema-code').value.trim() || null,
+      name: document.getElementById('edit-cinema-name').value.trim(),
+      address: document.getElementById('edit-cinema-address').value.trim() || null,
+      ward: document.getElementById('edit-cinema-ward').value.trim() || null,
+      city: document.getElementById('edit-cinema-city').value.trim() || 'Đà Nẵng',
+      phone: document.getElementById('edit-cinema-phone').value.trim() || null,
+      email: email || null,
+      imageUrl: document.getElementById('edit-cinema-image-url').value.trim() || null,
+    };
+    if (!payload.name) {
+      Toast.error('Vui lòng nhập tên rạp');
+      return;
+    }
+    try {
+      await API.updateAdminCinema(cinemaId, payload);
+      Modal.close();
+      Toast.success('Đã cập nhật rạp chiếu');
+      this.renderAdmin();
+    } catch (error) {
+      Toast.error(error.message || 'Không thể cập nhật rạp chiếu');
     }
   }
 };

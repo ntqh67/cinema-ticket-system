@@ -65,11 +65,16 @@ const MovieController = {
   },
 
   handleDelete(id) {
-    Modal.confirm('Bạn có chắc muốn xóa phim này?', 'Xác Nhận Xóa', 'danger').then(confirmed => {
+    Modal.confirm('Bạn có chắc muốn xóa vĩnh viễn phim này? Các suất chiếu, booking và vé liên quan cũng sẽ bị xóa.', 'Xác Nhận Xóa', 'danger').then(async confirmed => {
       if (confirmed) {
-        MovieModel.delete(id);
-        MovieView.renderAdmin();
-        Toast.success('Đã xóa phim');
+        try {
+          await API.deleteAdminMovie(id);
+          await API.syncBackendCatalog();
+          MovieView.renderAdmin();
+          Toast.success('Đã xóa phim khỏi database');
+        } catch (error) {
+          Toast.error(error.message || 'Không thể xóa phim');
+        }
       }
     });
   }

@@ -68,7 +68,7 @@ const AuthController = {
     State.set('currentUser', result.user);
     State.persist('currentUser');
     Navbar.updateAuthState(result.user);
-    Toast.success('Đăng ký thành công! Chào mừng bạn đến với CineTicket.');
+    Toast.success('Đăng ký thành công! Chào mừng bạn đến với CRTicket.');
     setTimeout(() => Router.navigate('/'), 500);
   },
 

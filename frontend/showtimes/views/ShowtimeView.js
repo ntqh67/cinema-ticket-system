@@ -2,6 +2,9 @@
 const ShowtimeView = {
   _selectedDate: null,
   _selectedCinema: null,
+  _adminSelectedCinema: null,
+  _adminCinemas: [],
+  _adminSearchQuery: '',
 
   renderForMovie(movieId, containerId) {
     const container = document.getElementById(containerId);
@@ -14,7 +17,7 @@ const ShowtimeView = {
 
     this._selectedDate = dates[0];
     this._selectedCinema = null;
-    const chains = CinemaModel.getChains();
+    const cinemas = this._cinemasForMovie(movieId);
 
     container.innerHTML = `
       <div class="date-picker" id="showtime-date-picker">
@@ -30,10 +33,10 @@ const ShowtimeView = {
       </div>
 
       <div class="cinema-tabs" id="showtime-cinema-tabs" style="margin-top:20px;">
-        <button class="cinema-tab active" onclick="ShowtimeView._selectCinema('${movieId}', null, '${containerId}', this)">Tất Cả Rạp</button>
-        ${chains.map((chain) => `
-          <button class="cinema-tab" onclick="ShowtimeView._selectCinema('${movieId}', '${chain.id}', '${containerId}', this)">
-            ${Helpers.escapeHtml(chain.name)}
+        <button class="cinema-tab active" onclick="ShowtimeView._selectCinema('${movieId}', null, '${containerId}', this)">Tất cả chi nhánh</button>
+        ${cinemas.map((cinema) => `
+          <button class="cinema-tab" onclick="ShowtimeView._selectCinema('${movieId}', '${cinema.id}', '${containerId}', this)">
+            ${Helpers.escapeHtml(cinema.code ? `${cinema.code} - ${cinema.name}` : cinema.name)}
           </button>`).join('')}
       </div>
 
@@ -48,8 +51,8 @@ const ShowtimeView = {
     this._renderShowtimeList(movieId, containerId);
   },
 
-  _selectCinema(movieId, chainId, containerId, btn) {
-    this._selectedCinema = chainId;
+  _selectCinema(movieId, cinemaId, containerId, btn) {
+    this._selectedCinema = cinemaId;
     document.querySelectorAll('#showtime-cinema-tabs .cinema-tab').forEach((item) => item.classList.remove('active'));
     btn.classList.add('active');
     this._renderShowtimeList(movieId, containerId);
@@ -60,7 +63,7 @@ const ShowtimeView = {
     if (!listEl) return;
     const showtimes = ShowtimeModel.getByFilters({
       movieId,
-      chainId: this._selectedCinema,
+      cinemaId: this._selectedCinema,
       date: this._selectedDate,
     });
 
@@ -69,54 +72,50 @@ const ShowtimeView = {
       return;
     }
 
-    const byChain = {};
+    const byCinema = {};
     showtimes.forEach((showtime) => {
-      const chainId = showtime.chainId || showtime.cinemaId;
-      if (!byChain[chainId]) byChain[chainId] = [];
-      byChain[chainId].push(showtime);
+      const cinemaId = showtime.cinemaId || showtime.cinema?.id || '';
+      if (!byCinema[cinemaId]) byCinema[cinemaId] = [];
+      byCinema[cinemaId].push(showtime);
     });
 
-    listEl.innerHTML = Object.entries(byChain).map(([chainId, chainShows]) => {
-      const chain = chainShows[0].chain || { id: chainId, name: chainId };
-      const byCinema = {};
-      chainShows.forEach((showtime) => {
-        if (!byCinema[showtime.cinemaId]) byCinema[showtime.cinemaId] = [];
-        byCinema[showtime.cinemaId].push(showtime);
-      });
-
+    listEl.innerHTML = Object.entries(byCinema).sort(([cinemaIdA], [cinemaIdB]) => {
+      const cinemaA = CinemaModel.getById(cinemaIdA);
+      const cinemaB = CinemaModel.getById(cinemaIdB);
+      return this._compareCinema(cinemaA, cinemaB);
+    }).map(([cinemaId, shows]) => {
+      const cinema = CinemaModel.getById(cinemaId);
       return `
       <div class="showtime-movie-item">
         <div class="showtime-movie-header">
           <div class="showtime-movie-info">
             <div class="showtime-movie-title">
               <i class="fas fa-building" style="color:var(--color-primary);"></i>
-              ${Helpers.escapeHtml(chain.name)}
+              ${cinema ? Helpers.escapeHtml(cinema.code ? `${cinema.code} - ${cinema.name}` : cinema.name) : Helpers.escapeHtml(cinemaId)}
+            </div>
+            <div class="showtime-movie-meta">
+              ${cinema?.ward ? `<span><i class="fas fa-map-marker-alt"></i> ${Helpers.escapeHtml(cinema.ward)}</span>` : ''}
+              <span><i class="fas fa-map-marker-alt"></i> ${cinema ? Helpers.escapeHtml(cinema.address || '') : ''}</span>
             </div>
           </div>
         </div>
         <div class="showtime-rooms">
-          ${Object.entries(byCinema).map(([cinemaId, shows]) => {
-            const cinema = CinemaModel.getById(cinemaId);
-            return `
-            <div class="showtime-room-group">
-              <div class="showtime-room-label">${cinema ? Helpers.escapeHtml(cinema.name) : Helpers.escapeHtml(cinemaId)}</div>
-              <div class="showtime-movie-meta" style="margin-bottom:10px;">
-                <span><i class="fas fa-map-marker-alt"></i> ${cinema ? Helpers.escapeHtml(cinema.address) : ''}</span>
-              </div>
-              <div class="showtime-times">
-                ${shows.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((showtime) => {
-                  const fillPct = showtime.totalSeats ? showtime.bookedSeats / showtime.totalSeats : 0;
-                  const almostFull = fillPct > 0.7;
-                  return `<button class="showtime-btn ${almostFull ? 'almost-full' : ''}" onclick="Router.navigate('/seats/${showtime.id}')">
-                    <span class="showtime-btn-time">${showtime.startTime}</span>
-                    <span class="showtime-btn-end">→ ${showtime.endTime}</span>
-                    <span class="showtime-btn-price">${Helpers.formatCurrency(showtime.price.normal)}</span>
-                    ${almostFull ? `<span style="font-size:0.65rem;color:var(--color-warning);">Sắp hết</span>` : ''}
-                  </button>`;
-                }).join('')}
-              </div>
-            </div>`;
-          }).join('')}
+          <div class="showtime-room-group">
+            <div class="showtime-room-label">Giờ chiếu trong ngày</div>
+            <div class="showtime-times">
+              ${shows.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((showtime) => {
+                const fillPct = showtime.totalSeats ? showtime.bookedSeats / showtime.totalSeats : 0;
+                const almostFull = fillPct > 0.7;
+                const price = showtime.price?.normal ?? showtime.basePrice ?? 0;
+                return `<button class="showtime-btn ${almostFull ? 'almost-full' : ''}" onclick="Router.navigate('/seats/${showtime.id}')">
+                  <span class="showtime-btn-time">${showtime.startTime}</span>
+                  <span class="showtime-btn-end">→ ${showtime.endTime}</span>
+                  <span class="showtime-btn-price">${Helpers.formatCurrency(price)}</span>
+                  ${almostFull ? `<span style="font-size:0.65rem;color:var(--color-warning);">Sắp hết</span>` : ''}
+                </button>`;
+              }).join('')}
+            </div>
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -129,13 +128,27 @@ const ShowtimeView = {
     if (!main) return;
 
     let showtimes = [];
+    let cinemas = [];
     try {
-      showtimes = await API.getAdminShowtimes();
+      [showtimes, cinemas] = await Promise.all([
+        API.getAdminShowtimes(),
+        API.getAdminCinemas(),
+      ]);
     } catch (error) {
       Toast.error(error.message || 'Không thể tải lịch chiếu');
       showtimes = ShowtimeModel.getAll();
+      cinemas = CinemaModel.getAll();
     }
-    showtimes = showtimes.slice(0, 100);
+    cinemas.sort((a, b) => this._compareCinema(a, b));
+    this._adminCinemas = cinemas;
+    if (!this._adminSelectedCinema || !cinemas.some((cinema) => cinema.id === this._adminSelectedCinema)) {
+      this._adminSelectedCinema = cinemas[0]?.id || '';
+    }
+    const selectedCinema = cinemas.find((cinema) => cinema.id === this._adminSelectedCinema);
+    const showtimesByCinema = this._adminSelectedCinema
+      ? showtimes.filter((showtime) => this._showtimeCinemaId(showtime) === this._adminSelectedCinema)
+      : [];
+    const filteredShowtimes = this._filterAdminShowtimes(showtimesByCinema, this._adminSearchQuery);
 
     main.innerHTML = `
     <div class="admin-layout-wrap">
@@ -146,9 +159,12 @@ const ShowtimeView = {
           <div class="admin-page-header">
             <div>
               <h1 class="admin-page-title">Lịch Chiếu</h1>
-              <p class="admin-page-subtitle">${showtimes.length} suất chiếu gần nhất</p>
+              <p class="admin-page-subtitle">${selectedCinema ? Helpers.escapeHtml(selectedCinema.name) : 'Chưa chọn rạp'} - ${filteredShowtimes.length} suất chiếu</p>
             </div>
             <div class="admin-page-actions">
+              <select class="form-control" style="width:260px;" onchange="ShowtimeView.selectAdminCinema(this.value)">
+                ${cinemas.map((cinema) => `<option value="${cinema.id}" ${cinema.id === this._adminSelectedCinema ? 'selected' : ''}>${Helpers.escapeHtml(cinema.code ? `${cinema.code} - ${cinema.name}` : cinema.name)}</option>`).join('')}
+              </select>
               <button class="btn btn-primary" onclick="ShowtimeView._showAddForm()"><i class="fas fa-plus"></i> Thêm Lịch Chiếu</button>
             </div>
           </div>
@@ -156,7 +172,7 @@ const ShowtimeView = {
             <div class="admin-table-header">
               <span class="admin-table-title">Danh Sách Lịch Chiếu</span>
               <div class="admin-table-actions">
-                <input type="text" class="form-control" placeholder="Tìm kiếm..." style="width:200px;" oninput="ShowtimeView._filterTable(this.value)" />
+                <input id="showtime-admin-search" type="text" class="form-control" placeholder="Tìm theo phim, rạp, phòng..." style="width:260px;" value="${Helpers.escapeHtml(this._adminSearchQuery)}" oninput="ShowtimeView.setAdminSearch(this.value)" />
               </div>
             </div>
             <div class="table-wrapper">
@@ -167,7 +183,7 @@ const ShowtimeView = {
                   </tr>
                 </thead>
                 <tbody id="showtimes-admin-tbody">
-                  ${showtimes.map((showtime) => this._adminShowtimeRow(showtime)).join('') || '<tr><td colspan="9" class="admin-table-empty">Chưa có lịch chiếu</td></tr>'}
+                  ${filteredShowtimes.map((showtime) => this._adminShowtimeRow(showtime)).join('') || `<tr><td colspan="9" class="admin-table-empty">${this._adminSearchQuery ? 'Không có lịch chiếu phù hợp' : 'Chưa có lịch chiếu cho rạp đang chọn'}</td></tr>`}
                 </tbody>
               </table>
             </div>
@@ -175,6 +191,20 @@ const ShowtimeView = {
         </div>
       </div>
     </div>`;
+  },
+
+  selectAdminCinema(cinemaId) {
+    this._adminSelectedCinema = cinemaId;
+    this.renderAdmin();
+  },
+
+  setAdminSearch(query) {
+    this._adminSearchQuery = query || '';
+    this.renderAdmin();
+  },
+
+  _showtimeCinemaId(showtime) {
+    return showtime.cinemaId || showtime.cinema?.id || showtime.room?.cinemaId || '';
   },
 
   _adminShowtimeRow(showtime) {
@@ -213,17 +243,45 @@ const ShowtimeView = {
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   },
 
-  _filterTable(query) {
-    const tbody = document.getElementById('showtimes-admin-tbody');
-    if (!tbody) return;
-    tbody.querySelectorAll('tr').forEach((row) => {
-      row.style.display = row.textContent.toLowerCase().includes(query.toLowerCase()) ? '' : 'none';
+  _filterAdminShowtimes(showtimes, query) {
+    const normalized = this._normalize(query);
+    if (!normalized) return showtimes;
+    return showtimes.filter((showtime) => {
+      const movie = showtime.movie || MovieModel.getById(showtime.movieId);
+      const cinema = showtime.cinema || CinemaModel.getById(showtime.cinemaId);
+      const room = showtime.room || RoomModel.getById(showtime.roomId);
+      const searchable = [
+        movie?.title,
+        cinema?.code,
+        cinema?.name,
+        room?.name,
+        showtime.chain?.name,
+      ].filter(Boolean).join(' ');
+      return this._normalize(searchable).includes(normalized);
     });
+  },
+
+  _normalize(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  },
+
+  _compareCinema(a, b) {
+    return String(a?.code || a?.name || '').localeCompare(String(b?.code || b?.name || ''), 'vi', { numeric: true });
+  },
+
+  _cinemasForMovie(movieId) {
+    const cinemaIds = new Set(ShowtimeModel.getByMovie(movieId).map((showtime) => showtime.cinemaId));
+    return CinemaModel.getAll()
+      .filter((cinema) => cinemaIds.has(cinema.id))
+      .sort((a, b) => this._compareCinema(a, b));
   },
 
   _showAddForm() {
     const movies = MovieModel.getAll();
-    const cinemas = CinemaModel.getAll();
+    const cinemas = CinemaModel.getAll().sort((a, b) => this._compareCinema(a, b));
     const today = Helpers.getDateString(new Date());
     const content = `
       <form onsubmit="ShowtimeController.handleCreate(event)">
@@ -244,17 +302,19 @@ const ShowtimeView = {
           </div>
           <div class="form-group">
             <label class="form-label">Phòng</label>
-            <select class="form-control" id="showtime-room-id" required>
+            <select class="form-control" id="showtime-room-id" onchange="ShowtimeView._loadAvailableSlots()" required>
               <option value="">Chọn phòng</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Ngày chiếu</label>
-            <input class="form-control" id="showtime-date" type="date" min="${today}" value="${today}" required />
+            <input class="form-control" id="showtime-date" type="date" min="${today}" value="${today}" onchange="ShowtimeView._loadAvailableSlots()" required />
           </div>
           <div class="form-group">
             <label class="form-label">Giờ bắt đầu</label>
-            <input class="form-control" id="showtime-time" type="time" value="19:00" required />
+            <select class="form-control" id="showtime-time" required>
+              <option value="">Chọn phim, phòng và ngày trước</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Giá ghế thường</label>
@@ -263,6 +323,9 @@ const ShowtimeView = {
           <div class="form-group form-full">
             <div class="alert alert-info" style="margin:0;">Hệ thống tự tính giờ kết thúc theo thời lượng phim và tự tạo ghế cho suất chiếu.</div>
           </div>
+          <div class="form-group form-full">
+            <div id="showtime-slot-helper" class="alert alert-info" style="margin:0;">Chọn phim, rạp, phòng và ngày để xem giờ còn trống. Hệ thống tự chừa 30 phút dọn phòng sau mỗi suất.</div>
+          </div>
         </div>
         <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
           <button type="button" class="btn btn-secondary" onclick="Modal.close()">Hủy</button>
@@ -270,6 +333,7 @@ const ShowtimeView = {
         </div>
       </form>`;
     Modal.show('Thêm Lịch Chiếu', content, { size: 'lg' });
+    document.getElementById('showtime-movie-id')?.addEventListener('change', () => this._loadAvailableSlots());
   },
 
   _updateRoomOptions() {
@@ -278,5 +342,58 @@ const ShowtimeView = {
     if (!roomSelect) return;
     const rooms = cinemaId ? RoomModel.getByCinema(cinemaId) : [];
     roomSelect.innerHTML = `<option value="">Chọn phòng</option>${rooms.map((room) => `<option value="${room.id}">${Helpers.escapeHtml(room.name)} (${room.capacity || 0} ghế)</option>`).join('')}`;
+    this._loadAvailableSlots();
+  },
+
+  async _loadAvailableSlots() {
+    const movieId = document.getElementById('showtime-movie-id')?.value;
+    const roomId = document.getElementById('showtime-room-id')?.value;
+    const date = document.getElementById('showtime-date')?.value;
+    const timeSelect = document.getElementById('showtime-time');
+    const helper = document.getElementById('showtime-slot-helper');
+    if (!timeSelect || !helper) return;
+
+    if (!movieId || !roomId || !date) {
+      timeSelect.innerHTML = '<option value="">Chọn phim, phòng và ngày trước</option>';
+      helper.className = 'alert alert-info';
+      helper.textContent = 'Chọn phim, rạp, phòng và ngày để xem giờ còn trống. Hệ thống tự chừa 30 phút dọn phòng sau mỗi suất.';
+      return;
+    }
+
+    timeSelect.innerHTML = '<option value="">Đang tải giờ trống...</option>';
+    helper.className = 'alert alert-info';
+    helper.textContent = 'Đang kiểm tra lịch phòng và thời gian dọn phòng...';
+
+    try {
+      const result = await API.getAdminRoomAvailableSlots(roomId, movieId, date);
+      const times = result.suggestedStartTimes || [];
+      if (!times.length) {
+        timeSelect.innerHTML = '<option value="">Không còn giờ phù hợp</option>';
+        helper.className = 'alert alert-warning';
+        helper.textContent = 'Phòng này không còn khung giờ đủ dài cho phim đã chọn trong ngày này.';
+        return;
+      }
+
+      timeSelect.innerHTML = '<option value="">Chọn giờ bắt đầu</option>' + times.map((time) => (
+        `<option value="${Helpers.escapeHtml(time.value)}">${Helpers.escapeHtml(time.label)}</option>`
+      )).join('');
+
+      helper.className = 'alert alert-info';
+      helper.innerHTML = `
+        Có ${times.length} giờ bắt đầu hợp lệ.
+        Đã tính thời lượng phim ${Number(result.movieDurationMin || 0)} phút và ${Number(result.cleanupMinutes || 0)} phút dọn phòng.
+        ${this._slotSummary(result)}
+      `;
+    } catch (error) {
+      timeSelect.innerHTML = '<option value="">Không thể tải giờ trống</option>';
+      helper.className = 'alert alert-danger';
+      helper.textContent = error.message || 'Không thể tải giờ trống của phòng này.';
+    }
+  },
+
+  _slotSummary(result) {
+    const occupied = result.occupied || [];
+    if (!occupied.length) return 'Phòng chưa có suất chiếu trong ngày này.';
+    return `Đã có ${occupied.length} suất chiếu, hệ thống chỉ hiện giờ không bị trùng và không vi phạm dọn phòng.`;
   },
 };

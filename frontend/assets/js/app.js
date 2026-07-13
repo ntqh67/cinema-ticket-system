@@ -14,7 +14,6 @@ const App = {
     Router.register('/movies', (params) => MovieView.renderList(params));
     Router.register('/movies/:id', (params) => MovieView.renderDetail(params));
     Router.register('/cinemas', () => CinemaView.renderList());
-    Router.register('/promotions', () => PromotionView.renderList());
     Router.register('/login', () => AuthView.render());
     Router.register('/profile', () => UserView.renderProfile());
     Router.register('/history', () => UserView.renderHistory());
@@ -32,7 +31,6 @@ const App = {
     Router.register('/admin/bookings', () => BookingView.renderAdmin());
     Router.register('/admin/concessions', () => ConcessionView.renderAdmin());
     Router.register('/admin/users', () => UserView.renderAdmin());
-    Router.register('/admin/promotions', () => PromotionView.renderAdmin());
   },
 
   renderHome() {
@@ -43,7 +41,9 @@ const App = {
     const featured = MovieModel.getNowShowing().slice(0, 5);
     const firstMovie = featured[0];
     const comingSoon = MovieModel.getComingSoon().slice(0, 4);
-    const cinemas = CinemaModel.getAll().slice(0, 3);
+    const cinemas = CinemaModel.getAll()
+      .sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'vi', { numeric: true }))
+      .slice(0, 3);
 
     if (!firstMovie) {
       main.innerHTML = `
@@ -108,7 +108,7 @@ const App = {
           <div class="home-section-header">
             <div>
               <h2 class="section-title">Sắp Chiếu</h2>
-              <p class="section-subtitle">Các tựa phim sắp ra mắt tại CineTicket.</p>
+              <p class="section-subtitle">Các tựa phim sắp ra mắt tại CRTicket.</p>
             </div>
             <button class="btn btn-outline" onclick="Router.navigate('/movies?status=comingSoon')">Xem Lịch</button>
           </div>
@@ -130,7 +130,7 @@ const App = {
           <div class="grid grid-3" style="gap:24px;">
             ${cinemas.map(cinema => `
               <div class="card">
-                <img src="${cinema.image}" alt="${Helpers.escapeHtml(cinema.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'">
+                <img src="${Helpers.escapeHtml(cinema.imageUrl || cinema.image || '')}" alt="${Helpers.escapeHtml(cinema.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'">
                 <div class="card-body">
                   <h3>${Helpers.escapeHtml(cinema.name)}</h3>
                   <p style="font-size:0.875rem;color:var(--color-text-muted);margin:10px 0 14px;"><i class="fas fa-map-marker-alt" style="color:var(--color-primary);"></i> ${Helpers.escapeHtml(cinema.address)}</p>

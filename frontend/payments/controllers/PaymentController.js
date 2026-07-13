@@ -1,31 +1,5 @@
 /* CineTicket - Payment Controller */
 const PaymentController = {
-  _discount: 0,
-  _appliedPromo: null,
-
-  handleApplyPromo(code) {
-    const booking = State.get('currentBooking');
-    if (!booking) return;
-    const result = PaymentModel.applyPromotion(code, booking.totalPrice);
-    if (!result.success) {
-      Toast.error(result.error);
-      return;
-    }
-    this._discount = result.discount;
-    this._appliedPromo = result.promo;
-    Toast.success(`Ap dung ma thanh cong! Giam ${Helpers.formatCurrency(result.discount)}`);
-    PaymentView.updateTotal(booking.totalPrice, result.discount);
-    PaymentView.showPromoResult(result.promo, result.discount);
-  },
-
-  handleRemovePromo() {
-    this._discount = 0;
-    this._appliedPromo = null;
-    const booking = State.get('currentBooking');
-    PaymentView.updateTotal(booking ? booking.totalPrice : 0, 0);
-    PaymentView.hidePromoResult();
-  },
-
   async handleSubmit(event, method) {
     event.preventDefault();
     if (!AuthController.checkAuth()) return;

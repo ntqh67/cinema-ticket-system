@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import {
@@ -9,6 +9,7 @@ import {
   CreateMovieFromTmdbDto,
   CreateMovieDto,
   ImportUpcomingMoviesFromTmdbDto,
+  RoomAvailableSlotsQueryDto,
   CreateRoomDto,
   CreateSeatDto,
   CreateShowtimeDto,
@@ -64,6 +65,7 @@ export class AdminController {
 
   @Get('rooms') listRooms() { return this.adminService.listRooms(); }
   @Post('rooms') createRoom(@Body() dto: CreateRoomDto) { return this.adminService.createRoom(dto); }
+  @Get('rooms/:id/available-slots') getRoomAvailableSlots(@Param('id') id: string, @Query() query: RoomAvailableSlotsQueryDto) { return this.adminService.getRoomAvailableSlots(id, query); }
   @Patch('rooms/:id') updateRoom(@Param('id') id: string, @Body() dto: UpdateRoomDto) { return this.adminService.updateRoom(id, dto); }
   @Delete('rooms/:id') deleteRoom(@Param('id') id: string) { return this.adminService.deleteRoom(id); }
   @Post('rooms/:id/seats/generate') generateSeats(@Param('id') id: string, @Body() dto: GenerateSeatsDto) { return this.adminService.generateSeats(id, dto); }

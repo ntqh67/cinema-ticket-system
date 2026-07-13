@@ -3,7 +3,7 @@ const API = {
   baseUrl: '/api',
   backendBaseUrl: localStorage.getItem('cineticket_api_base') || `${window.location.protocol}//${window.location.hostname}:3000/api`,
   catalogLoadedFromBackend: false,
-  moviePosterFallback: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600"%3E%3Crect width="400" height="600" fill="%23171717"/%3E%3Crect x="28" y="28" width="344" height="544" rx="18" fill="%23222222" stroke="%23444444"/%3E%3Ctext x="200" y="290" text-anchor="middle" fill="%23bbbbbb" font-family="Arial" font-size="28" font-weight="700"%3ECineTicket%3C/text%3E%3Ctext x="200" y="330" text-anchor="middle" fill="%23777777" font-family="Arial" font-size="18"%3EPoster dang cap nhat%3C/text%3E%3C/svg%3E',
+  moviePosterFallback: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600"%3E%3Crect width="400" height="600" fill="%23171717"/%3E%3Crect x="28" y="28" width="344" height="544" rx="18" fill="%23222222" stroke="%23444444"/%3E%3Ctext x="200" y="290" text-anchor="middle" fill="%23bbbbbb" font-family="Arial" font-size="28" font-weight="700"%3ECRTicket%3C/text%3E%3Ctext x="200" y="330" text-anchor="middle" fill="%23777777" font-family="Arial" font-size="18"%3EPoster dang cap nhat%3C/text%3E%3C/svg%3E',
 
   // ========== MOCK DATA ==========
   mockData: {
@@ -159,7 +159,7 @@ const API = {
 
     users: [
       {
-        id: 'u001', name: 'Admin CineTicket', email: 'admin@cineticket.vn',
+        id: 'u001', name: 'Admin CRTicket', email: 'admin@crticket.vn',
         phone: '0901234567', role: 'admin',
         password: 'admin123', avatar: null, createdAt: '2024-01-01', isActive: true
       },
@@ -177,37 +177,7 @@ const API = {
 
     showtimes: [],
     bookings: [],
-    tickets: [],
-
-    promotions: [
-      {
-        id: 'promo001', code: 'SUMMER25', title: 'Ưu Đãi Mùa Hè 2025',
-        description: 'Giảm 25% cho tất cả các suất chiếu trong tháng 6. Áp dụng cho đơn hàng từ $20.',
-        discount: 0.25, discountType: 'percent', maxDiscount: 10, minOrder: 20,
-        startDate: '2025-06-01', endDate: '2025-06-30',
-        usageLimit: 1000, usedCount: 342, isActive: true,
-        color: 'linear-gradient(135deg, #e50914, #ff6b35)',
-        image: 'https://picsum.photos/seed/summer25/600/300'
-      },
-      {
-        id: 'promo002', code: 'NEWUSER', title: 'Chào Khách Hàng Mới',
-        description: 'Giảm $5 cho lần đặt vé đầu tiên. Không giới hạn đơn hàng tối thiểu.',
-        discount: 5, discountType: 'fixed', maxDiscount: 5, minOrder: 0,
-        startDate: '2025-01-01', endDate: '2025-12-31',
-        usageLimit: 500, usedCount: 128, isActive: true,
-        color: 'linear-gradient(135deg, #0068ff, #00d2ff)',
-        image: 'https://picsum.photos/seed/newuser/600/300'
-      },
-      {
-        id: 'promo003', code: 'WEEKEND30', title: 'Cuối Tuần Vui Vẻ',
-        description: 'Giảm $3 cho các suất chiếu vào thứ 7, CN. Áp dụng từ 2 vé trở lên.',
-        discount: 3, discountType: 'fixed', maxDiscount: 3, minOrder: 16,
-        startDate: '2025-05-01', endDate: '2025-08-31',
-        usageLimit: 2000, usedCount: 567, isActive: true,
-        color: 'linear-gradient(135deg, #7c3aed, #db2777)',
-        image: 'https://picsum.photos/seed/weekend30/600/300'
-      }
-    ]
+    tickets: []
   },
 
   // ========== SEED SHOWTIMES ==========
@@ -272,7 +242,6 @@ const API = {
       localStorage.setItem('cineticket_showtimes', JSON.stringify(this.mockData.showtimes));
       localStorage.setItem('cineticket_bookings', JSON.stringify([]));
       localStorage.setItem('cineticket_tickets', JSON.stringify([]));
-      localStorage.setItem('cineticket_promotions', JSON.stringify(this.mockData.promotions));
       localStorage.setItem('cineticket_seeded', '1');
     } else {
       this.mockData.movies = JSON.parse(localStorage.getItem('cineticket_movies') || '[]');
@@ -282,7 +251,6 @@ const API = {
       this.mockData.showtimes = JSON.parse(localStorage.getItem('cineticket_showtimes') || '[]');
       this.mockData.bookings = JSON.parse(localStorage.getItem('cineticket_bookings') || '[]');
       this.mockData.tickets = JSON.parse(localStorage.getItem('cineticket_tickets') || '[]');
-      this.mockData.promotions = JSON.parse(localStorage.getItem('cineticket_promotions') || '[]');
     }
     await this.syncBackendCatalog();
   },
@@ -304,6 +272,18 @@ const API = {
           if (showtime.cinema) cinemasById.set(showtime.cinema.id, this._mapBackendCinema(showtime.cinema));
           if (showtime.room) roomsById.set(showtime.room.id, this._mapBackendRoom(showtime.room, showtime.cinema));
         });
+      }
+
+      try {
+        const adminCinemas = await this.getAdminCinemas();
+        (adminCinemas || []).forEach((cinema) => {
+          cinemasById.set(cinema.id, this._mapBackendCinema(cinema));
+          (cinema.rooms || []).forEach((room) => {
+            roomsById.set(room.id, this._mapBackendRoom(room, cinema));
+          });
+        });
+      } catch (error) {
+        console.warn('Admin cinema catalog is unavailable:', error);
       }
 
       this.mockData.movies = movies;
@@ -366,15 +346,18 @@ const API = {
   _mapBackendCinema(cinema) {
     return {
       id: cinema.id,
+      code: cinema.code || '',
       chainId: cinema.chainId || (cinema.chain && cinema.chain.id) || cinema.id,
       chain: cinema.chain || null,
       name: cinema.name,
       shortName: cinema.shortName || cinema.name,
       address: cinema.address || '',
+      ward: cinema.ward || '',
       city: cinema.city || '',
       phone: cinema.phone || '',
+      imageUrl: cinema.imageUrl || '',
       facilities: ['2D'],
-      image: `https://picsum.photos/seed/${cinema.id}/600/400`,
+      image: cinema.imageUrl || `https://picsum.photos/seed/${cinema.id}/600/400`,
     };
   },
 
@@ -564,12 +547,31 @@ const API = {
     return this.backendRequest('/admin/cinemas');
   },
 
+  updateAdminCinema(id, data) {
+    return this.backendRequest(`/admin/cinemas/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
   getAdminRooms() {
     return this.backendRequest('/admin/rooms');
   },
 
+  updateAdminRoom(id, data) {
+    return this.backendRequest(`/admin/rooms/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
   getAdminShowtimes() {
     return this.backendRequest('/admin/showtimes');
+  },
+
+  getAdminRoomAvailableSlots(roomId, movieId, date) {
+    const params = new URLSearchParams({ movieId, date });
+    return this.backendRequest(`/admin/rooms/${roomId}/available-slots?${params.toString()}`);
   },
 
   getCinemaTicketPrices(cinemaId) {
@@ -618,6 +620,19 @@ const API = {
     return this.backendRequest('/admin/movies/tmdb', {
       method: 'POST',
       body: JSON.stringify({ tmdbId, status })
+    });
+  },
+
+  updateAdminMovie(id, data) {
+    return this.backendRequest(`/admin/movies/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
+  deleteAdminMovie(movieId) {
+    return this.backendRequest(`/admin/movies/${movieId}`, {
+      method: 'DELETE'
     });
   },
 

@@ -4,7 +4,7 @@ const Modal = {
   _resolveConfirm: null,
 
   show(title, content, options = {}) {
-    const { size = '', buttons = [], onClose = null, id = 'main-modal' } = options;
+    const { size = '', buttons = [], onClose = null, id = 'main-modal', className = '' } = options;
     this.close();
 
     const container = document.getElementById('modal-container');
@@ -16,13 +16,13 @@ const Modal = {
 
     container.innerHTML = `
       <div class="modal-overlay" id="${id}">
-        <div class="modal-box ${size ? 'modal-' + size : ''}">
+        <div class="modal-box ${size ? 'modal-' + size : ''} ${className}">
           <div class="modal-header">
             <h4 class="modal-title">${title}</h4>
             <button class="modal-close" data-modal-action="close"><i class="fas fa-times"></i></button>
           </div>
           <div class="modal-body">${typeof content === 'string' ? content : ''}</div>
-          <div class="modal-footer">${buttonsHtml}</div>
+          ${buttons.length > 0 || !options.hideFooter ? `<div class="modal-footer">${buttonsHtml}</div>` : ''}
         </div>
       </div>`;
 

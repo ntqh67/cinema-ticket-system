@@ -41,13 +41,12 @@ const Navbar = {
       <div class="navbar-inner">
         <div class="navbar-logo" onclick="Router.navigate('/')">
           <div class="navbar-logo-icon"><i class="fas fa-film"></i></div>
-          <span class="navbar-logo-text">Cine<span>Ticket</span></span>
+          <span class="navbar-logo-text">CR<span>Ticket</span></span>
         </div>
         <nav class="navbar-nav">
           <a class="nav-link" data-route="/" onclick="Router.navigate('/')">Trang Chủ</a>
           <a class="nav-link" data-route="/movies" onclick="Router.navigate('/movies')">Phim Đang Chiếu</a>
           <a class="nav-link" data-route="/cinemas" onclick="Router.navigate('/cinemas')">Rạp Chiếu</a>
-          <a class="nav-link" data-route="/promotions" onclick="Router.navigate('/promotions')">Khuyến Mãi</a>
         </nav>
         <div class="navbar-actions">
           <div class="navbar-search">
@@ -72,7 +71,6 @@ const Navbar = {
           <div class="mobile-nav-link" onclick="Router.navigate('/');Navbar.closeMobileMenu()"><i class="fas fa-home"></i> Trang Chủ</div>
           <div class="mobile-nav-link" onclick="Router.navigate('/movies');Navbar.closeMobileMenu()"><i class="fas fa-film"></i> Phim Đang Chiếu</div>
           <div class="mobile-nav-link" onclick="Router.navigate('/cinemas');Navbar.closeMobileMenu()"><i class="fas fa-map-marker-alt"></i> Rạp Chiếu</div>
-          <div class="mobile-nav-link" onclick="Router.navigate('/promotions');Navbar.closeMobileMenu()"><i class="fas fa-tag"></i> Khuyến Mãi</div>
           ${user ? `
           <div style="height:1px;background:var(--color-border);margin:8px 0;"></div>
           <div class="mobile-nav-link" onclick="Router.navigate('/profile');Navbar.closeMobileMenu()"><i class="fas fa-user"></i> Tài Khoản</div>

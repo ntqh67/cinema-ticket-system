@@ -98,6 +98,7 @@ model Movie {
   trailerUrl  String?
   durationMin Int
   releaseDate DateTime?
+  ageRating   String       @default("P")
   status      MovieStatus  @default(DRAFT)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -168,17 +169,22 @@ model Cinema {
   id        String   @id @default(cuid())
   chainId   String?
   chain     CinemaChain? @relation(fields: [chainId], references: [id], onDelete: SetNull)
+  code      String?  @unique
   name      String
   address   String?
+  ward      String?
   city      String?
   phone     String?
   email     String?
+  imageUrl  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   rooms     Room[]
   ticketPrices CinemaTicketPrice[]
 
   @@index([chainId])
+  @@index([code])
+  @@index([ward])
   @@index([city])
   @@index([name])
   @@map("cinemas")

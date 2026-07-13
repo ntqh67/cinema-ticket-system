@@ -218,7 +218,7 @@ const UserView = {
     <aside class="admin-sidebar">
       <div class="admin-sidebar-header">
         <div class="admin-logo-icon"><i class="fas fa-film"></i></div>
-        <span class="admin-logo-text">Cine<span>Ticket</span></span>
+        <span class="admin-logo-text">CR<span>Ticket</span></span>
         <span class="admin-badge">Admin</span>
       </div>
       <nav class="admin-nav">
@@ -236,7 +236,6 @@ const UserView = {
           <a class="admin-nav-item ${active === "bookings" ? "active" : ""}" onclick="Router.navigate('/admin/bookings')"><i class="fas fa-ticket-alt"></i> Đặt Vé</a>
           <a class="admin-nav-item ${active === "concessions" ? "active" : ""}" onclick="Router.navigate('/admin/concessions')"><i class="fas fa-shopping-basket"></i> Combo</a>
           <a class="admin-nav-item ${active === "users" ? "active" : ""}" onclick="Router.navigate('/admin/users')"><i class="fas fa-users"></i> Người Dùng</a>
-          <a class="admin-nav-item ${active === "promotions" ? "active" : ""}" onclick="Router.navigate('/admin/promotions')"><i class="fas fa-tags"></i> Khuyến Mãi</a>
         </div>
       </nav>
       <div class="admin-sidebar-footer">

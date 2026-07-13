@@ -19,11 +19,11 @@ const AuthView = {
         <div class="auth-left-content">
           <div class="auth-left-logo">
             <div class="auth-left-logo-icon"><i class="fas fa-film"></i></div>
-            <span class="auth-left-logo-text">Cine<span>Ticket</span></span>
+            <span class="auth-left-logo-text">CR<span>Ticket</span></span>
           </div>
           <div class="auth-quote">
             <p class="auth-quote-text">"Điện ảnh không chỉ là nghệ thuật — đó là cánh cửa dẫn vào những thế giới chưa từng biết đến."</p>
-            <span class="auth-quote-author">— CineTicket</span>
+            <span class="auth-quote-author">— CRTicket</span>
           </div>
           <div class="auth-features">
             <div class="auth-feature-item">

@@ -7,7 +7,7 @@ const Footer = {
           <div class="footer-brand">
             <div class="footer-logo" onclick="Router.navigate('/')">
               <div class="footer-logo-icon"><i class="fas fa-film"></i></div>
-              <span class="footer-logo-text">Cine<span>Ticket</span></span>
+              <span class="footer-logo-text">CR<span>Ticket</span></span>
             </div>
             <p class="footer-desc">Hệ thống đặt vé rạp chiếu phim trực tuyến hàng đầu Việt Nam. Trải nghiệm điện ảnh đỉnh cao với hàng trăm suất chiếu mỗi ngày.</p>
             <div class="footer-social">
@@ -24,7 +24,6 @@ const Footer = {
               <span class="footer-link" onclick="Router.navigate('/movies')"><i class="fas fa-chevron-right"></i> Phim Đang Chiếu</span>
               <span class="footer-link" onclick="Router.navigate('/movies?status=comingSoon')"><i class="fas fa-chevron-right"></i> Phim Sắp Chiếu</span>
               <span class="footer-link" onclick="Router.navigate('/cinemas')"><i class="fas fa-chevron-right"></i> Rạp Chiếu Phim</span>
-              <span class="footer-link" onclick="Router.navigate('/promotions')"><i class="fas fa-chevron-right"></i> Khuyến Mãi</span>
             </div>
           </div>
           <div>
@@ -40,15 +39,15 @@ const Footer = {
             <h5 class="footer-col-title">Liên Hệ</h5>
             <div class="footer-contact-item">
               <i class="fas fa-map-marker-alt"></i>
-              <span>72 Lê Thánh Tôn, Q.1, TP. Hồ Chí Minh</span>
+              <span>Thành phố Đà Nẵng</span>
             </div>
             <div class="footer-contact-item">
               <i class="fas fa-phone"></i>
-              <span>1900 6017</span>
+              <span>19005678</span>
             </div>
             <div class="footer-contact-item">
               <i class="fas fa-envelope"></i>
-              <span>support@cineticket.vn</span>
+              <span>support@crticket.vn</span>
             </div>
             <div class="footer-contact-item">
               <i class="fas fa-clock"></i>
@@ -57,7 +56,7 @@ const Footer = {
           </div>
         </div>
         <div class="footer-bottom">
-          <span>© 2025 CineTicket. Tất cả quyền được bảo lưu.</span>
+          <span>© 2025 CRTicket. Tất cả quyền được bảo lưu.</span>
           <div class="footer-bottom-links">
             <span class="footer-bottom-link">Chính Sách Bảo Mật</span>
             <span class="footer-bottom-link">Điều Khoản Sử Dụng</span>

@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
+const { normalizeGenreName } = require('../scripts/genre-map');
 
 dotenv.config();
 
@@ -15,13 +16,7 @@ const PRICE_BY_SEAT_TYPE = {
 };
 
 const CINEMA_PRICE_BY_CHAIN = {
-  CGV: { STANDARD: 95000, VIP: 140000, COUPLE: 220000 },
-  Galaxy: { STANDARD: 85000, VIP: 125000, COUPLE: 200000 },
-  Lotte: { STANDARD: 90000, VIP: 135000, COUPLE: 210000 },
-  Starlight: { STANDARD: 80000, VIP: 120000, COUPLE: 190000 },
-  Metiz: { STANDARD: 80000, VIP: 120000, COUPLE: 190000 },
-  Rio: { STANDARD: 75000, VIP: 110000, COUPLE: 175000 },
-  'Le Do': { STANDARD: 65000, VIP: 95000, COUPLE: 150000 },
+  'CR Cinema': { STANDARD: 85000, VIP: 125000, COUPLE: 200000 },
 };
 
 const CONCESSION_COMBOS = [
@@ -53,58 +48,67 @@ const CONCESSION_COMBOS = [
 
 const CINEMAS = [
   {
-    chain: 'Galaxy',
-    name: 'Galaxy Da Nang',
-    address: 'Tang 3 Co.opmart, 478 Dien Bien Phu',
+    chain: 'CR Cinema',
+    code: 'CR01',
+    name: 'CR Cinema Riverside',
+    address: '128 Bạch Đằng',
+    ward: 'Hải Châu',
     roomCount: 7,
+    imageUrl: '/assets/images/cinemas/cr01-riverside.jpg',
   },
   {
-    chain: 'CGV',
-    name: 'CGV Vinh Trung Plaza',
-    address: '255-257 Hung Vuong, Thanh Khe',
-    roomCount: 6,
+    chain: 'CR Cinema',
+    code: 'CR02',
+    name: 'CR Cinema Central Park',
+    address: '215 Điện Biên Phủ',
+    ward: 'Thanh Khê',
+    roomCount: 7,
+    imageUrl: '/assets/images/cinemas/cr02-central-park.jpg',
   },
   {
-    chain: 'Rio',
-    name: 'Rio Da Nang',
-    address: '403 Ton Duc Thang, Hoa Khanh',
-    roomCount: 6,
-  },
-  {
-    chain: 'CGV',
-    name: 'CGV Vincom Da Nang',
-    address: 'Tang 4 Vincom, Ngo Quyen, Son Tra',
+    chain: 'CR Cinema',
+    code: 'CR03',
+    name: 'CR Cinema Ocean View',
+    address: '96 Võ Nguyên Giáp',
+    ward: 'Sơn Trà',
     roomCount: 5,
+    imageUrl: '/assets/images/cinemas/cr03-ocean-view.jpg',
   },
   {
-    chain: 'Metiz',
-    name: 'Metiz Cinema',
-    address: 'Tang 1 Helio Center, duong 2/9',
+    chain: 'CR Cinema',
+    code: 'CR04',
+    name: 'CR Cinema Marble Mountain',
+    address: '168 Ngũ Hành Sơn',
+    ward: 'Ngũ Hành Sơn',
     roomCount: 5,
+    imageUrl: '/assets/images/cinemas/cr04-marble-mountain.jpg',
   },
   {
-    chain: 'Lotte',
-    name: 'Lotte Cinema Da Nang',
-    address: 'Tang 5-6 Lotte Mart Da Nang',
-    roomCount: 4,
-  },
-  {
-    chain: 'Le Do',
-    name: 'Rap Le Do',
-    address: '46 Tran Phu, Hai Chau',
-    roomCount: 2,
-  },
-  {
-    chain: 'Starlight',
-    name: 'Starlight Da Nang',
-    address: 'Tang 4 Nguyen Kim, 46 Dien Bien Phu',
+    chain: 'CR Cinema',
+    code: 'CR05',
+    name: 'CR Cinema Northwest',
+    address: '305 Nguyễn Lương Bằng',
+    ward: 'Liên Chiểu',
     roomCount: 5,
+    imageUrl: '/assets/images/cinemas/cr05-northwest.jpg',
   },
   {
-    chain: 'CGV',
-    name: 'CGV MM Supercenter Da Nang',
-    address: 'MM Mega Market, 167 Nguyen Sinh Sac',
-    roomCount: 5,
+    chain: 'CR Cinema',
+    code: 'CR06',
+    name: 'CR Cinema Green Square',
+    address: '142 Cách Mạng Tháng Tám',
+    ward: 'Cẩm Lệ',
+    roomCount: 3,
+    imageUrl: '/assets/images/cinemas/cr06-green-square.jpg',
+  },
+  {
+    chain: 'CR Cinema',
+    code: 'CR07',
+    name: 'CR Cinema Golden Hills',
+    address: '75 Quốc lộ 14B',
+    ward: 'Hòa Vang',
+    roomCount: 3,
+    imageUrl: '/assets/images/cinemas/cr07-golden-hills.jpg',
   },
 ];
 
@@ -115,16 +119,16 @@ const ROOM_LAYOUTS = [
 ];
 
 const GENRES = [
-  'Action',
-  'Adventure',
-  'Animation',
-  'Comedy',
-  'Drama',
-  'Family',
-  'Fantasy',
-  'Horror',
-  'Sci-Fi',
-  'Thriller',
+  'Hành Động',
+  'Phiêu Lưu',
+  'Hoạt Hình',
+  'Hài',
+  'Chính Kịch',
+  'Gia Đình',
+  'Giả Tưởng',
+  'Kinh Dị',
+  'Khoa Học Viễn Tưởng',
+  'Giật Gân',
 ];
 
 const NOW_SHOWING_MOVIES = [
@@ -134,9 +138,10 @@ const NOW_SHOWING_MOVIES = [
     description: 'A new generation of Superman begins with action, heart, and hope.',
     durationMin: 129,
     releaseDate: '2026-07-10',
-    genres: ['Action', 'Adventure', 'Fantasy'],
+    ageRating: 'C13',
+    genres: ['Hành Động', 'Phiêu Lưu', 'Giả Tưởng'],
     posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/32/Superman_%282025_film%29_poster.jpg/250px-Superman_%282025_film%29_poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Superman%202025%20official%20trailer%20DC%20Studios',
+    trailerUrl: 'https://www.youtube.com/embed/MikgqM0LXr4',
   },
   {
     tmdbId: null,
@@ -144,9 +149,10 @@ const NOW_SHOWING_MOVIES = [
     description: 'A high-speed racing drama following a veteran driver and a rising rookie.',
     durationMin: 155,
     releaseDate: '2026-06-27',
-    genres: ['Action', 'Drama'],
+    ageRating: 'C13',
+    genres: ['Hành Động', 'Chính Kịch'],
     posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/38/F1_%282025_film%29.png/250px-F1_%282025_film%29.png',
-    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=F1%20The%20Movie%20official%20trailer',
+    trailerUrl: 'https://www.youtube.com/embed/RXQtH7kLRWw',
   },
   {
     tmdbId: null,
@@ -154,9 +160,10 @@ const NOW_SHOWING_MOVIES = [
     description: 'A new expedition enters a dangerous world of dinosaurs and genetic secrets.',
     durationMin: 134,
     releaseDate: '2026-07-02',
-    genres: ['Action', 'Adventure', 'Sci-Fi'],
+    ageRating: 'C13',
+    genres: ['Hành Động', 'Phiêu Lưu', 'Khoa Học Viễn Tưởng'],
     posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a5/Jurassic_World_Rebirth_poster.jpg/250px-Jurassic_World_Rebirth_poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Jurassic%20World%20Rebirth%20official%20trailer%20Universal%20Pictures',
+    trailerUrl: 'https://www.youtube.com/embed/2ZhB-YO5Tnk',
   },
   {
     tmdbId: null,
@@ -164,9 +171,10 @@ const NOW_SHOWING_MOVIES = [
     description: 'A live-action adventure about friendship, courage, and dragons.',
     durationMin: 125,
     releaseDate: '2026-06-13',
-    genres: ['Adventure', 'Family', 'Fantasy'],
+    ageRating: 'P',
+    genres: ['Phiêu Lưu', 'Gia Đình', 'Giả Tưởng'],
     posterUrl: 'https://upload.wikimedia.org/wikipedia/en/8/80/How_To_Train_Your_Dragon_2025_Poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=How%20to%20Train%20Your%20Dragon%202025%20official%20trailer%20Universal%20Pictures',
+    trailerUrl: 'https://www.youtube.com/embed/agfeEa8nEIo',
   },
   {
     tmdbId: null,
@@ -174,9 +182,10 @@ const NOW_SHOWING_MOVIES = [
     description: 'Nobita and friends begin a colorful adventure inside a mysterious painting world.',
     durationMin: 105,
     releaseDate: '2026-05-23',
-    genres: ['Animation', 'Family', 'Adventure'],
+    ageRating: 'P',
+    genres: ['Hoạt Hình', 'Gia Đình', 'Phiêu Lưu'],
     posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/44/Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg/250px-Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=Doraemon%20Nobita%27s%20Art%20World%20Tales%20official%20trailer',
+    trailerUrl: 'https://www.youtube.com/embed/0Fse1acKOD4',
   },
   {
     tmdbId: null,
@@ -185,7 +194,8 @@ const NOW_SHOWING_MOVIES = [
       'A supernatural horror story about a wish that turns affection into a dangerous obsession.',
     durationMin: 109,
     releaseDate: '2026-05-15',
-    genres: ['Horror', 'Thriller'],
+    ageRating: 'C18',
+    genres: ['Kinh Dị', 'Giật Gân'],
     posterUrl: null,
     trailerUrl: null,
   },
@@ -195,7 +205,8 @@ const NOW_SHOWING_MOVIES = [
     description: 'A Vietnamese family drama about love, regret, and the road back home.',
     durationMin: 112,
     releaseDate: '2026-07-01',
-    genres: ['Drama', 'Family'],
+    ageRating: 'C13',
+    genres: ['Chính Kịch', 'Gia Đình'],
     posterUrl: null,
     trailerUrl: null,
   },
@@ -205,9 +216,10 @@ const NOW_SHOWING_MOVIES = [
     description: 'A tense horror story set decades after a terrifying outbreak.',
     durationMin: 115,
     releaseDate: '2026-06-20',
-    genres: ['Horror', 'Thriller'],
+    ageRating: 'C18',
+    genres: ['Kinh Dị', 'Giật Gân'],
     posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/38/28_Years_Later_film_poster.jpg/250px-28_Years_Later_film_poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed?listType=search&list=28%20Years%20Later%20official%20trailer%20Sony%20Pictures',
+    trailerUrl: 'https://www.youtube.com/embed/IYGG55qwQZQ',
   },
 ];
 
@@ -329,12 +341,13 @@ async function createMovies(genres) {
         description: movieConfig.description,
         durationMin: movieConfig.durationMin,
         releaseDate: new Date(`${movieConfig.releaseDate}T00:00:00.000+07:00`),
+        ageRating: movieConfig.ageRating || 'P',
         posterUrl: movieConfig.posterUrl || null,
         trailerUrl: movieConfig.trailerUrl || null,
         status: 'NOW_SHOWING',
         genres: {
           create: movieConfig.genres.map((genreName) => ({
-            genre: { connect: { id: genres.get(genreName).id } },
+            genre: { connect: { id: genres.get(normalizeGenreName(genreName)).id } },
           })),
         },
       },
@@ -353,7 +366,7 @@ async function createCinemaChains() {
     const chain = await prisma.cinemaChain.create({
       data: {
         name,
-        city: 'Da Nang',
+        city: 'Đà Nẵng',
       },
     });
     chains.set(name, chain);
@@ -369,11 +382,14 @@ async function createCinemasRoomsAndSeats(chains) {
     const cinema = await prisma.cinema.create({
       data: {
         chainId: chains.get(cinemaConfig.chain).id,
+        code: cinemaConfig.code,
         name: cinemaConfig.name,
         address: cinemaConfig.address,
-        city: 'Da Nang',
+        ward: cinemaConfig.ward,
+        city: cinemaConfig.city || 'Đà Nẵng',
         phone: '+84-236-000-0000',
         email: `${slugify(cinemaConfig.name)}@cinema.test`,
+        imageUrl: cinemaConfig.imageUrl,
       },
     });
 

@@ -1,5 +1,8 @@
 /* CineTicket - Room View */
 const RoomView = {
+  _adminSelectedCinema: null,
+  _adminCinemas: [],
+
   async renderAdmin() {
     if (!AuthController.requireAdmin()) return;
     document.body.classList.add('admin-layout');
@@ -7,12 +10,27 @@ const RoomView = {
     if (!main) return;
 
     let rooms = [];
+    let cinemas = [];
     try {
-      rooms = await API.getAdminRooms();
+      [rooms, cinemas] = await Promise.all([
+        API.getAdminRooms(),
+        API.getAdminCinemas(),
+      ]);
     } catch (error) {
       Toast.error(error.message || 'Không thể tải phòng chiếu');
       rooms = RoomModel.getAll();
+      cinemas = CinemaModel.getAll();
     }
+    cinemas.sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'vi', { numeric: true }));
+    this._adminCinemas = cinemas;
+    if (!this._adminSelectedCinema || !cinemas.some((cinema) => cinema.id === this._adminSelectedCinema)) {
+      this._adminSelectedCinema = cinemas[0]?.id || '';
+    }
+    const selectedCinema = cinemas.find((cinema) => cinema.id === this._adminSelectedCinema);
+    const filteredRooms = this._adminSelectedCinema
+      ? rooms.filter((room) => this._roomCinemaId(room) === this._adminSelectedCinema)
+      : [];
+    this._adminRooms = filteredRooms;
 
     main.innerHTML = `
     <div class="admin-layout-wrap">
@@ -23,9 +41,12 @@ const RoomView = {
           <div class="admin-page-header">
             <div>
               <h1 class="admin-page-title">Phòng Chiếu</h1>
-              <p class="admin-page-subtitle">${rooms.length} phòng trong hệ thống</p>
+              <p class="admin-page-subtitle">${selectedCinema ? Helpers.escapeHtml(selectedCinema.name) : 'Chưa chọn rạp'} - ${filteredRooms.length} phòng</p>
             </div>
             <div class="admin-page-actions">
+              <select class="form-control" style="width:260px;" onchange="RoomView.selectAdminCinema(this.value)">
+                ${cinemas.map((cinema) => `<option value="${cinema.id}" ${cinema.id === this._adminSelectedCinema ? 'selected' : ''}>${Helpers.escapeHtml(cinema.code ? `${cinema.code} - ${cinema.name}` : cinema.name)}</option>`).join('')}
+              </select>
               <button class="btn btn-primary" onclick="Toast.info('Tính năng thêm phòng đang phát triển')">
                 <i class="fas fa-plus"></i> Thêm Phòng
               </button>
@@ -50,7 +71,7 @@ const RoomView = {
                   </tr>
                 </thead>
                 <tbody>
-                  ${rooms.map((room) => this._roomRow(room)).join('') || '<tr><td colspan="7" class="admin-table-empty">Chưa có phòng chiếu</td></tr>'}
+                  ${filteredRooms.map((room) => this._roomRow(room)).join('') || '<tr><td colspan="7" class="admin-table-empty">Chưa có phòng chiếu cho rạp đang chọn</td></tr>'}
                 </tbody>
               </table>
             </div>
@@ -58,6 +79,15 @@ const RoomView = {
         </div>
       </div>
     </div>`;
+  },
+
+  selectAdminCinema(cinemaId) {
+    this._adminSelectedCinema = cinemaId;
+    this.renderAdmin();
+  },
+
+  _roomCinemaId(room) {
+    return room.cinemaId || room.cinema?.id || '';
   },
 
   _roomRow(room) {
@@ -79,10 +109,60 @@ const RoomView = {
       </td>
       <td>
         <div class="table-actions">
-          <button class="action-btn edit" onclick="Toast.info('Chỉnh sửa phòng')" title="Sửa"><i class="fas fa-edit"></i></button>
+          <button class="action-btn edit" onclick="RoomView.showEditForm('${room.id}')" title="Sửa"><i class="fas fa-edit"></i></button>
           <button class="action-btn delete" onclick="RoomController.handleDelete('${room.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
         </div>
       </td>
     </tr>`;
+  },
+
+  showEditForm(roomId) {
+    const room = (this._adminRooms || []).find((item) => item.id === roomId) || RoomModel.getById(roomId);
+    if (!room) {
+      Toast.error('Không tìm thấy phòng chiếu');
+      return;
+    }
+    const cinema = room.cinema || CinemaModel.getById(room.cinemaId);
+    const content = `
+      <form onsubmit="RoomView.saveEdit(event, '${room.id}')">
+        <div class="form-group">
+          <label class="form-label">Rạp chiếu</label>
+          <input class="form-control" value="${Helpers.escapeHtml(cinema ? cinema.name : room.cinemaId || '')}" disabled />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tên phòng *</label>
+          <input class="form-control" id="edit-room-name" value="${Helpers.escapeHtml(room.name || '')}" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sức chứa *</label>
+          <input type="number" class="form-control" id="edit-room-capacity" min="1" value="${Number(room.capacity || room.seatCount || 1)}" required />
+        </div>
+        <p style="font-size:0.82rem;color:var(--color-text-muted);">Không thay đổi hàng/cột hoặc sơ đồ ghế trong bước này.</p>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Hủy</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu thay đổi</button>
+        </div>
+      </form>`;
+    Modal.show('Chỉnh Sửa Phòng Chiếu', content, { size: 'md' });
+  },
+
+  async saveEdit(event, roomId) {
+    event.preventDefault();
+    const payload = {
+      name: document.getElementById('edit-room-name').value.trim(),
+      capacity: Number(document.getElementById('edit-room-capacity').value),
+    };
+    if (!payload.name || !payload.capacity) {
+      Toast.error('Vui lòng nhập tên phòng và sức chứa hợp lệ');
+      return;
+    }
+    try {
+      await API.updateAdminRoom(roomId, payload);
+      Modal.close();
+      Toast.success('Đã cập nhật phòng chiếu');
+      this.renderAdmin();
+    } catch (error) {
+      Toast.error(error.message || 'Không thể cập nhật phòng chiếu');
+    }
   },
 };

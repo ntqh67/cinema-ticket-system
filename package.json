@@ -7,6 +7,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
+    "genres:sync": "node scripts/sync-genres.js",
     "tmdb:sync": "node scripts/sync-tmdb-movies.js",
     "tmdb:add": "node scripts/add-tmdb-movie.js"
   },

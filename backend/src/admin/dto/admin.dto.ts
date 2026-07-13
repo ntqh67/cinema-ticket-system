@@ -31,7 +31,7 @@ export class CreateCinemaChainDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ default: 'Da Nang' })
+  @ApiPropertyOptional({ default: 'Đà Nẵng' })
   @IsOptional()
   @IsString()
   city?: string;
@@ -85,6 +85,11 @@ export class CreateMovieDto {
   @IsArray()
   @IsString({ each: true })
   genreIds?: string[];
+
+  @ApiPropertyOptional({ default: 'P' })
+  @IsOptional()
+  @IsString()
+  ageRating?: string;
 }
 
 export class UpdateMovieDto extends CreateMovieDto {}
@@ -99,6 +104,16 @@ export class CreateMovieFromTmdbDto {
   @IsOptional()
   @IsEnum(['DRAFT', 'NOW_SHOWING', 'COMING_SOON', 'ENDED'])
   status?: 'DRAFT' | 'NOW_SHOWING' | 'COMING_SOON' | 'ENDED';
+}
+
+export class RoomAvailableSlotsQueryDto {
+  @ApiProperty()
+  @IsString()
+  movieId: string;
+
+  @ApiProperty({ example: '2026-07-13' })
+  @IsDateString()
+  date: string;
 }
 
 export class ImportUpcomingMoviesFromTmdbDto {
@@ -121,6 +136,11 @@ export class CreateCinemaDto {
   @IsString()
   chainId?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  code?: string;
+
   @ApiProperty()
   @IsString()
   name: string;
@@ -130,7 +150,12 @@ export class CreateCinemaDto {
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ default: 'Da Nang' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  ward?: string;
+
+  @ApiPropertyOptional({ default: 'Đà Nẵng' })
   @IsOptional()
   @IsString()
   city?: string;
@@ -144,6 +169,11 @@ export class CreateCinemaDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class UpdateCinemaDto extends CreateCinemaDto {}

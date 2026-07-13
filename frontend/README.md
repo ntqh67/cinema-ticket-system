@@ -17,9 +17,7 @@ Then open:
 http://localhost:5173
 ```
 
-The Booking Service flow uses PostgreSQL-backed backend APIs for login/register, movie catalog, showtimes, seats, booking, VNPay payment, ticket history, and booking QR display.
-
-Some screens outside Quang Huy's Booking Service scope, such as promotions or reports, may still use UI demo data.
+The Booking Service flow uses PostgreSQL-backed backend APIs for login/register, movie catalog, showtimes, seats, booking, online payment, ticket history, and booking QR display. Promotions have been removed from the customer and admin UI.
 
 ## Booking API Targets
 

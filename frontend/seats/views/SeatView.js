@@ -43,6 +43,12 @@ const SeatView = {
       return;
     }
 
+    const accepted = await this._ensureAgeWarningAccepted(movie, showtimeId);
+    if (!accepted) {
+      Router.navigate(`/movies/${movie.id}`);
+      return;
+    }
+
     document.getElementById('footer').style.display = '';
 
     const rows = SeatController.currentRows || [];
@@ -169,6 +175,71 @@ const SeatView = {
       onclick="SeatView._handleSeatClick(this)"
       title="${seat.id} - ${label} - ${Helpers.formatCurrency(price)}"
     >${Helpers.escapeHtml(seat.label || seat.id)}</div>`;
+  },
+
+  _ageWarningMessage(ageRating) {
+    const warnings = {
+      C13: 'Phim dành cho khán giả từ 13 tuổi trở lên.',
+      C16: 'Phim dành cho khán giả từ 16 tuổi trở lên.',
+      C18: 'Phim dành cho khán giả từ 18 tuổi trở lên.',
+    };
+    return warnings[ageRating] || '';
+  },
+
+  _ensureAgeWarningAccepted(movie, showtimeId) {
+    const message = this._ageWarningMessage(movie.ageRating);
+    if (!message) return Promise.resolve(true);
+
+    return new Promise((resolve) => {
+      const content = `
+        <div class="age-warning-modal">
+          <p>Theo quy định của Bộ Văn Hóa, Thể Thao và Du Lịch:</p>
+          <p>
+            Rạp phim không được phép phục vụ khách hàng
+            <strong>${Helpers.escapeHtml(this._ageRestrictionText(movie.ageRating))}</strong>
+            cho các suất chiếu phim phân loại
+            <strong>${Helpers.escapeHtml(movie.ageRating)}</strong>.
+            Rạp sẽ không hoàn tiền nếu người xem không đáp ứng đủ điều kiện.
+          </p>
+          <p class="age-warning-movie">
+            <span>Phim:</span> <strong>${Helpers.escapeHtml(movie.title)}</strong>
+          </p>
+          <button class="age-warning-accept" onclick="SeatView._acceptAgeWarning('${Helpers.escapeHtml(showtimeId)}')">
+            Tôi đã hiểu và đồng ý
+          </button>
+        </div>`;
+
+      this._ageWarningResolver = resolve;
+      Modal.show('Lưu ý', content, {
+        size: 'sm',
+        className: 'age-warning-box',
+        buttons: [],
+        hideFooter: true,
+        onClose: () => {
+          if (this._ageWarningResolver) {
+            this._ageWarningResolver(false);
+            this._ageWarningResolver = null;
+          }
+        },
+      });
+    });
+  },
+
+  _ageRestrictionText(ageRating) {
+    const text = {
+      C13: 'dưới 13 tuổi',
+      C16: 'dưới 16 tuổi',
+      C18: 'dưới 18 tuổi',
+    };
+    return text[ageRating] || 'không đáp ứng phân loại độ tuổi';
+  },
+
+  _acceptAgeWarning(showtimeId) {
+    if (this._ageWarningResolver) {
+      this._ageWarningResolver(true);
+      this._ageWarningResolver = null;
+    }
+    Modal.close();
   },
 
   _bestSeatZone(rows) {

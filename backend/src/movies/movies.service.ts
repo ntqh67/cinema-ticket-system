@@ -217,7 +217,7 @@ export class MoviesService {
       ratingCount: movie._count.reviews,
       language: 'Dang cap nhat',
       director: 'Dang cap nhat',
-      ageRating: 'P',
+      ageRating: movie.ageRating || 'P',
       trailer: movie.trailerUrl || '',
       showtimeCount: movie._count.showtimes,
       backend: true,

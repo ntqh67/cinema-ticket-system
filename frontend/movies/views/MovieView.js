@@ -270,9 +270,10 @@ const MovieView = {
                   <div class="meta-item"><i class="fas fa-user-tie"></i><span><strong>ĐD:</strong> ${Helpers.escapeHtml(movie.director)}</span></div>
                 </div>
                 <p class="movie-detail-desc">${Helpers.escapeHtml(movie.description)}</p>
+                ${this._ageWarning(movie)}
                 <div class="movie-detail-actions">
                   ${movie.status === 'nowShowing'
-                    ? `<button class="btn btn-primary btn-lg" onclick="document.getElementById('booking-section').scrollIntoView({behavior:'smooth'})"><i class="fas fa-ticket-alt"></i> Đặt Vé Ngay</button>`
+                    ? `<button class="btn btn-primary btn-lg" onclick="MovieView.scrollToBooking('${movie.id}')"><i class="fas fa-ticket-alt"></i> Đặt Vé Ngay</button>`
                     : `<button class="btn btn-accent btn-lg" onclick="Toast.info('Tính năng nhắc nhở sẽ sớm ra mắt!')"><i class="fas fa-bell"></i> Đặt Lịch Nhắc</button>`
                   }
                   ${movie.trailer ? `<button class="btn btn-secondary" onclick="MovieView._showTrailer('${movie.id}')"><i class="fas fa-play"></i> Xem Trailer</button>` : ''}
@@ -309,6 +310,27 @@ const MovieView = {
       ShowtimeView.renderForMovie(movie.id, 'movie-booking-section');
     }
     this._loadReviewSection(movie.id);
+  },
+
+  _ageWarning(movie) {
+    const warnings = {
+      C13: 'Phim dành cho khán giả từ 13 tuổi trở lên.',
+      C16: 'Phim dành cho khán giả từ 16 tuổi trở lên.',
+      C18: 'Phim dành cho khán giả từ 18 tuổi trở lên.',
+    };
+    const message = warnings[movie.ageRating];
+    if (!message) return '';
+
+    return `
+      <div class="alert alert-warning" style="margin:16px 0;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>${Helpers.escapeHtml(movie.ageRating)}</strong> - ${message}
+      </div>`;
+  },
+
+  scrollToBooking(movieId) {
+    const bookingSection = document.getElementById('booking-section');
+    if (bookingSection) bookingSection.scrollIntoView({ behavior: 'smooth' });
   },
 
   _reviewSection(movie) {
@@ -539,6 +561,90 @@ const MovieView = {
   _showEditForm(id) {
     const m = MovieModel.getById(id);
     if (!m) return;
-    Toast.info('Chức năng chỉnh sửa đang phát triển');
+    const statusMap = {
+      nowShowing: 'NOW_SHOWING',
+      comingSoon: 'COMING_SOON',
+      draft: 'DRAFT',
+      ended: 'ENDED',
+    };
+    const status = statusMap[m.status] || 'NOW_SHOWING';
+    const releaseDate = m.releaseDate ? String(m.releaseDate).slice(0, 10) : '';
+    const content = `
+      <form onsubmit="MovieView.saveEdit(event, '${m.id}')">
+        <div class="admin-form-grid">
+          <div class="form-group form-full">
+            <label class="form-label">Tên phim *</label>
+            <input type="text" class="form-control" id="edit-movie-title" value="${Helpers.escapeHtml(m.title)}" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Thời lượng (phút) *</label>
+            <input type="number" class="form-control" id="edit-movie-duration" min="1" value="${Number(m.duration || 0)}" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ngày khởi chiếu</label>
+            <input type="date" class="form-control" id="edit-movie-release" value="${releaseDate}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trạng thái</label>
+            <select class="form-control" id="edit-movie-status">
+              <option value="NOW_SHOWING" ${status === 'NOW_SHOWING' ? 'selected' : ''}>Đang chiếu</option>
+              <option value="COMING_SOON" ${status === 'COMING_SOON' ? 'selected' : ''}>Sắp chiếu</option>
+              <option value="DRAFT" ${status === 'DRAFT' ? 'selected' : ''}>Bản nháp</option>
+              <option value="ENDED" ${status === 'ENDED' ? 'selected' : ''}>Ngừng chiếu</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phân loại tuổi</label>
+            <select class="form-control" id="edit-movie-age">
+              ${['P', 'C13', 'C16', 'C18'].map((rating) => `<option value="${rating}" ${m.ageRating === rating ? 'selected' : ''}>${rating}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label">Poster URL</label>
+            <input type="url" class="form-control" id="edit-movie-poster" value="${Helpers.escapeHtml(m.poster || '')}" placeholder="https://..." />
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label">Trailer URL</label>
+            <input type="url" class="form-control" id="edit-movie-trailer" value="${Helpers.escapeHtml(m.trailer || '')}" placeholder="https://www.youtube.com/embed/..." />
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label">Mô tả</label>
+            <textarea class="form-control" id="edit-movie-description" rows="4">${Helpers.escapeHtml(m.description || '')}</textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Hủy</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu thay đổi</button>
+        </div>
+      </form>`;
+    Modal.show('Chỉnh Sửa Phim', content, { size: 'lg' });
+  },
+
+  async saveEdit(event, id) {
+    event.preventDefault();
+    const releaseDate = document.getElementById('edit-movie-release').value;
+    const payload = {
+      title: document.getElementById('edit-movie-title').value.trim(),
+      durationMin: Number(document.getElementById('edit-movie-duration').value),
+      description: document.getElementById('edit-movie-description').value.trim(),
+      posterUrl: document.getElementById('edit-movie-poster').value.trim() || null,
+      trailerUrl: document.getElementById('edit-movie-trailer').value.trim() || null,
+      releaseDate: releaseDate || undefined,
+      status: document.getElementById('edit-movie-status').value,
+      ageRating: document.getElementById('edit-movie-age').value,
+    };
+    if (!payload.title || !payload.durationMin) {
+      Toast.error('Vui lòng nhập tên phim và thời lượng hợp lệ');
+      return;
+    }
+    try {
+      await API.updateAdminMovie(id, payload);
+      await API.syncBackendCatalog();
+      Modal.close();
+      Toast.success('Đã cập nhật phim');
+      this.renderAdmin();
+    } catch (error) {
+      Toast.error(error.message || 'Không thể cập nhật phim');
+    }
   }
 };

@@ -1,6 +1,8 @@
-# Hướng Dẫn Chạy Và Demo Dự Án Cinema
+﻿# Hướng Dẫn Chạy Và Đóng Gói Dự Án CRTicket
 
-Tài liệu này ghi lại cách chạy Docker, database, backend, frontend và các phần chính đã làm trên nhánh của Quang Huy. Người khác pull branch về nên đọc file này trước khi chạy.
+Tài liệu này dành cho người pull branch về chạy lại dự án. Mục tiêu chính của branch hiện tại là: **người khác import dump database sẽ có dữ liệu giống máy hiện tại**, gồm phim, rạp CR Cinema, phòng chiếu, ghế, suất chiếu, combo bắp nước, user/booking/payment/ticket demo nếu dump có lưu.
+
+Backend dùng PostgreSQL làm dữ liệu chính. Redis chỉ dùng để giữ ghế tạm thời bằng TTL.
 
 ## 1. Chuẩn Bị
 
@@ -9,16 +11,16 @@ Cần có:
 - Node.js
 - Docker Desktop
 - Git
-- PowerShell trên Windows
+- PowerShell
 
-Tạo file `.env` từ `.env.example` nếu chưa có:
+Tạo `.env` từ file mẫu nếu chưa có:
 
 ```powershell
 cd "D:\My Project\Project 4 - Cinema"
 Copy-Item .env.example .env
 ```
 
-Các biến quan trọng:
+Các biến môi trường chính:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cinema_ticket_system?schema=public"
@@ -26,6 +28,8 @@ FRONTEND_URL="http://localhost:5173"
 TMDB_API_KEY="api_key_cua_ban"
 TMDB_IMAGE_BASE_URL="https://image.tmdb.org/t/p"
 ```
+
+`TMDB_API_KEY` chỉ cần khi admin thêm hoặc đồng bộ phim từ TMDB. Nếu chỉ chạy dữ liệu dump sẵn thì chưa bắt buộc.
 
 ## 2. Chạy Docker
 
@@ -35,10 +39,10 @@ docker compose up -d
 docker ps
 ```
 
-Docker chạy:
+Docker sẽ chạy:
 
-- PostgreSQL: database chính
-- Redis: giữ ghế tạm thời bằng TTL
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
 
 ## 3. Cài Dependency
 
@@ -49,26 +53,28 @@ cd backend
 npm.cmd install
 ```
 
-## 4. Chọn Cách Tạo Database
+## 4. Chạy Database Giống Hệt Máy Hiện Tại
 
-### Cách A: Dùng dump để giống máy hiện tại
+Để người khác có database giống hệt dump trong repo, dùng file:
 
-Dùng cách này nếu muốn dữ liệu giống trạng thái đã test: phim, rạp, suất chiếu, user, booking, vé, payment và combo bắp nước.
+```text
+database/cinema_ticket_system_dump.sql
+```
+
+Chạy lệnh sau:
 
 ```powershell
 cd "D:\My Project\Project 4 - Cinema"
-docker compose up -d
-docker exec project4-cinema-postgres-1 psql -U postgres -c "DROP DATABASE IF EXISTS cinema_ticket_system;"
-docker exec project4-cinema-postgres-1 psql -U postgres -c "CREATE DATABASE cinema_ticket_system;"
-Get-Content database\cinema_ticket_system_dump.sql | docker exec -i project4-cinema-postgres-1 psql -U postgres -d cinema_ticket_system
-npx.cmd prisma generate
+powershell -ExecutionPolicy Bypass -File .\scripts\import-database-dump.ps1
 ```
 
-Sau khi import dump thì không chạy `prisma db seed`, vì seed sẽ reset dữ liệu test trong dump.
+Lưu ý:
 
-### Cách B: Tạo database sạch từ seed
+- Lệnh này sẽ import lại dump vào PostgreSQL container.
+- Dump có `--clean --if-exists`, nên các bảng/dữ liệu cũ trong database local sẽ bị ghi đè theo dump.
+- Sau khi import dump thì **không chạy** `npx.cmd prisma db seed`, vì seed sẽ reset dữ liệu theo seed code, không còn giống dump hiện tại.
 
-Dùng cách này nếu muốn dữ liệu mẫu sạch theo `prisma/seed.js`.
+Nếu muốn tạo database sạch từ migration và seed thay vì dùng dump:
 
 ```powershell
 cd "D:\My Project\Project 4 - Cinema"
@@ -77,7 +83,62 @@ npx.cmd prisma generate
 npx.cmd prisma db seed
 ```
 
-Mở Prisma Studio:
+Cách này phù hợp khi muốn dữ liệu mẫu sạch, nhưng không đảm bảo giống hệt database đang dùng để demo.
+
+## 5. Export Database Hiện Tại Thành Dump
+
+Khi bạn chỉnh dữ liệu bằng admin, thêm phim, thêm suất chiếu, đặt vé test, hoặc cập nhật ảnh rạp và muốn người khác pull về giống hệt, hãy export lại dump:
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema"
+powershell -ExecutionPolicy Bypass -File .\scripts\export-database-dump.ps1
+```
+
+Sau đó commit file:
+
+```powershell
+git add database\cinema_ticket_system_dump.sql
+git commit -m "chore: update database dump"
+```
+
+## 6. Chạy Backend
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema\backend"
+npm.cmd run start:dev
+```
+
+Backend chạy tại:
+
+- API: `http://localhost:3000`
+- Swagger: `http://localhost:3000/api/docs`
+
+Nếu gặp lỗi Prisma Client bị khóa file DLL:
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema"
+taskkill /F /IM node.exe
+npx.cmd prisma generate
+```
+
+Sau đó chạy lại backend.
+
+## 7. Chạy Frontend
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema\frontend"
+npx.cmd vite --host 0.0.0.0 --port 5173
+```
+
+Frontend chạy tại:
+
+```text
+http://localhost:5173
+```
+
+Nếu giao diện vẫn hiện dữ liệu cũ, mở DevTools và clear `localStorage`, hoặc thử `Ctrl + F5`.
+
+## 8. Prisma Studio
 
 ```powershell
 cd "D:\My Project\Project 4 - Cinema"
@@ -90,162 +151,74 @@ Prisma Studio chạy tại:
 http://localhost:5555
 ```
 
-## 5. Chạy Backend
+## 9. Account Demo
 
-Mở terminal mới:
-
-```powershell
-cd "D:\My Project\Project 4 - Cinema\backend"
-npm.cmd run start:dev
-```
-
-Backend chạy tại:
-
-```text
-http://localhost:3000
-```
-
-Swagger API:
-
-```text
-http://localhost:3000/api/docs
-```
-
-Nếu gặp lỗi Prisma Client bị khóa file DLL, tắt backend, Prisma Studio và các terminal Node đang chạy rồi chạy lại:
-
-```powershell
-cd "D:\My Project\Project 4 - Cinema"
-npx.cmd prisma generate
-```
-
-## 6. Chạy Frontend
-
-Mở terminal mới:
-
-```powershell
-cd "D:\My Project\Project 4 - Cinema\frontend"
-npx.cmd vite --host 0.0.0.0
-```
-
-Frontend chạy tại:
-
-```text
-http://localhost:5173
-```
-
-## 7. Account Demo
-
-Kiểm tra account trong `prisma/seed.js` hoặc Prisma Studio bảng `users`.
-
-Thường có:
+Account thường có trong dump/seed:
 
 - Admin: `admin@cinema.test` / `admin123`
 - User demo: `hung@example.com` / `user123`
 
-## 8. Những Phần Đã Làm
+Nếu dữ liệu account khác, kiểm tra trong Prisma Studio bảng `users`.
 
-### Database và Prisma
+## 10. Những Phần Đã Làm
 
-- PostgreSQL là nguồn dữ liệu chính.
-- Redis chỉ dùng để giữ ghế tạm thời.
-- Có dữ liệu rạp tại Đà Nẵng.
-- Có chuỗi rạp và chi nhánh rạp, ví dụ CGV có nhiều chi nhánh.
-- Có phim, thể loại, rạp, phòng chiếu, ghế, suất chiếu.
-- Có bảng giá vé theo rạp.
-- Có combo bắp nước.
-- Có booking, payment, ticket và QR theo booking.
+- Database dùng PostgreSQL, Redis dùng cho giữ ghế tạm.
+- Dữ liệu rạp hiện tại là một chuỗi chính `CR Cinema` với 7 chi nhánh tại Đà Nẵng: `CR01` đến `CR07`.
+- Mỗi chi nhánh có phòng chiếu, ghế, suất chiếu, bảng giá vé và combo bắp nước.
+- Ảnh rạp được lưu local trong `frontend/assets/images/cinemas`.
+- Phim có phân loại độ tuổi `P`, `C13`, `C16`, `C18`.
+- Khi người dùng chuẩn bị chọn ghế phim `C13`, `C16`, `C18`, hệ thống hiện modal cảnh báo cứng và yêu cầu bấm `Tôi đã hiểu và đồng ý`.
+- Luồng khách hàng: chọn phim, chọn rạp/suất, chọn ghế, chọn hoặc bỏ qua combo bắp nước, thanh toán online demo, xem vé điện tử.
+- Vé điện tử dùng một QR theo booking và lịch sử vé theo user.
+- Admin có quản lý phim, rạp, phòng, ghế, suất chiếu, booking, dashboard và combo.
+- Admin có thể thêm phim bằng TMDB ID nếu có `TMDB_API_KEY`.
+- Phần khuyến mãi đã được gỡ khỏi navbar, route, admin sidebar và flow thanh toán.
 
-### Movie và TMDB
-
-- Admin có thể thêm phim bằng TMDB ID.
-- Backend lấy poster, banner, mô tả và trailer từ TMDB nếu có API key.
-- User chỉ xem phim đang chiếu hoặc sắp chiếu.
-- User không cần quan tâm TMDB ID.
-
-### Luồng Người Dùng
-
-Luồng hiện tại:
-
-1. Chọn phim.
-2. Chọn rạp, ngày chiếu và giờ chiếu.
-3. Chọn ghế.
-4. Sang trang chọn combo bắp nước.
-5. Có thể chọn combo bằng nút `+` / `-` hoặc bấm `Bỏ qua`.
-6. Sang trang thanh toán.
-7. Thanh toán thành công thì tạo vé.
-8. Vào `Vé Của Tôi` để xem QR.
-
-Khách có thể xem phim, suất chiếu và sơ đồ ghế trước khi đăng nhập. Khi thanh toán mới cần đăng nhập.
-
-### Ghế Và Giữ Ghế
-
-- Ghế đang chọn được giữ tạm bằng Redis TTL.
-- Nếu quá thời gian giữ ghế mà chưa thanh toán, ghế được mở lại.
-- Khi thanh toán thành công, ghế chuyển sang đã đặt trong PostgreSQL.
-- Ghế VIP nằm ở vùng trung tâm.
-- Ghế đôi nằm ở hàng cuối.
-
-### Admin
-
-- Quản lý phim.
-- Quản lý thể loại.
-- Quản lý rạp và chi nhánh.
-- Quản lý phòng chiếu.
-- Quản lý ghế và layout phòng.
-- Quản lý suất chiếu.
-- Quản lý combo bắp nước.
-- Xem booking và chi tiết booking.
-- Dashboard doanh thu hiển thị bằng VND.
-
-Các lỗi đã sửa trong admin:
-
-- Lịch chiếu hiển thị đúng `Đặt/Tổng` theo số ghế đã thanh toán.
-- Phòng chiếu hiển thị đúng `Hàng x Cột`, không còn `0x0`.
-- Chi tiết đặt vé hiển thị user, phim, rạp, phòng, ghế, combo, payment, ticket và QR.
-
-## 9. Kiểm Tra Chất Lượng
-
-Kiểm tra Prisma:
+## 11. Kiểm Tra Nhanh
 
 ```powershell
 cd "D:\My Project\Project 4 - Cinema"
 npx.cmd prisma validate
-npx.cmd prisma generate
-```
-
-Build backend:
-
-```powershell
-cd "D:\My Project\Project 4 - Cinema\backend"
+node --check prisma\seed.js
+node --check scripts\add-tmdb-movie.js
+node --check scripts\sync-tmdb-movies.js
+cd backend
 npm.cmd run build
 ```
 
-Kiểm tra frontend các file chính:
+Kiểm tra dữ liệu chính trong Prisma Studio:
 
-```powershell
-cd "D:\My Project\Project 4 - Cinema"
-node --check frontend\showtimes\views\ShowtimeView.js
-node --check frontend\rooms\views\RoomView.js
-node --check frontend\bookings\views\BookingView.js
-node --check frontend\concessions\views\ConcessionView.js
-node --check frontend\payments\views\PaymentView.js
-```
+- `cinema_chains` chỉ có `CR Cinema`.
+- `cinemas` có đúng 7 chi nhánh `CR01` đến `CR07`.
+- `cinemas.imageUrl` có đường dẫn ảnh local.
+- `movies.ageRating` có dữ liệu.
+- `concession_combos` có combo bắp nước.
+- `showtimes`, `rooms`, `seats`, `bookings`, `payments`, `tickets` có dữ liệu giống dump sau khi import.
 
-## 10. Export Lại Dump Khi Database Thay Đổi
+## 12. Luồng Demo
 
-Khi bạn thêm dữ liệu trực tiếp bằng admin hoặc test thêm booking/vé/payment và muốn người khác có dữ liệu giống hệt, export lại dump:
+1. Chạy Docker.
+2. Import database dump.
+3. Chạy Backend.
+4. Chạy Frontend.
+5. Đăng nhập user hoặc đăng ký user mới.
+6. Vào danh sách phim, mở chi tiết phim.
+7. Chọn rạp, chọn suất chiếu.
+8. Nếu phim giới hạn tuổi, xác nhận cảnh báo.
+9. Chọn ghế.
+10. Chọn hoặc bỏ qua combo bắp nước.
+11. Thanh toán online demo.
+12. Vào `Vé Của Tôi` để xem vé điện tử và QR.
+13. Vào admin để kiểm tra booking, suất chiếu và doanh thu.
 
-```powershell
-cd "D:\My Project\Project 4 - Cinema"
-docker exec project4-cinema-postgres-1 pg_dump -U postgres --clean --if-exists --no-owner --no-privileges -d cinema_ticket_system -f /tmp/cinema_ticket_system_dump.sql
-docker cp project4-cinema-postgres-1:/tmp/cinema_ticket_system_dump.sql database\cinema_ticket_system_dump.sql
-```
+## 13. Ghi Chú Cho Nhóm
 
-Sau đó commit file:
+Nếu muốn mọi người chạy giống hệt database của bạn:
 
-```powershell
-git add database\cinema_ticket_system_dump.sql docs\README.md
-git commit -m "docs: update database dump and run guide"
-```
+1. Bạn chỉnh dữ liệu trên máy.
+2. Chạy `.\scripts\export-database-dump.ps1`.
+3. Commit `database/cinema_ticket_system_dump.sql` cùng code liên quan.
+4. Người khác pull về.
+5. Người khác chạy `.\scripts\import-database-dump.ps1`.
 
-Lưu ý: Git không push database PostgreSQL đang chạy trong Docker. Git chỉ push được schema, seed, migration và file dump SQL.
+Không commit file `.env` thật nếu có API key hoặc secret.

@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const dotenv = require('dotenv');
+const { normalizeGenreName } = require('./genre-map');
 
 dotenv.config();
 
@@ -160,24 +161,44 @@ async function syncMovie(movie) {
   const trailerUrl = await fetchTrailer(tmdbMovie.id);
   const posterUrl = imageUrl(details.poster_path || tmdbMovie.poster_path, 'w500');
 
-  await prisma.movie.update({
-    where: { id: movie.id },
-    data: {
-      description: movie.description || details.overview || undefined,
-      tmdbId: tmdbMovie.id,
-      posterUrl: posterUrl || movie.posterUrl,
-      trailerUrl: trailerUrl || movie.trailerUrl,
-      releaseDate:
-        movie.releaseDate || details.release_date
-          ? new Date(details.release_date || movie.releaseDate)
-          : undefined,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.movie.update({
+      where: { id: movie.id },
+      data: {
+        description: movie.description || details.overview || undefined,
+        tmdbId: tmdbMovie.id,
+        posterUrl: posterUrl || movie.posterUrl,
+        trailerUrl: trailerUrl || movie.trailerUrl,
+        releaseDate:
+          movie.releaseDate || details.release_date
+            ? new Date(details.release_date || movie.releaseDate)
+            : undefined,
+      },
+    });
+
+    if (details.genres?.length) {
+      await tx.movieGenre.deleteMany({ where: { movieId: movie.id } });
+      for (const genre of details.genres) {
+        const name = normalizeGenreName(genre.name);
+        const genreRecord = await tx.genre.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
+        await tx.movieGenre.create({
+          data: {
+            movieId: movie.id,
+            genreId: genreRecord.id,
+          },
+        });
+      }
+    }
   });
 
   console.log(
     `SYNC ${movie.title}: tmdb=${tmdbMovie.id}, poster=${posterUrl ? 'yes' : 'no'}, trailer=${
       trailerUrl ? 'yes' : 'no'
-    }`,
+    }, genres=${details.genres?.length || 0}`,
   );
 }
 
