@@ -31,6 +31,7 @@ export class AuthService {
         passwordHash,
         firstName,
         lastName,
+        phone: registerDto.phone?.trim() || null,
         role: Role.CUSTOMER,
       },
     });
@@ -85,6 +86,7 @@ export class AuthService {
     email: string;
     firstName: string | null;
     lastName: string | null;
+    phone: string | null;
     role: Role;
     isActive: boolean;
     createdAt: Date;
@@ -97,6 +99,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
       name: name || user.email,
+      phone: user.phone || '',
       role: user.role === Role.ADMIN ? 'admin' : 'user',
       isActive: user.isActive,
       createdAt: user.createdAt,

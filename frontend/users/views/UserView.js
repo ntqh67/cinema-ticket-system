@@ -1,4 +1,4 @@
-/* CineTicket - User View */
+﻿/* CineTicket - User View */
 const UserView = {
   renderProfile() {
     if (!AuthController.checkAuth()) return;
@@ -9,9 +9,9 @@ const UserView = {
     <div class="page-wrapper">
       <div class="container">
         <div style="max-width:800px;margin:0 auto;">
-          <h2 class="section-title" style="margin-bottom:32px;">Tai Khoan Cua Toi</h2>
+          <h2 class="section-title" style="margin-bottom:32px;">Tài Khoản Của Tôi</h2>
           <div class="card mb-6">
-            <div class="card-header"><i class="fas fa-user"></i> Thong Tin Ca Nhan</div>
+            <div class="card-header"><i class="fas fa-user"></i> Thông Tin Cá Nhân</div>
             <div class="card-body">
               <div style="display:flex;align-items:center;gap:24px;margin-bottom:32px;">
                 <div style="width:80px;height:80px;border-radius:50%;background:var(--color-primary);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:#fff;flex-shrink:0;">
@@ -20,13 +20,13 @@ const UserView = {
                 <div>
                   <div style="font-size:1.25rem;font-weight:700;">${Helpers.escapeHtml(user.name)}</div>
                   <div style="color:var(--color-text-muted);font-size:0.875rem;">${Helpers.escapeHtml(user.email)}</div>
-                  <span class="badge ${user.role === "admin" ? "badge-danger" : "badge-info"}" style="margin-top:8px;">${user.role === "admin" ? "Admin" : "Thanh Vien"}</span>
+                  <span class="badge ${user.role === "admin" ? "badge-danger" : "badge-info"}" style="margin-top:8px;">${user.role === "admin" ? "Admin" : "Thành Viên"}</span>
                 </div>
               </div>
               <form onsubmit="UserController.handleUpdateProfile(event)">
                 <div class="admin-form-grid">
                   <div class="form-group">
-                    <label class="form-label">Ho va Ten</label>
+                    <label class="form-label">Họ Và Tên</label>
                     <input type="text" class="form-control" id="profile-name" value="${Helpers.escapeHtml(user.name)}" />
                   </div>
                   <div class="form-group">
@@ -34,15 +34,15 @@ const UserView = {
                     <input type="email" class="form-control" value="${Helpers.escapeHtml(user.email)}" disabled />
                   </div>
                   <div class="form-group">
-                    <label class="form-label">So Dien Thoai</label>
+                    <label class="form-label">Số Điện Thoại</label>
                     <input type="tel" class="form-control" id="profile-phone" value="${Helpers.escapeHtml(user.phone || "")}" placeholder="0901234567" />
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Ngay Tham Gia</label>
+                    <label class="form-label">Ngày Tham Gia</label>
                     <input type="text" class="form-control" value="${Helpers.formatDate(user.createdAt)}" disabled />
                   </div>
                 </div>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Luu Thay Doi</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu Thay Đổi</button>
               </form>
             </div>
           </div>
@@ -64,7 +64,7 @@ const UserView = {
         <h2 class="section-title">Vé Của Tôi</h2>
         <div class="card">
           <div class="card-body">
-            <div class="empty-state">Dang tai danh sach ve...</div>
+            <div class="empty-state">Đang tải danh sách vé...</div>
           </div>
         </div>
       </div>
@@ -74,13 +74,13 @@ const UserView = {
     try {
       tickets = await UserController.loadBookingHistory();
     } catch (error) {
-      Toast.error(error.message || "Khong the tai ve");
+      Toast.error(error.message || "Không thể tải vé");
     }
 
     const bookingGroups = this._groupTicketsByBooking(tickets);
     const rowsHtml =
       bookingGroups.length === 0
-        ? `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--color-text-muted);">Ban chua co ve nao</td></tr>`
+        ? `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--color-text-muted);">Bạn chưa có vé nào</td></tr>`
         : bookingGroups.map((group) => this._bookingHistoryRow(group)).join("");
 
     main.innerHTML = `
@@ -93,12 +93,12 @@ const UserView = {
               <thead>
                 <tr>
                   <th>Phim</th>
-                  <th>Suat Chieu</th>
-                  <th>Rap / Phong</th>
-                  <th>Ghe</th>
-                  <th>Trang Thai</th>
-                  <th>Tong Tien</th>
-                  <th>Hanh Dong</th>
+                  <th>Suất Chiếu</th>
+                  <th>Rạp / Phòng</th>
+                  <th>Ghế</th>
+                  <th>Trạng Thái</th>
+                  <th>Tổng Tiền</th>
+                  <th>Hành Động</th>
                 </tr>
               </thead>
               <tbody>${rowsHtml}</tbody>
@@ -164,7 +164,7 @@ const UserView = {
           <img class="history-poster" src="${visual.poster}" alt="" onerror="this.src=API.moviePosterFallback">
           <div>
             <div class="history-movie-title">${Helpers.escapeHtml(movieTitle)}</div>
-            <div class="history-movie-cinema">${group.bookingId.slice(0, 10).toUpperCase()} · ${group.tickets.length} ve</div>
+            <div class="history-movie-cinema">${group.bookingId.slice(0, 10).toUpperCase()} · ${group.tickets.length} vé</div>
           </div>
         </div>
       </td>
@@ -175,7 +175,7 @@ const UserView = {
       <td>${Helpers.formatCurrency(totalAmount)}</td>
       <td>
         <button class="btn btn-sm btn-outline" onclick="Router.navigate('/ticket/${group.bookingId}')">
-          <i class="fas fa-ticket-alt"></i> Xem Chi Tiet
+          <i class="fas fa-ticket-alt"></i> Xem Chi Tiết
         </button>
       </td>
     </tr>`;

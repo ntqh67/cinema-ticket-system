@@ -183,9 +183,9 @@ export class CreateCinemaDto {
 export class UpdateCinemaDto extends CreateCinemaDto {}
 
 export class UpsertCinemaTicketPriceDto {
-  @ApiProperty({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
-  @IsEnum(['STANDARD', 'VIP', 'COUPLE'])
-  seatType: 'STANDARD' | 'VIP' | 'COUPLE';
+  @ApiProperty({ enum: ['STANDARD', 'COUPLE'] })
+  @IsEnum(['STANDARD', 'COUPLE'])
+  seatType: 'STANDARD' | 'COUPLE';
 
   @ApiProperty()
   @IsNumber()
@@ -278,10 +278,10 @@ export class CreateSeatDto {
   @Min(1)
   position?: number;
 
-  @ApiPropertyOptional({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
+  @ApiPropertyOptional({ enum: ['STANDARD', 'COUPLE'] })
   @IsOptional()
-  @IsEnum(['STANDARD', 'VIP', 'COUPLE'])
-  type?: 'STANDARD' | 'VIP' | 'COUPLE';
+  @IsEnum(['STANDARD', 'COUPLE'])
+  type?: 'STANDARD' | 'COUPLE';
 }
 
 export class UpdateSeatDto {
@@ -291,10 +291,10 @@ export class UpdateSeatDto {
   @Min(1)
   position?: number;
 
-  @ApiPropertyOptional({ enum: ['STANDARD', 'VIP', 'COUPLE'] })
+  @ApiPropertyOptional({ enum: ['STANDARD', 'COUPLE'] })
   @IsOptional()
-  @IsEnum(['STANDARD', 'VIP', 'COUPLE'])
-  type?: 'STANDARD' | 'VIP' | 'COUPLE';
+  @IsEnum(['STANDARD', 'COUPLE'])
+  type?: 'STANDARD' | 'COUPLE';
 }
 
 export class GenerateSeatsDto {

@@ -1,6 +1,6 @@
 /* CineTicket - User Controller */
 const UserController = {
-  handleUpdateProfile(event) {
+  async handleUpdateProfile(event) {
     event.preventDefault();
     if (!AuthController.checkAuth()) return;
     const form = event.target;
@@ -8,15 +8,15 @@ const UserController = {
     const name = form.querySelector('#profile-name').value.trim();
     const phone = form.querySelector('#profile-phone').value.trim();
     if (!name || name.length < 2) {
-      Toast.error('Ho ten phai co it nhat 2 ky tu');
+      Toast.error('Họ tên phải có ít nhất 2 ký tự');
       return;
     }
     if (phone && !Helpers.isPhone(phone)) {
-      Toast.error('So dien thoai khong hop le');
+      Toast.error('Số điện thoại không hợp lệ');
       return;
     }
-    const result = UserModel.update(user.id, { name, phone });
-    if (result.success) Toast.success('Cap nhat thong tin thanh cong');
+    const result = await UserModel.update(user.backendUserId || user.id, { name, phone: phone || undefined });
+    if (result.success) Toast.success('Cập nhật thông tin thành công');
     else Toast.error(result.error);
   },
 

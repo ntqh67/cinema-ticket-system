@@ -11,12 +11,11 @@ const CLEANUP_MINUTES = 30;
 const SEED_DAY_COUNT = 7;
 const PRICE_BY_SEAT_TYPE = {
   STANDARD: 80000,
-  VIP: 120000,
   COUPLE: 180000,
 };
 
 const CINEMA_PRICE_BY_CHAIN = {
-  'CR Cinema': { STANDARD: 85000, VIP: 125000, COUPLE: 200000 },
+  'CR Cinema': { STANDARD: 85000, COUPLE: 200000 },
 };
 
 const CONCESSION_COMBOS = [
@@ -478,19 +477,6 @@ async function createCinemaTicketPrices(cinemaId, chainName) {
 
 function countSeats(layout) {
   return layout.seatRows.reduce((total, seatRow) => total + seatRow.positions.length, 0);
-}
-
-function getVipZone(rows, columns) {
-  const zoneRowCount = Math.min(3, rows.length);
-  const zoneColCount = Math.min(5, columns);
-  const rowStart = Math.max(0, Math.round((rows.length - zoneRowCount) / 2));
-  const colStart = Math.max(1, Math.round((columns - zoneColCount) / 2) + 1);
-
-  return {
-    rows: new Set(rows.slice(rowStart, rowStart + zoneRowCount)),
-    colStart,
-    colEnd: colStart + zoneColCount - 1,
-  };
 }
 
 async function createSeatLayout({ roomId, seatRows }) {

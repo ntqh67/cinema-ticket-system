@@ -185,7 +185,6 @@
   background: rgba(229,9,20,0.5);
   transform: scale(1.1);
 }
-.seat.vip { background: var(--seat-vip); }
 .seat.couple {
   width: calc((var(--seat-size) * 2) + var(--spacing-2));
   grid-column: calc(var(--seat-position) + 1) / span 2;
@@ -313,7 +312,6 @@
   flex-shrink: 0;
 }
 .legend-box.normal { background: var(--seat-normal); }
-.legend-box.vip { background: var(--seat-vip); }
 .legend-box.couple { background: var(--seat-couple); width: 36px; }
 .legend-box.selected { background: var(--seat-selected); }
 .legend-box.booked { background: var(--seat-booked); border: 1px solid var(--color-border); }

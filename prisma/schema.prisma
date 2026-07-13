@@ -63,6 +63,7 @@ model User {
   passwordHash  String
   firstName     String?
   lastName      String?
+  phone         String?
   role          Role           @default(CUSTOMER)
   isActive      Boolean        @default(true)
   createdAt     DateTime       @default(now())

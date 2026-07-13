@@ -33,11 +33,13 @@ const MovieController = {
   async handleCreateFromTmdb(event) {
     event.preventDefault();
     const form = event.target;
-    const tmdbId = parseInt(form.querySelector('#tmdb-movie-id').value, 10);
+    const rawTmdbValue = form.querySelector('#tmdb-movie-id').value.trim();
+    const tmdbMatch = rawTmdbValue.match(/(?:movie\/)?(\d+)/);
+    const tmdbId = tmdbMatch ? parseInt(tmdbMatch[1], 10) : 0;
     const status = form.querySelector('#tmdb-movie-status').value;
 
     if (!tmdbId) {
-      Toast.error('Vui long nhap TMDB ID hop le');
+      Toast.error('Vui lòng nhập TMDB ID hợp lệ');
       return;
     }
 
@@ -45,10 +47,10 @@ const MovieController = {
       await API.createAdminMovieFromTmdb(tmdbId, status);
       await API.syncBackendCatalog();
       Modal.close();
-      Toast.success('Da them/cap nhat phim tu TMDB');
+      Toast.success('Đã thêm/cập nhật phim từ TMDB');
       MovieView.renderAdmin();
     } catch (error) {
-      Toast.error(error.message || 'Khong the lay phim tu TMDB');
+      Toast.error(error.message || 'Không thể lấy phim từ TMDB');
     }
   },
 

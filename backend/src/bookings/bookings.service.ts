@@ -35,6 +35,11 @@ const TICKET_DETAIL_INCLUDE = {
   checkIn: true,
   booking: {
     include: {
+      comboItems: {
+        include: {
+          combo: true,
+        },
+      },
       user: true,
       showtime: {
         include: { movie: true, room: { include: { cinema: true } } },
@@ -580,6 +585,11 @@ export class BookingsService {
       include: {
         booking: {
           include: {
+            comboItems: {
+              include: {
+                combo: true,
+              },
+            },
             showtime: {
               include: {
                 movie: true,
@@ -643,6 +653,14 @@ export class BookingsService {
           totalAmount: Number(ticket.booking.totalAmount),
           currency: ticket.booking.currency,
           qrToken: this.bookingQrToken(ticket.booking.id),
+          comboItems: (ticket.booking.comboItems || []).map((item) => ({
+            id: item.id,
+            comboId: item.comboId,
+            name: item.combo?.name,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitPrice),
+            lineTotal: Number(item.unitPrice) * item.quantity,
+          })),
         },
       })),
     };

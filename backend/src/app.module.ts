@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { SeatHoldsModule } from './seat-holds/seat-holds.module';
 import { SeatsModule } from './seats/seats.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SeatsModule } from './seats/seats.module';
     MoviesModule,
     SeatHoldsModule,
     SeatsModule,
+    UsersModule,
     BookingsModule,
     ConcessionsModule,
   ],

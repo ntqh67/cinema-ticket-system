@@ -8,7 +8,7 @@ const SeatView = {
     main.innerHTML = `
       <div class="page-wrapper">
         <div class="container">
-          <div class="empty-state">Dang tai so do ghe...</div>
+          <div class="empty-state">Đang tải sơ đồ ghế...</div>
         </div>
       </div>`;
 
@@ -20,9 +20,9 @@ const SeatView = {
           <div class="container">
             <div class="empty-state">
               <i class="fas fa-chair"></i>
-              <h3>Suat chieu chua co so do ghe</h3>
+              <h3>Suất chiếu chưa có sơ đồ ghế</h3>
               <p>${Helpers.escapeHtml(SeatController.currentError)}</p>
-              <button class="btn btn-outline" onclick="Router.navigate('/movies')">Quay lai danh sach phim</button>
+              <button class="btn btn-outline" onclick="Router.navigate('/movies')">Quay lại danh sách phim</button>
             </div>
           </div>
         </div>`;
@@ -58,9 +58,9 @@ const SeatView = {
           <div class="container">
             <div class="empty-state">
               <i class="fas fa-chair"></i>
-              <h3>Suat chieu chua co so do ghe</h3>
-              <p>Database chua co ShowtimeSeat cho suat chieu nay.</p>
-              <button class="btn btn-outline" onclick="Router.navigate('/movies')">Quay lai danh sach phim</button>
+              <h3>Suất chiếu chưa có sơ đồ ghế</h3>
+              <p>Database chưa có ShowtimeSeat cho suất chiếu này.</p>
+              <button class="btn btn-outline" onclick="Router.navigate('/movies')">Quay lại danh sách phim</button>
             </div>
           </div>
         </div>`;
@@ -72,13 +72,13 @@ const SeatView = {
     <div class="seats-page">
       <div class="container">
         <div class="booking-steps">
-          <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chon Phim</span></div>
+          <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chọn Phim</span></div>
           <div class="booking-step-divider"></div>
-          <div class="booking-step active"><div class="booking-step-num">2</div><span class="booking-step-label">Chon Ghe</span></div>
+          <div class="booking-step active"><div class="booking-step-num">2</div><span class="booking-step-label">Chọn Ghế</span></div>
           <div class="booking-step-divider"></div>
-          <div class="booking-step"><div class="booking-step-num">3</div><span class="booking-step-label">Thanh Toan</span></div>
+          <div class="booking-step"><div class="booking-step-num">3</div><span class="booking-step-label">Thanh Toán</span></div>
           <div class="booking-step-divider"></div>
-          <div class="booking-step"><div class="booking-step-num">4</div><span class="booking-step-label">Ve Cua Ban</span></div>
+          <div class="booking-step"><div class="booking-step-num">4</div><span class="booking-step-label">Vé Của Bạn</span></div>
         </div>
 
         <div class="booking-info-bar">
@@ -114,15 +114,15 @@ const SeatView = {
             </div>
 
             <div class="seat-legend">
-              <div class="legend-item"><div class="legend-box normal"></div><span>Thuong - ${Helpers.formatCurrency(showtime.price.normal)}</span></div>
-              <div class="legend-item"><div class="legend-box couple"></div><span>Doi - ${Helpers.formatCurrency(showtime.price.couple)}</span></div>
-              <div class="legend-item"><div class="legend-box selected"></div><span>Dang chon</span></div>
-              <div class="legend-item"><div class="legend-box booked"></div><span>Da dat / dang giu</span></div>
+              <div class="legend-item"><div class="legend-box normal"></div><span>Thường - ${Helpers.formatCurrency(showtime.price.normal)}</span></div>
+              <div class="legend-item"><div class="legend-box couple"></div><span>Đôi - ${Helpers.formatCurrency(showtime.price.couple)}</span></div>
+              <div class="legend-item"><div class="legend-box selected"></div><span>Đang chọn</span></div>
+              <div class="legend-item"><div class="legend-box booked"></div><span>Đã đặt / đang giữ</span></div>
             </div>
           </div>
 
           <div class="booking-summary-panel">
-            <div class="booking-summary-header"><i class="fas fa-ticket-alt"></i> Thong Tin Dat Ve</div>
+            <div class="booking-summary-header"><i class="fas fa-ticket-alt"></i> Thông Tin Đặt Vé</div>
             <div class="booking-summary-body">
               <div class="summary-movie-mini">
                 <img class="summary-poster" src="${movie.poster}" alt="" onerror="this.src=API.moviePosterFallback" />
@@ -135,14 +135,14 @@ const SeatView = {
                 </div>
               </div>
               <div class="summary-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
-                <span class="summary-label">Ghe da chon</span>
+                <span class="summary-label">Ghế đã chọn</span>
                 <div class="summary-seats-list" id="summary-seats-list">
-                  <span style="color:var(--color-text-dim);font-size:0.85rem;">Chua chon ghe</span>
+                  <span style="color:var(--color-text-dim);font-size:0.85rem;">Chưa chọn ghế</span>
                 </div>
               </div>
               <div class="summary-divider"></div>
               <div class="summary-total">
-                <span>Tong Tien</span>
+                <span>Tổng Tiền</span>
                 <span class="summary-total-amount" id="summary-total">0</span>
               </div>
             </div>
@@ -160,7 +160,7 @@ const SeatView = {
   _seatHtml(showtime, seat) {
     const isUnavailable = (seat.isBooked || ['HELD', 'BOOKED', 'BLOCKED'].includes(seat.status)) && !seat.heldByMe;
     const price = seat.price || SeatModel.getPriceForType(showtime, seat.type);
-    const label = seat.type === 'vip' ? 'VIP' : seat.type === 'couple' ? 'Doi' : 'Thuong';
+    const label = seat.type === 'couple' ? 'Đôi' : 'Thường';
     return `<button type="button" class="seat ${seat.type} ${isUnavailable ? 'booked' : ''} ${seat.heldByMe ? 'selected' : ''}"
       style="--seat-position:${seat.position || seat.col}"
       data-id="${seat.id}"
@@ -169,7 +169,7 @@ const SeatView = {
       data-price="${price}"
       data-booked="${isUnavailable}"
       onclick="SeatView._handleSeatClick(this)"
-      title="Ghe ${seat.id} - ${label}"
+      title="Ghế ${seat.id} - ${label}"
       ${isUnavailable ? 'disabled' : ''}
     >${seat.col}</button>`;
   },
@@ -314,7 +314,7 @@ const SeatView = {
       el.classList.toggle('selected', SeatController.isSelected(el.dataset.id));
       this._updateSummary();
     } catch (error) {
-      Toast.error(error.message || 'Khong the giu ghe');
+      Toast.error(error.message || 'Không thể giữ ghế');
     }
   },
 
@@ -327,7 +327,7 @@ const SeatView = {
 
     if (listEl) {
       if (seats.length === 0) {
-        listEl.innerHTML = '<span style="color:var(--color-text-dim);font-size:0.85rem;">Chua chon ghe</span>';
+        listEl.innerHTML = '<span style="color:var(--color-text-dim);font-size:0.85rem;">Chưa chọn ghế</span>';
       } else {
         listEl.innerHTML = seats.map((seat) => `<span class="summary-seat-tag">${seat.id}</span>`).join('');
       }

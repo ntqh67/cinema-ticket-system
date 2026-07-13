@@ -501,28 +501,28 @@ const MovieView = {
         <div class="admin-form-grid">
           <div class="form-group">
             <label class="form-label">TMDB Movie ID *</label>
-            <input type="number" class="form-control" id="tmdb-movie-id" min="1" placeholder="Vi du: 123456" required />
+            <input type="text" class="form-control" id="tmdb-movie-id" placeholder="Ví dụ: 123456 hoặc link TMDB" required />
           </div>
           <div class="form-group">
-            <label class="form-label">Trang Thai</label>
+            <label class="form-label">Trạng thái</label>
             <select class="form-control" id="tmdb-movie-status">
-              <option value="NOW_SHOWING">Dang Chieu</option>
-              <option value="COMING_SOON">Sap Chieu</option>
-              <option value="DRAFT">Ban Nhap</option>
+              <option value="NOW_SHOWING">Đang chiếu</option>
+              <option value="COMING_SOON">Sắp chiếu</option>
+              <option value="DRAFT">Bản nháp</option>
             </select>
           </div>
           <div class="form-group form-full">
             <div class="alert alert-info" style="margin:0;">
-              Backend se lay ten phim, poster, trailer, thoi luong, ngay phat hanh va the loai tu TMDB.
+              Backend sẽ lấy tên phim, poster, trailer, thời lượng, ngày phát hành và thể loại từ TMDB.
             </div>
           </div>
         </div>
         <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
-          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Huy</button>
-          <button type="submit" class="btn btn-primary"><i class="fas fa-database"></i> Lay Tu TMDB</button>
+          <button type="button" class="btn btn-secondary" onclick="Modal.close()">Hủy</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-database"></i> Lấy từ TMDB</button>
         </div>
       </form>`;
-    Modal.show('Them Phim Bang TMDB ID', content, { size: 'md' });
+    Modal.show('Thêm phim bằng TMDB ID', content, { size: 'md' });
   },
 
   _showAddForm() {

@@ -1,4 +1,4 @@
-/* CineTicket - API Layer with Mock Data */
+﻿/* CineTicket - API Layer with Mock Data */
 const API = {
   baseUrl: '/api',
   backendBaseUrl: localStorage.getItem('cineticket_api_base') || `${window.location.protocol}//${window.location.hostname}:3000/api`,
@@ -9,26 +9,26 @@ const API = {
   mockData: {
     movies: [
       {
-        id: 'mv001', title: 'Lật Mặt 7: Một Điều Ước', titleEn: 'Face Off 7',
+        id: 'mv001', title: 'Láº­t Máº·t 7: Má»™t Äiá»u Æ¯á»›c', titleEn: 'Face Off 7',
         poster: 'https://picsum.photos/seed/latmat7/400/600',
         banner: 'https://picsum.photos/seed/latmat7b/1280/720',
-        genre: ['Hành Động', 'Hài', 'Gia Đình'], duration: 128, language: 'Tiếng Việt',
-        rating: 8.2, description: 'Lật Mặt 7 tiếp tục hành trình của những nhân vật với những câu chuyện gia đình đầy xúc cảm, hài hước và bất ngờ. Đây là bộ phim không thể bỏ qua trong mùa hè 2025.',
+        genre: ['HÃ nh Äá»™ng', 'HÃ i', 'Gia ÄÃ¬nh'], duration: 128, language: 'Tiáº¿ng Viá»‡t',
+        rating: 8.2, description: 'Láº­t Máº·t 7 tiáº¿p tá»¥c hÃ nh trÃ¬nh cá»§a nhá»¯ng nhÃ¢n váº­t vá»›i nhá»¯ng cÃ¢u chuyá»‡n gia Ä‘Ã¬nh Ä‘áº§y xÃºc cáº£m, hÃ i hÆ°á»›c vÃ  báº¥t ngá». ÄÃ¢y lÃ  bá»™ phim khÃ´ng thá»ƒ bá» qua trong mÃ¹a hÃ¨ 2025.',
         cast: [
-          { name: 'Lý Hải', role: 'Đạo diễn / Diễn viên', avatar: 'https://picsum.photos/seed/lyhai/100/100' },
-          { name: 'Minh Hà', role: 'Vai chính', avatar: 'https://picsum.photos/seed/minhha/100/100' },
-          { name: 'Trung Dũng', role: 'Vai phụ', avatar: 'https://picsum.photos/seed/trungdung/100/100' },
-          { name: 'Hứa Minh Đạt', role: 'Vai hài', avatar: 'https://picsum.photos/seed/huaminh/100/100' }
+          { name: 'LÃ½ Háº£i', role: 'Äáº¡o diá»…n / Diá»…n viÃªn', avatar: 'https://picsum.photos/seed/lyhai/100/100' },
+          { name: 'Minh HÃ ', role: 'Vai chÃ­nh', avatar: 'https://picsum.photos/seed/minhha/100/100' },
+          { name: 'Trung DÅ©ng', role: 'Vai phá»¥', avatar: 'https://picsum.photos/seed/trungdung/100/100' },
+          { name: 'Há»©a Minh Äáº¡t', role: 'Vai hÃ i', avatar: 'https://picsum.photos/seed/huaminh/100/100' }
         ],
-        director: 'Lý Hải', releaseDate: '2025-04-28', status: 'nowShowing',
+        director: 'LÃ½ Háº£i', releaseDate: '2025-04-28', status: 'nowShowing',
         trailer: '', ageRating: 'P'
       },
       {
         id: 'mv002', title: 'Avengers: Doomsday', titleEn: 'Avengers: Doomsday',
         poster: 'https://picsum.photos/seed/avengers5/400/600',
         banner: 'https://picsum.photos/seed/avengers5b/1280/720',
-        genre: ['Hành Động', 'Phiêu Lưu', 'Khoa Học Viễn Tưởng'], duration: 150, language: 'Tiếng Anh (Phụ đề)',
-        rating: 9.1, description: 'Liên minh Avengers đối mặt với kẻ thù nguy hiểm nhất từ trước đến nay. Một trận chiến cuối cùng sẽ quyết định số phận của cả vũ trụ Marvel.',
+        genre: ['HÃ nh Äá»™ng', 'PhiÃªu LÆ°u', 'Khoa Há»c Viá»…n TÆ°á»Ÿng'], duration: 150, language: 'Tiáº¿ng Anh (Phá»¥ Ä‘á»)',
+        rating: 9.1, description: 'LiÃªn minh Avengers Ä‘á»‘i máº·t vá»›i káº» thÃ¹ nguy hiá»ƒm nháº¥t tá»« trÆ°á»›c Ä‘áº¿n nay. Má»™t tráº­n chiáº¿n cuá»‘i cÃ¹ng sáº½ quyáº¿t Ä‘á»‹nh sá»‘ pháº­n cá»§a cáº£ vÅ© trá»¥ Marvel.',
         cast: [
           { name: 'Robert Downey Jr.', role: 'Tony Stark', avatar: 'https://picsum.photos/seed/rdj/100/100' },
           { name: 'Chris Evans', role: 'Steve Rogers', avatar: 'https://picsum.photos/seed/cevans/100/100' },
@@ -38,23 +38,23 @@ const API = {
         trailer: '', ageRating: 'C13'
       },
       {
-        id: 'mv003', title: 'Kính Vạn Hoa: Huyền Thoại Mới', titleEn: 'Kaleidoscope: New Legend',
+        id: 'mv003', title: 'KÃ­nh Váº¡n Hoa: Huyá»n Thoáº¡i Má»›i', titleEn: 'Kaleidoscope: New Legend',
         poster: 'https://picsum.photos/seed/kvh/400/600',
         banner: 'https://picsum.photos/seed/kvhb/1280/720',
-        genre: ['Hoạt Hình', 'Gia Đình', 'Phiêu Lưu'], duration: 95, language: 'Tiếng Việt',
-        rating: 7.8, description: 'Hành trình kỳ diệu của nhóm bạn nhỏ trong thế giới Kính Vạn Hoa đầy màu sắc, nơi mọi ước mơ đều có thể trở thành hiện thực.',
+        genre: ['Hoáº¡t HÃ¬nh', 'Gia ÄÃ¬nh', 'PhiÃªu LÆ°u'], duration: 95, language: 'Tiáº¿ng Viá»‡t',
+        rating: 7.8, description: 'HÃ nh trÃ¬nh ká»³ diá»‡u cá»§a nhÃ³m báº¡n nhá» trong tháº¿ giá»›i KÃ­nh Váº¡n Hoa Ä‘áº§y mÃ u sáº¯c, nÆ¡i má»i Æ°á»›c mÆ¡ Ä‘á»u cÃ³ thá»ƒ trá»Ÿ thÃ nh hiá»‡n thá»±c.',
         cast: [
-          { name: 'Diễn viên lồng tiếng', role: 'Nhân vật chính', avatar: 'https://picsum.photos/seed/kvhcast/100/100' }
+          { name: 'Diá»…n viÃªn lá»“ng tiáº¿ng', role: 'NhÃ¢n váº­t chÃ­nh', avatar: 'https://picsum.photos/seed/kvhcast/100/100' }
         ],
-        director: 'Nguyễn Văn A', releaseDate: '2025-04-15', status: 'nowShowing',
+        director: 'Nguyá»…n VÄƒn A', releaseDate: '2025-04-15', status: 'nowShowing',
         trailer: '', ageRating: 'P'
       },
       {
-        id: 'mv004', title: 'Mission: Impossible 8', titleEn: 'Mission: Impossible – Dead Reckoning Part Two',
+        id: 'mv004', title: 'Mission: Impossible 8', titleEn: 'Mission: Impossible â€“ Dead Reckoning Part Two',
         poster: 'https://picsum.photos/seed/mi8/400/600',
         banner: 'https://picsum.photos/seed/mi8b/1280/720',
-        genre: ['Hành Động', 'Gián Điệp', 'Phiêu Lưu'], duration: 163, language: 'Tiếng Anh (Phụ đề)',
-        rating: 8.7, description: 'Ethan Hunt trở lại với nhiệm vụ nguy hiểm nhất trong sự nghiệp. Lần này, cả thế giới đang đứng trước ngưỡng cửa diệt vong.',
+        genre: ['HÃ nh Äá»™ng', 'GiÃ¡n Äiá»‡p', 'PhiÃªu LÆ°u'], duration: 163, language: 'Tiáº¿ng Anh (Phá»¥ Ä‘á»)',
+        rating: 8.7, description: 'Ethan Hunt trá»Ÿ láº¡i vá»›i nhiá»‡m vá»¥ nguy hiá»ƒm nháº¥t trong sá»± nghiá»‡p. Láº§n nÃ y, cáº£ tháº¿ giá»›i Ä‘ang Ä‘á»©ng trÆ°á»›c ngÆ°á»¡ng cá»­a diá»‡t vong.',
         cast: [
           { name: 'Tom Cruise', role: 'Ethan Hunt', avatar: 'https://picsum.photos/seed/tomcruise/100/100' },
           { name: 'Hayley Atwell', role: 'Grace', avatar: 'https://picsum.photos/seed/hayley/100/100' }
@@ -63,24 +63,24 @@ const API = {
         trailer: '', ageRating: 'C13'
       },
       {
-        id: 'mv005', title: 'Cô Gái Từ Quá Khứ', titleEn: 'The Girl From the Past',
+        id: 'mv005', title: 'CÃ´ GÃ¡i Tá»« QuÃ¡ Khá»©', titleEn: 'The Girl From the Past',
         poster: 'https://picsum.photos/seed/cogirlpast/400/600',
         banner: 'https://picsum.photos/seed/cogirlpastb/1280/720',
-        genre: ['Tâm Lý', 'Tình Cảm', 'Bí Ẩn'], duration: 112, language: 'Tiếng Việt',
-        rating: 7.5, description: 'Một câu chuyện tình yêu vượt thời gian, nơi những ký ức tưởng chừng đã mất lại hồi sinh và thay đổi tất cả.',
+        genre: ['TÃ¢m LÃ½', 'TÃ¬nh Cáº£m', 'BÃ­ áº¨n'], duration: 112, language: 'Tiáº¿ng Viá»‡t',
+        rating: 7.5, description: 'Má»™t cÃ¢u chuyá»‡n tÃ¬nh yÃªu vÆ°á»£t thá»i gian, nÆ¡i nhá»¯ng kÃ½ á»©c tÆ°á»Ÿng chá»«ng Ä‘Ã£ máº¥t láº¡i há»“i sinh vÃ  thay Ä‘á»•i táº¥t cáº£.',
         cast: [
-          { name: 'Kaity Nguyễn', role: 'Nữ chính', avatar: 'https://picsum.photos/seed/kaity/100/100' },
-          { name: 'Will', role: 'Nam chính', avatar: 'https://picsum.photos/seed/will/100/100' }
+          { name: 'Kaity Nguyá»…n', role: 'Ná»¯ chÃ­nh', avatar: 'https://picsum.photos/seed/kaity/100/100' },
+          { name: 'Will', role: 'Nam chÃ­nh', avatar: 'https://picsum.photos/seed/will/100/100' }
         ],
-        director: 'Trịnh Đình Lê Minh', releaseDate: '2025-06-05', status: 'nowShowing',
+        director: 'Trá»‹nh ÄÃ¬nh LÃª Minh', releaseDate: '2025-06-05', status: 'nowShowing',
         trailer: '', ageRating: 'C13'
       },
       {
         id: 'mv006', title: 'Spider-Man: Beyond the Spider-Verse', titleEn: 'Spider-Man: Beyond the Spider-Verse',
         poster: 'https://picsum.photos/seed/spiderman4/400/600',
         banner: 'https://picsum.photos/seed/spiderman4b/1280/720',
-        genre: ['Hoạt Hình', 'Hành Động', 'Phiêu Lưu'], duration: 140, language: 'Tiếng Anh (Phụ đề)',
-        rating: 9.3, description: 'Miles Morales tiếp tục hành trình xuyên vũ trụ nhện, đối mặt với những thách thức chưa từng có trong lịch sử Spider-Man.',
+        genre: ['Hoáº¡t HÃ¬nh', 'HÃ nh Äá»™ng', 'PhiÃªu LÆ°u'], duration: 140, language: 'Tiáº¿ng Anh (Phá»¥ Ä‘á»)',
+        rating: 9.3, description: 'Miles Morales tiáº¿p tá»¥c hÃ nh trÃ¬nh xuyÃªn vÅ© trá»¥ nhá»‡n, Ä‘á»‘i máº·t vá»›i nhá»¯ng thÃ¡ch thá»©c chÆ°a tá»«ng cÃ³ trong lá»‹ch sá»­ Spider-Man.',
         cast: [
           { name: 'Shameik Moore', role: 'Miles Morales', avatar: 'https://picsum.photos/seed/shameik/100/100' },
           { name: 'Hailee Steinfeld', role: 'Gwen Stacy', avatar: 'https://picsum.photos/seed/hailee/100/100' }
@@ -89,27 +89,27 @@ const API = {
         trailer: '', ageRating: 'P'
       },
       {
-        id: 'mv007', title: 'Quái Vật Biển Sâu', titleEn: 'Deep Sea Monster',
+        id: 'mv007', title: 'QuÃ¡i Váº­t Biá»ƒn SÃ¢u', titleEn: 'Deep Sea Monster',
         poster: 'https://picsum.photos/seed/deepseamon/400/600',
         banner: 'https://picsum.photos/seed/deepseamonb/1280/720',
-        genre: ['Kinh Dị', 'Hành Động', 'Khoa Học Viễn Tưởng'], duration: 118, language: 'Tiếng Việt',
-        rating: 7.2, description: 'Một sinh vật khổng lồ từ đáy đại dương bắt đầu tấn công bờ biển Việt Nam. Nhóm các nhà khoa học và lính đặc nhiệm phải tìm cách ngăn chặn thảm họa.',
+        genre: ['Kinh Dá»‹', 'HÃ nh Äá»™ng', 'Khoa Há»c Viá»…n TÆ°á»Ÿng'], duration: 118, language: 'Tiáº¿ng Viá»‡t',
+        rating: 7.2, description: 'Má»™t sinh váº­t khá»•ng lá»“ tá»« Ä‘Ã¡y Ä‘áº¡i dÆ°Æ¡ng báº¯t Ä‘áº§u táº¥n cÃ´ng bá» biá»ƒn Viá»‡t Nam. NhÃ³m cÃ¡c nhÃ  khoa há»c vÃ  lÃ­nh Ä‘áº·c nhiá»‡m pháº£i tÃ¬m cÃ¡ch ngÄƒn cháº·n tháº£m há»a.',
         cast: [
-          { name: 'Võ Cảnh', role: 'Nam chính', avatar: 'https://picsum.photos/seed/vochanh/100/100' },
-          { name: 'Diệu Nhi', role: 'Nữ chính', avatar: 'https://picsum.photos/seed/dieunhi/100/100' }
+          { name: 'VÃµ Cáº£nh', role: 'Nam chÃ­nh', avatar: 'https://picsum.photos/seed/vochanh/100/100' },
+          { name: 'Diá»‡u Nhi', role: 'Ná»¯ chÃ­nh', avatar: 'https://picsum.photos/seed/dieunhi/100/100' }
         ],
-        director: 'Bảo Nhân', releaseDate: '2025-08-15', status: 'comingSoon',
+        director: 'Báº£o NhÃ¢n', releaseDate: '2025-08-15', status: 'comingSoon',
         trailer: '', ageRating: 'C16'
       },
       {
         id: 'mv008', title: 'Jurassic World: Rebirth', titleEn: 'Jurassic World: Rebirth',
         poster: 'https://picsum.photos/seed/jwrebirth/400/600',
         banner: 'https://picsum.photos/seed/jwrebirthb/1280/720',
-        genre: ['Phiêu Lưu', 'Hành Động', 'Khoa Học Viễn Tưởng'], duration: 138, language: 'Tiếng Anh (Phụ đề)',
-        rating: 8.0, description: 'Thế giới khủng long hồi sinh với những loài mới đáng sợ hơn bao giờ hết. Một đội thám hiểm dũng cảm bước vào vùng đất tử thần.',
+        genre: ['PhiÃªu LÆ°u', 'HÃ nh Äá»™ng', 'Khoa Há»c Viá»…n TÆ°á»Ÿng'], duration: 138, language: 'Tiáº¿ng Anh (Phá»¥ Ä‘á»)',
+        rating: 8.0, description: 'Tháº¿ giá»›i khá»§ng long há»“i sinh vá»›i nhá»¯ng loÃ i má»›i Ä‘Ã¡ng sá»£ hÆ¡n bao giá» háº¿t. Má»™t Ä‘á»™i thÃ¡m hiá»ƒm dÅ©ng cáº£m bÆ°á»›c vÃ o vÃ¹ng Ä‘áº¥t tá»­ tháº§n.',
         cast: [
-          { name: 'Scarlett Johansson', role: 'Nữ chính', avatar: 'https://picsum.photos/seed/sj2/100/100' },
-          { name: 'Mahershala Ali', role: 'Nam chính', avatar: 'https://picsum.photos/seed/mahershala/100/100' }
+          { name: 'Scarlett Johansson', role: 'Ná»¯ chÃ­nh', avatar: 'https://picsum.photos/seed/sj2/100/100' },
+          { name: 'Mahershala Ali', role: 'Nam chÃ­nh', avatar: 'https://picsum.photos/seed/mahershala/100/100' }
         ],
         director: 'Gareth Edwards', releaseDate: '2025-07-02', status: 'comingSoon',
         trailer: '', ageRating: 'C13'
@@ -119,42 +119,42 @@ const API = {
     cinemas: [
       {
         id: 'ci001', name: 'CGV Vincom Center', shortName: 'CGV Vincom',
-        address: '72 Lê Thánh Tôn, Q.1, TP.HCM', city: 'Hồ Chí Minh',
+        address: '72 LÃª ThÃ¡nh TÃ´n, Q.1, TP.HCM', city: 'Há»“ ChÃ­ Minh',
         phone: '028 3824 5678',
-        facilities: ['Dolby Atmos', 'IMAX', '4DX', 'ScreenX', 'Bãi đỗ xe'],
+        facilities: ['Dolby Atmos', 'IMAX', '4DX', 'ScreenX', 'BÃ£i Ä‘á»— xe'],
         image: 'https://picsum.photos/seed/cgvvincom/600/400',
         lat: 10.7769, lng: 106.7009
       },
       {
         id: 'ci002', name: 'Lotte Cinema Landmark', shortName: 'Lotte Landmark',
-        address: 'Tầng 5, Landmark 81, 720A Điện Biên Phủ, Q. Bình Thạnh, TP.HCM',
-        city: 'Hồ Chí Minh',
+        address: 'Táº§ng 5, Landmark 81, 720A Äiá»‡n BiÃªn Phá»§, Q. BÃ¬nh Tháº¡nh, TP.HCM',
+        city: 'Há»“ ChÃ­ Minh',
         phone: '028 3626 7890',
-        facilities: ['Dolby Atmos', '3D', 'Ghế VIP', 'Cafe'],
+        facilities: ['Dolby Atmos', '3D', 'Cafe'],
         image: 'https://picsum.photos/seed/lottelandmark/600/400',
         lat: 10.7951, lng: 106.7219
       },
       {
-        id: 'ci003', name: 'Galaxy Cinema Nguyễn Du', shortName: 'Galaxy Nguyễn Du',
-        address: '116 Nguyễn Du, Q.1, TP.HCM', city: 'Hồ Chí Minh',
+        id: 'ci003', name: 'Galaxy Cinema Nguyá»…n Du', shortName: 'Galaxy Nguyá»…n Du',
+        address: '116 Nguyá»…n Du, Q.1, TP.HCM', city: 'Há»“ ChÃ­ Minh',
         phone: '028 3823 4567',
-        facilities: ['3D', 'Dolby', 'Ghế đôi', 'Căn tin'],
+        facilities: ['3D', 'Dolby', 'Gháº¿ Ä‘Ã´i', 'CÄƒn tin'],
         image: 'https://picsum.photos/seed/galaxynguyendu/600/400',
         lat: 10.7771, lng: 106.6916
       }
     ],
 
     rooms: [
-      { id: 'rm001', cinemaId: 'ci001', name: 'Phòng 1 - IMAX', type: 'IMAX', capacity: 300, rows: 12, cols: 20 },
-      { id: 'rm002', cinemaId: 'ci001', name: 'Phòng 2 - 4DX', type: '4DX', capacity: 120, rows: 8, cols: 14 },
-      { id: 'rm003', cinemaId: 'ci001', name: 'Phòng 3 - 2D', type: '2D', capacity: 200, rows: 10, cols: 18 },
-      { id: 'rm004', cinemaId: 'ci001', name: 'Phòng 4 - 3D', type: '3D', capacity: 180, rows: 10, cols: 16 },
-      { id: 'rm005', cinemaId: 'ci002', name: 'Phòng 1 - Dolby', type: 'Dolby', capacity: 160, rows: 10, cols: 14 },
-      { id: 'rm006', cinemaId: 'ci002', name: 'Phòng 2 - 3D', type: '3D', capacity: 140, rows: 9, cols: 14 },
-      { id: 'rm007', cinemaId: 'ci002', name: 'Phòng 3 - VIP', type: 'VIP', capacity: 80, rows: 6, cols: 10 },
-      { id: 'rm008', cinemaId: 'ci003', name: 'Phòng 1 - 2D', type: '2D', capacity: 160, rows: 10, cols: 14 },
-      { id: 'rm009', cinemaId: 'ci003', name: 'Phòng 2 - 3D', type: '3D', capacity: 140, rows: 9, cols: 14 },
-      { id: 'rm010', cinemaId: 'ci003', name: 'Phòng 3 - Ghế Đôi', type: '2D', capacity: 100, rows: 8, cols: 10 }
+      { id: 'rm001', cinemaId: 'ci001', name: 'PhÃ²ng 1 - IMAX', type: 'IMAX', capacity: 300, rows: 12, cols: 20 },
+      { id: 'rm002', cinemaId: 'ci001', name: 'PhÃ²ng 2 - 4DX', type: '4DX', capacity: 120, rows: 8, cols: 14 },
+      { id: 'rm003', cinemaId: 'ci001', name: 'PhÃ²ng 3 - 2D', type: '2D', capacity: 200, rows: 10, cols: 18 },
+      { id: 'rm004', cinemaId: 'ci001', name: 'PhÃ²ng 4 - 3D', type: '3D', capacity: 180, rows: 10, cols: 16 },
+      { id: 'rm005', cinemaId: 'ci002', name: 'PhÃ²ng 1 - Dolby', type: 'Dolby', capacity: 160, rows: 10, cols: 14 },
+      { id: 'rm006', cinemaId: 'ci002', name: 'PhÃ²ng 2 - 3D', type: '3D', capacity: 140, rows: 9, cols: 14 },
+      { id: 'rm007', cinemaId: 'ci002', name: 'Phòng 3 - 2D', type: '2D', capacity: 80, rows: 6, cols: 10 },
+      { id: 'rm008', cinemaId: 'ci003', name: 'PhÃ²ng 1 - 2D', type: '2D', capacity: 160, rows: 10, cols: 14 },
+      { id: 'rm009', cinemaId: 'ci003', name: 'PhÃ²ng 2 - 3D', type: '3D', capacity: 140, rows: 9, cols: 14 },
+      { id: 'rm010', cinemaId: 'ci003', name: 'PhÃ²ng 3 - Gháº¿ ÄÃ´i', type: '2D', capacity: 100, rows: 8, cols: 10 }
     ],
 
     users: [
@@ -164,12 +164,12 @@ const API = {
         password: 'admin123', avatar: null, createdAt: '2024-01-01', isActive: true
       },
       {
-        id: 'u002', name: 'Nguyễn Văn Hùng', email: 'hung@example.com',
+        id: 'u002', name: 'Nguyá»…n VÄƒn HÃ¹ng', email: 'hung@example.com',
         phone: '0912345678', role: 'user',
         password: 'user123', avatar: null, createdAt: '2024-06-15', isActive: true
       },
       {
-        id: 'u003', name: 'Trần Thị Lan', email: 'lan@example.com',
+        id: 'u003', name: 'Tráº§n Thá»‹ Lan', email: 'lan@example.com',
         phone: '0923456789', role: 'user',
         password: 'user123', avatar: null, createdAt: '2024-08-20', isActive: true
       }
@@ -191,7 +191,7 @@ const API = {
       { cinemaId: 'ci003', rooms: ['rm008', 'rm009'] }
     ];
     const times = ['09:00', '11:30', '14:00', '16:30', '19:00', '21:30'];
-    const prices = { 'IMAX': { normal: 80000, vip: 120000, couple: 180000 }, '4DX': { normal: 80000, vip: 120000, couple: 180000 }, 'Dolby': { normal: 80000, vip: 120000, couple: 180000 }, '2D': { normal: 80000, vip: 120000, couple: 180000 }, '3D': { normal: 80000, vip: 120000, couple: 180000 }, 'VIP': { normal: 80000, vip: 120000, couple: 180000 } };
+    const prices = { 'IMAX': { normal: 80000, couple: 180000 }, '4DX': { normal: 80000, couple: 180000 }, 'Dolby': { normal: 80000, couple: 180000 }, '2D': { normal: 80000, couple: 180000 }, '3D': { normal: 80000, couple: 180000 } };
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const date = new Date(today);
@@ -336,7 +336,7 @@ const API = {
       date: showtime.date,
       startTime: showtime.startTime,
       endTime: showtime.endTime,
-      price: showtime.price || { normal: 0, vip: 0, couple: 0 },
+      price: showtime.price || { normal: 0, couple: 0 },
       totalSeats: showtime.totalSeats || 0,
       bookedSeats: showtime.bookedSeats || 0,
       backend: true,
@@ -377,7 +377,7 @@ const API = {
   getBackendUserId() {
     const user = State && State.get ? State.get('currentUser') : null;
     if (!user || !user.backendUserId) {
-      throw new Error('Tài khoản hiện tại chưa liên kết database. Vui lòng đăng xuất và đăng nhập lại.');
+      throw new Error('TÃ i khoáº£n hiá»‡n táº¡i chÆ°a liÃªn káº¿t database. Vui lÃ²ng Ä‘Äƒng xuáº¥t vÃ  Ä‘Äƒng nháº­p láº¡i.');
     }
     return user.backendUserId;
   },
@@ -679,6 +679,13 @@ const API = {
 
   getUserBookings(userId) {
     return this.backendRequest(`/users/${encodeURIComponent(userId)}/bookings`);
+  },
+
+  updateUserProfile(userId, data) {
+    return this.backendRequest(`/users/${encodeURIComponent(userId)}/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
   },
 
   _save(key) {

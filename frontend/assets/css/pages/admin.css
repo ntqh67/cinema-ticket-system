@@ -280,6 +280,18 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
   vertical-align: middle;
   font-size: var(--font-size-sm);
 }
+.admin-table th:nth-child(5),
+.admin-table td:nth-child(5) {
+  min-width: 136px;
+  text-align: center;
+}
+.admin-table td:nth-child(5) .badge {
+  min-width: 104px;
+  height: 34px;
+  padding: 0 var(--spacing-4);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-table tr:hover td { background: rgba(255,255,255,0.02); }
 .admin-table-empty {

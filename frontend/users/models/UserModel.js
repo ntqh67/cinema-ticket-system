@@ -1,4 +1,4 @@
-/* CineTicket - User Model */
+/* CRTicket - User Model */
 const UserModel = {
   getAll() {
     return API.mockData.users.map(({ password, ...u }) => u);
@@ -11,18 +11,19 @@ const UserModel = {
     return safe;
   },
 
-  update(id, data) {
-    const idx = API.mockData.users.findIndex(u => u.id === id);
-    if (idx === -1) return { success: false, error: 'Không tìm thấy người dùng' };
-    const allowedFields = ['name', 'phone', 'avatar'];
-    allowedFields.forEach(f => {
-      if (data[f] !== undefined) API.mockData.users[idx][f] = data[f];
-    });
-    API._save('users');
-    const { password, ...safe } = API.mockData.users[idx];
-    State.set('currentUser', safe);
-    State.persist('currentUser');
-    return { success: true, user: safe };
+  async update(id, data) {
+    try {
+      const response = await API.updateUserProfile(id, data);
+      const safe = response.user;
+      State.set('currentUser', safe);
+      State.persist('currentUser');
+      return { success: true, user: safe };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Không thể cập nhật thông tin người dùng',
+      };
+    }
   },
 
   changePassword(id, currentPassword, newPassword) {

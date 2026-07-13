@@ -1,4 +1,4 @@
-/* CineTicket - Cinema View */
+﻿/* CineTicket - Cinema View */
 const CinemaView = {
   renderList() {
     document.getElementById('footer').style.display = '';
@@ -45,7 +45,7 @@ const CinemaView = {
     try {
       cinemas = await API.getAdminCinemas();
     } catch (error) {
-      Toast.error(error.message || 'Khong the tai danh sach rap');
+      Toast.error(error.message || 'Không thể tải danh sách rạp');
       cinemas = CinemaModel.getAll();
     }
     cinemas.sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'vi', { numeric: true }));
@@ -86,7 +86,7 @@ const CinemaView = {
                     <i class="fas fa-door-open"></i> ${rooms.length} phòng &nbsp;|&nbsp; <i class="fas fa-phone"></i> ${c.phone}
                   </div>
                   <div class="table-actions">
-                    <button class="action-btn edit" onclick="event.stopPropagation();CinemaView.showTicketPriceForm('${c.id}')" title="Gia Ve"><i class="fas fa-dollar-sign"></i></button>
+                    <button class="action-btn edit" onclick="event.stopPropagation();CinemaView.showTicketPriceForm('${c.id}')" title="Giá Vé"><i class="fas fa-dollar-sign"></i></button>
                     <button class="action-btn edit" onclick="event.stopPropagation();CinemaView.showEditForm('${c.id}')" title="Sửa"><i class="fas fa-edit"></i></button>
                     <button class="action-btn delete" onclick="event.stopPropagation();CinemaController.handleDelete('${c.id}')" title="Xóa"><i class="fas fa-trash"></i></button>
                   </div>
@@ -141,9 +141,8 @@ const CinemaView = {
   _ticketPriceText(ticketPrices) {
     const prices = Object.fromEntries(ticketPrices.map((item) => [item.seatType, Number(item.price)]));
     return [
-      `Thuong ${Helpers.formatCurrency(prices.STANDARD || 0)}`,
-      `VIP ${Helpers.formatCurrency(prices.VIP || 0)}`,
-      `Doi ${Helpers.formatCurrency(prices.COUPLE || 0)}`,
+      `Thường ${Helpers.formatCurrency(prices.STANDARD || 0)}`,
+      `Đôi ${Helpers.formatCurrency(prices.COUPLE || 0)}`,
     ].join(' | ');
   },
 
@@ -152,44 +151,39 @@ const CinemaView = {
     try {
       prices = await API.getCinemaTicketPrices(cinemaId);
     } catch (error) {
-      Toast.error(error.message || 'Khong the tai bang gia');
+      Toast.error(error.message || 'Không thể tải bảng giá');
       return;
     }
     const byType = Object.fromEntries(prices.map((price) => [price.seatType, Number(price.price)]));
     const content = `
       <form id="cinema-ticket-price-form" onsubmit="CinemaView.saveTicketPrices(event, '${cinemaId}')">
         <div class="form-group">
-          <label class="form-label">Ghe Thuong (VND)</label>
+          <label class="form-label">Ghế Thường (VND)</label>
           <input class="form-control" id="price-standard" type="number" min="0" step="1000" value="${byType.STANDARD || 0}" required />
         </div>
         <div class="form-group">
-          <label class="form-label">Ghe VIP (VND)</label>
-          <input class="form-control" id="price-vip" type="number" min="0" step="1000" value="${byType.VIP || 0}" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Ghe Doi (VND)</label>
+          <label class="form-label">Ghế Đôi (VND)</label>
           <input class="form-control" id="price-couple" type="number" min="0" step="1000" value="${byType.COUPLE || 0}" required />
         </div>
-        <p style="font-size:0.82rem;color:var(--color-text-muted);">Gia nay ap dung cho cac suat chieu moi tao sau khi luu.</p>
-        <button type="submit" class="btn btn-primary btn-block">Luu Bang Gia</button>
+        <p style="font-size:0.82rem;color:var(--color-text-muted);">Giá này áp dụng ngay cho ghế chưa thanh toán và các suất chiếu mới.</p>
+        <button type="submit" class="btn btn-primary btn-block">Lưu Bảng Giá</button>
       </form>`;
-    Modal.show('Bang Gia Ve Theo Rap', content, { size: 'md' });
+    Modal.show('Bảng Giá Vé Theo Rạp', content, { size: 'md' });
   },
 
   async saveTicketPrices(event, cinemaId) {
     event.preventDefault();
     const payloads = [
       { seatType: 'STANDARD', price: Number(document.getElementById('price-standard').value), isActive: true },
-      { seatType: 'VIP', price: Number(document.getElementById('price-vip').value), isActive: true },
       { seatType: 'COUPLE', price: Number(document.getElementById('price-couple').value), isActive: true },
     ];
     try {
       await Promise.all(payloads.map((payload) => API.upsertCinemaTicketPrice(cinemaId, payload)));
       Modal.close();
-      Toast.success('Da cap nhat bang gia ve');
+      Toast.success('Đã cập nhật bảng giá vé');
       this.renderAdmin();
     } catch (error) {
-      Toast.error(error.message || 'Khong the luu bang gia');
+      Toast.error(error.message || 'Không thể lưu bảng giá');
     }
   },
 

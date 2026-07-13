@@ -1,4 +1,4 @@
-/* CineTicket - Payment View */
+﻿/* CineTicket - Payment View */
 const PaymentView = {
   _selectedMethod: 'sepay',
   _processing: false,
@@ -26,7 +26,7 @@ const PaymentView = {
     const seatDetails = booking.seats.map((seat) => {
       const type = typeof seat === 'object' ? seat.type : 'normal';
       const price = typeof seat === 'object' ? seat.price : booking.totalPrice / booking.seats.length;
-      const label = type === 'vip' ? 'VIP' : type === 'couple' ? 'Đôi' : 'Thường';
+      const label = type === 'couple' ? 'Đôi' : 'Thường';
       return `<div class="order-row"><span class="order-row-label">Ghế ${typeof seat === 'object' ? seat.id : seat} (${label})</span><span class="order-row-value">${Helpers.formatCurrency(price)}</span></div>`;
     }).join('');
 
@@ -110,7 +110,7 @@ const PaymentView = {
               ${this._comboSummary(booking.comboItems || [])}
               <div class="order-line" id="discount-line" style="display:none;">
                 <span class="order-line-label" style="color:var(--color-success);">Giảm Giá</span>
-                <span class="order-line-value" style="color:var(--color-success);" id="discount-value">- 0 ₫</span>
+                <span class="order-line-value" style="color:var(--color-success);" id="discount-value">- 0 â‚«</span>
               </div>
               <div class="order-final">
                 <span>Tổng Cộng</span>

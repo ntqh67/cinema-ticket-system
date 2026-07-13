@@ -244,7 +244,6 @@ export class MoviesService {
       endAt: showtime.endAt,
       price: {
         normal: priceBySeatType.STANDARD ?? Number(showtime.basePrice),
-        vip: priceBySeatType.VIP ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
         couple: priceBySeatType.COUPLE ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
       },
       totalSeats,

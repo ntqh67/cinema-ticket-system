@@ -128,13 +128,14 @@ async function addOrUpdateMovie(tmdbId) {
   };
   const trailerUrl = await fetchTrailer(tmdbId);
   const existingMovie = await prisma.movie.findFirst({ where: { tmdbId } });
+  const posterPath = details.poster_path || detailsEn.poster_path;
   const data = {
     tmdbId,
     title: details.title || detailsEn.title,
     description: details.overview || detailsEn.overview || null,
     durationMin: details.runtime || detailsEn.runtime || 100,
     releaseDate: details.release_date ? new Date(`${details.release_date}T00:00:00.000Z`) : null,
-    posterUrl: imageUrl(details.poster_path || detailsEn.poster_path, 'w500'),
+    posterUrl: imageUrl(posterPath, 'w500'),
     trailerUrl,
     status: 'NOW_SHOWING',
   };

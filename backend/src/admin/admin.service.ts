@@ -99,7 +99,11 @@ export class AdminService {
   }
 
   async createMovieFromTmdb(dto: CreateMovieFromTmdbDto) {
-    return this.upsertMovieFromTmdb(dto.tmdbId, dto.status || 'NOW_SHOWING');
+    const tmdbId = Number(dto.tmdbId);
+    if (!Number.isInteger(tmdbId) || tmdbId < 1) {
+      throw new BadRequestException('TMDB movie ID is invalid');
+    }
+    return this.upsertMovieFromTmdb(tmdbId, dto.status || 'NOW_SHOWING');
   }
 
   async importUpcomingMoviesFromTmdb(dto: ImportUpcomingMoviesFromTmdbDto) {
@@ -140,6 +144,7 @@ export class AdminService {
       ),
     };
     const trailerUrl = await this.fetchTmdbTrailer(tmdbId);
+    const posterPath = details.poster_path || detailsEn.poster_path;
     const existingMovie = await this.prisma.movie.findFirst({
       where: { tmdbId },
     });
@@ -153,10 +158,7 @@ export class AdminService {
         releaseDate: details.release_date
           ? new Date(`${details.release_date}T00:00:00.000Z`)
           : null,
-        posterUrl: this.tmdbImageUrl(
-          details.poster_path || detailsEn.poster_path,
-          'w500',
-        ),
+        posterUrl: this.tmdbImageUrl(posterPath, 'w500'),
         trailerUrl,
         ageRating: 'P',
         status: status as MovieStatus,
@@ -258,7 +260,7 @@ export class AdminService {
   async listCinemaTicketPrices(cinemaId: string) {
     await this.ensureCinema(cinemaId);
     return this.prisma.cinemaTicketPrice.findMany({
-      where: { cinemaId },
+      where: { cinemaId, seatType: { not: 'VIP' } },
       orderBy: { seatType: 'asc' },
     });
   }
@@ -268,11 +270,12 @@ export class AdminService {
     dto: UpsertCinemaTicketPriceDto,
   ) {
     await this.ensureCinema(cinemaId);
-    return this.prisma.cinemaTicketPrice.upsert({
+    const seatType = this.parseSeatType(dto.seatType);
+    const price = await this.prisma.cinemaTicketPrice.upsert({
       where: {
         cinemaId_seatType: {
           cinemaId,
-          seatType: dto.seatType,
+          seatType,
         },
       },
       update: {
@@ -281,11 +284,17 @@ export class AdminService {
       },
       create: {
         cinemaId,
-        seatType: dto.seatType,
+        seatType,
         price: dto.price,
         isActive: dto.isActive ?? true,
       },
     });
+
+    if (price.isActive) {
+      await this.syncTicketPriceToOpenSales(cinemaId, seatType, Number(price.price));
+    }
+
+    return price;
   }
 
   async deactivateCinemaTicketPrice(cinemaId: string, seatType: string) {
@@ -435,24 +444,18 @@ export class AdminService {
   async generateSeats(roomId: string, dto: GenerateSeatsDto) {
     const room = await this.ensureRoom(roomId);
     const coupleRows = new Set(dto.coupleRows || []);
-    const vipZone = this.getVipZone(dto.rows, dto.columns);
     const seats: Prisma.SeatCreateManyInput[] = [];
 
     for (const row of dto.rows) {
       const isCoupleRow = coupleRows.has(row);
       const seatCount = isCoupleRow ? Math.floor(dto.columns / 2) : dto.columns;
       for (let number = 1; number <= seatCount; number += 1) {
-        const isVip =
-          !isCoupleRow &&
-          vipZone.rows.has(row) &&
-          number >= vipZone.colStart &&
-          number <= vipZone.colEnd;
         seats.push({
           roomId,
           row,
           number,
           position: isCoupleRow ? (number - 1) * 2 + 1 : number,
-          type: isCoupleRow ? 'COUPLE' : isVip ? 'VIP' : 'STANDARD',
+          type: isCoupleRow ? 'COUPLE' : 'STANDARD',
         });
       }
     }
@@ -518,10 +521,6 @@ export class AdminService {
         basePrice: Number(showtime.basePrice),
         price: {
           normal: priceBySeatType.STANDARD ?? Number(showtime.basePrice),
-          vip:
-            priceBySeatType.VIP ??
-            priceBySeatType.STANDARD ??
-            Number(showtime.basePrice),
           couple:
             priceBySeatType.COUPLE ??
             priceBySeatType.STANDARD ??
@@ -791,22 +790,82 @@ export class AdminService {
   }
 
   private parseSeatType(value: string) {
-    if (!['STANDARD', 'VIP', 'COUPLE'].includes(value)) {
+    if (!['STANDARD', 'COUPLE'].includes(value)) {
       throw new BadRequestException('Invalid seat type');
     }
-    return value as 'STANDARD' | 'VIP' | 'COUPLE';
+    return value as 'STANDARD' | 'COUPLE';
   }
 
-  private getVipZone(rows: string[], columns: number) {
-    const zoneRowCount = Math.min(3, rows.length);
-    const zoneColCount = Math.min(5, columns);
-    const rowStart = Math.max(0, Math.round((rows.length - zoneRowCount) / 2));
-    const colStart = Math.max(1, Math.round((columns - zoneColCount) / 2) + 1);
-    return {
-      rows: new Set(rows.slice(rowStart, rowStart + zoneRowCount)),
-      colStart,
-      colEnd: colStart + zoneColCount - 1,
-    };
+  private async syncTicketPriceToOpenSales(
+    cinemaId: string,
+    seatType: 'STANDARD' | 'COUPLE',
+    price: number,
+  ) {
+    const affectedBookings = await this.prisma.booking.findMany({
+      where: {
+        status: 'PENDING',
+        showtime: { room: { cinemaId } },
+        bookingItems: {
+          some: {
+            showtimeSeat: {
+              status: { not: 'BOOKED' },
+              seat: { type: seatType },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.showtimeSeat.updateMany({
+        where: {
+          status: { not: 'BOOKED' },
+          showtime: { room: { cinemaId } },
+          seat: { type: seatType },
+        },
+        data: { price },
+      });
+
+      await tx.bookingItem.updateMany({
+        where: {
+          booking: {
+            status: 'PENDING',
+            showtime: { room: { cinemaId } },
+          },
+          showtimeSeat: {
+            status: { not: 'BOOKED' },
+            seat: { type: seatType },
+          },
+        },
+        data: { unitPrice: price },
+      });
+
+      for (const booking of affectedBookings) {
+        const detail = await tx.booking.findUnique({
+          where: { id: booking.id },
+          include: {
+            bookingItems: true,
+            comboItems: true,
+          },
+        });
+        if (!detail) continue;
+
+        const seatSubtotal = detail.bookingItems.reduce(
+          (sum, item) => sum + Number(item.unitPrice),
+          0,
+        );
+        const comboSubtotal = detail.comboItems.reduce(
+          (sum, item) => sum + Number(item.unitPrice) * item.quantity,
+          0,
+        );
+
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: { totalAmount: seatSubtotal + comboSubtotal },
+        });
+      }
+    });
   }
 
   private addMinutes(date: Date, minutes: number) {
@@ -870,10 +929,15 @@ export class AdminService {
     path: string,
     params: Record<string, string | number | boolean> = {},
   ) {
-    const apiKey = process.env.TMDB_API_KEY;
-    const readAccessToken = process.env.TMDB_READ_ACCESS_TOKEN;
+    const apiKey = this.cleanEnvValue(process.env.TMDB_API_KEY);
+    const readAccessToken = this.cleanEnvValue(
+      process.env.TMDB_READ_ACCESS_TOKEN,
+    );
+    const shouldUseReadToken = Boolean(
+      readAccessToken && readAccessToken.startsWith('eyJ'),
+    );
 
-    if (!apiKey && !readAccessToken) {
+    if (!apiKey && !shouldUseReadToken) {
       throw new BadRequestException('TMDB API key is not configured');
     }
 
@@ -881,12 +945,12 @@ export class AdminService {
     Object.entries(params).forEach(([key, value]) =>
       url.searchParams.set(key, String(value)),
     );
-    if (!readAccessToken && apiKey) {
+    if (!shouldUseReadToken && apiKey) {
       url.searchParams.set('api_key', apiKey);
     }
 
     const response = await fetch(url, {
-      headers: readAccessToken
+      headers: shouldUseReadToken
         ? {
             Authorization: `Bearer ${readAccessToken}`,
             Accept: 'application/json',
@@ -895,7 +959,14 @@ export class AdminService {
     });
 
     if (!response.ok) {
-      throw new BadRequestException(`TMDB request failed: ${response.status}`);
+      let message = `TMDB request failed: ${response.status}`;
+      try {
+        const body = await response.json();
+        if (body?.status_message) message = body.status_message;
+      } catch {
+        // Keep the generic message when TMDB does not return JSON.
+      }
+      throw new BadRequestException(message);
     }
 
     return response.json();
@@ -935,6 +1006,13 @@ export class AdminService {
 
   private tmdbImageUrl(path: string | null | undefined, size: string) {
     return path ? `${TMDB_IMAGE_BASE_URL}/${size}${path}` : null;
+  }
+
+  private cleanEnvValue(value?: string) {
+    return (value || '')
+      .trim()
+      .replace(/^['"]|['"]$/g, '')
+      .replace(/^\[|\]$/g, '');
   }
 
   private async ensureCinema(id: string) {
