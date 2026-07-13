@@ -154,14 +154,13 @@ Y nghia status:
 4. Chon ghe.
 5. Chon hoac bo qua combo bap nuoc.
 6. Vao thanh toan.
-7. Chon SePay QR.
-8. Bam xac nhan thanh toan.
-9. Quet QR va chuyen khoan dung:
+7. QR SePay tu hien, khong can chon phuong thuc va khong can bam xac nhan.
+8. Quet QR va chuyen khoan dung:
    - dung so tien;
    - dung noi dung chuyen khoan dang hien, vi du CRT...
-10. SePay gui webhook ve backend qua ngrok.
-11. Frontend tu polling /api/bookings/:bookingId/payment-status.
-12. Khi payment SUCCESS, web tu chuyen sang trang ve dien tu.
+9. SePay gui webhook ve backend qua ngrok.
+10. Frontend tu polling /api/bookings/:bookingId/payment-status.
+11. Khi payment SUCCESS, web tu chuyen sang trang ve dien tu.
 
 Ket qua dung trong database:
 - payments.status = SUCCESS

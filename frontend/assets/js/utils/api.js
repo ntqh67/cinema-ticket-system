@@ -495,25 +495,12 @@ const API = {
     });
   },
 
-  createVnpayPayment(bookingId) {
-    return this.backendRequest(`/bookings/${bookingId}/vnpay`, {
-      method: 'POST'
-    });
-  },
-
   createSepayPayment(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}/sepay`, { method: 'POST' });
   },
 
   getPaymentStatus(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}/payment-status`);
-  },
-
-  onlineDemoPay(bookingId, provider) {
-    return this.backendRequest(`/bookings/${bookingId}/online-demo-pay`, {
-      method: 'POST',
-      body: JSON.stringify({ provider })
-    });
   },
 
   getConcessionCombos() {

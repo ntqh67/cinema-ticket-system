@@ -1,12 +1,16 @@
-﻿/* CineTicket - Payment View */
+/* CRTicket - Giao diện thanh toán SePay */
 const PaymentView = {
-  _selectedMethod: 'sepay',
   _processing: false,
   _holdTimer: null,
+  _sepayPollTimer: null,
+  _sepayCountdownTimer: null,
 
+  // Render trang thanh toán và tự tạo mã QR SePay cho booking hiện tại.
   async render() {
     if (!AuthController.checkAuth()) return;
     this._clearHoldCountdown();
+    this._clearSepayTimers();
+
     const booking = State.get('currentBooking');
     if (!booking) {
       Toast.warning('Không có thông tin đặt vé');
@@ -17,130 +21,88 @@ const PaymentView = {
     const movie = MovieModel.getById(booking.movieId);
     const showtime = ShowtimeModel.getById(booking.showtimeId);
     const cinema = showtime ? CinemaModel.getById(showtime.cinemaId) : null;
-    document.getElementById('footer').style.display = '';
     const main = document.getElementById('main-content');
     if (!main) return;
 
-    const seatNames = booking.seats.map((seat) => typeof seat === 'object' ? seat.id : seat).join(', ');
-    const bookingCode = booking.backendBookingId ? booking.backendBookingId.toUpperCase().slice(0, 12) : 'ĐANG TẠO';
+    document.getElementById('footer').style.display = '';
+
+    const seatNames = booking.seats
+      .map((seat) => (typeof seat === 'object' ? seat.id : seat))
+      .join(', ');
+    const bookingCode = booking.backendBookingId
+      ? booking.backendBookingId.toUpperCase().slice(0, 12)
+      : 'ĐANG TẠO';
     const seatDetails = booking.seats.map((seat) => {
       const type = typeof seat === 'object' ? seat.type : 'normal';
-      const price = typeof seat === 'object' ? seat.price : booking.totalPrice / booking.seats.length;
+      const price = typeof seat === 'object'
+        ? Number(seat.price || 0)
+        : Number(booking.totalPrice || 0) / Math.max(booking.seats.length, 1);
       const label = type === 'couple' ? 'Đôi' : 'Thường';
-      return `<div class="order-row"><span class="order-row-label">Ghế ${typeof seat === 'object' ? seat.id : seat} (${label})</span><span class="order-row-value">${Helpers.formatCurrency(price)}</span></div>`;
+      const seatId = typeof seat === 'object' ? seat.id : seat;
+      return `
+        <div class="order-row">
+          <span class="order-row-label">Ghế ${Helpers.escapeHtml(seatId)} (${label})</span>
+          <span class="order-row-value">${Helpers.formatCurrency(price)}</span>
+        </div>`;
     }).join('');
 
     main.innerHTML = `
-    <div class="payment-page">
-      <div class="container">
-        <div class="booking-steps" style="max-width:680px;margin:0 auto 40px;">
-          <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chọn phim</span></div>
-          <div class="booking-step-divider done"></div>
-          <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chọn ghế</span></div>
-          <div class="booking-step-divider done"></div>
-          <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Bắp nước</span></div>
-          <div class="booking-step-divider"></div>
-          <div class="booking-step active"><div class="booking-step-num">4</div><span class="booking-step-label">Thanh toán</span></div>
-        </div>
-
-        <div class="payment-layout">
-          <div>
-            <div class="booking-card">
-              <div class="booking-card-header">
-                <div class="booking-card-title"><span class="step-badge">4</span> Thanh Toán Online</div>
-              </div>
-              <div class="booking-card-body">
-                <form id="payment-form" onsubmit="PaymentController.handleSubmit(event, PaymentView._selectedMethod)">
-                  <div class="payment-methods">
-                    ${this._methodOption('sepay', 'fas fa-qrcode', 'sepay', 'SePay QR', 'Chuyển khoản ngân hàng, tự động xác nhận')}
-                    ${this._methodOption('card', 'fas fa-credit-card', 'card', 'Thẻ tín dụng / ghi nợ', 'Visa, MasterCard, JCB')}
-                    ${this._methodOption('momo', 'fas fa-mobile-alt', 'momo', 'MoMo', 'Thanh toán qua ví MoMo')}
-                    ${this._methodOption('vnpay', 'fas fa-qrcode', 'vnpay', 'VNPay', 'Thanh toán qua VNPay QR')}
-                    ${this._methodOption('zalopay', 'fas fa-wallet', 'zalopay', 'ZaloPay', 'Thanh toán qua ví ZaloPay')}
-                  </div>
-
-                  <div class="card-form" id="card-form">
-                    <div class="form-group">
-                      <label class="form-label">Số Thẻ</label>
-                      <input type="text" class="form-control" placeholder="0000 0000 0000 0000" maxlength="19"
-                        oninput="this.value=this.value.replace(/\\D/g,'').replace(/(.{4})/g,'$1 ').trim()" />
-                    </div>
-                    <div class="card-form-row">
-                      <div class="form-group">
-                        <label class="form-label">Ngày Hết Hạn</label>
-                        <input type="text" class="form-control" placeholder="MM/YY" maxlength="5" />
-                      </div>
-                      <div class="form-group">
-                        <label class="form-label">CVV</label>
-                        <input type="text" class="form-control" placeholder="123" maxlength="3" />
-                      </div>
-                    </div>
-                    <div class="form-group">
-                      <label class="form-label">Tên Chủ Thẻ</label>
-                      <input type="text" class="form-control" placeholder="NGUYEN VAN A" style="text-transform:uppercase;" />
-                    </div>
-                  </div>
-
-                  <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:24px;" id="pay-btn">
-                    <i class="fas fa-lock"></i> Xác Nhận Thanh Toán
-                  </button>
-                </form>
-              </div>
-            </div>
+      <div class="payment-page">
+        <div class="container">
+          <div class="booking-steps payment-steps">
+            <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chọn phim</span></div>
+            <div class="booking-step-divider done"></div>
+            <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Chọn ghế</span></div>
+            <div class="booking-step-divider done"></div>
+            <div class="booking-step done"><div class="booking-step-num"><i class="fas fa-check"></i></div><span class="booking-step-label">Bắp nước</span></div>
+            <div class="booking-step-divider"></div>
+            <div class="booking-step active"><div class="booking-step-num">4</div><span class="booking-step-label">Thanh toán</span></div>
           </div>
 
-          <div class="order-panel">
-            <div class="order-panel-header"><i class="fas fa-receipt"></i> Tóm Tắt Đơn Hàng</div>
-            <div class="order-panel-body">
-              <div class="order-movie-mini">
-                <img class="order-poster" src="${movie ? movie.poster : API.moviePosterFallback}" alt="" onerror="this.src=API.moviePosterFallback" />
+          <div class="payment-layout sepay-payment-layout">
+            <section class="booking-card sepay-payment-card">
+              <div class="booking-card-header">
                 <div>
-                  <div class="order-movie-name">${movie ? Helpers.escapeHtml(movie.title) : ''}</div>
-                  <div class="order-movie-details">
-                    ${cinema ? Helpers.escapeHtml(cinema.shortName || cinema.name) : ''}<br>
-                    ${showtime ? `${showtime.date} - ${showtime.startTime}` : ''}
-                  </div>
+                  <div class="booking-card-title"><i class="fas fa-qrcode"></i> Thanh toán SePay</div>
+                  <p class="sepay-payment-subtitle">Quét QR hoặc chuyển khoản đúng thông tin bên dưới. Hệ thống sẽ tự xác nhận khi SePay gửi webhook hợp lệ.</p>
                 </div>
               </div>
-              <div class="order-line"><span class="order-line-label">Mã Đặt Vé</span><span class="order-line-value">${Helpers.escapeHtml(bookingCode)}</span></div>
-              <div class="order-line"><span class="order-line-label">Rạp Chiếu</span><span class="order-line-value">${cinema ? Helpers.escapeHtml(cinema.name || cinema.shortName) : ''}</span></div>
-              <div class="order-line"><span class="order-line-label">Ghế</span><span class="order-line-value" style="font-size:0.85rem;">${Helpers.escapeHtml(seatNames)}</span></div>
-              <div class="order-line"><span class="order-line-label">Giữ ghế còn lại</span><span class="order-line-value" id="booking-hold-countdown">--:--</span></div>
-              ${seatDetails}
-              ${this._comboSummary(booking.comboItems || [])}
-              <div class="order-line" id="discount-line" style="display:none;">
-                <span class="order-line-label" style="color:var(--color-success);">Giảm Giá</span>
-                <span class="order-line-value" style="color:var(--color-success);" id="discount-value">- 0 â‚«</span>
+              <div class="booking-card-body" id="sepay-payment-container">
+                ${this._sepayLoadingTemplate()}
               </div>
-              <div class="order-final">
-                <span>Tổng Cộng</span>
-                <span class="order-final-amount" id="final-total">${Helpers.formatCurrency(booking.totalPrice)}</span>
+            </section>
+
+            <aside class="order-panel sepay-order-panel">
+              <div class="order-panel-header"><i class="fas fa-receipt"></i> Tóm Tắt Đơn Hàng</div>
+              <div class="order-panel-body">
+                <div class="order-movie-mini">
+                  <img class="order-poster" src="${movie ? movie.poster : API.moviePosterFallback}" alt="" onerror="this.src=API.moviePosterFallback" />
+                  <div>
+                    <div class="order-movie-name">${movie ? Helpers.escapeHtml(movie.title) : ''}</div>
+                    <div class="order-movie-details">
+                      ${cinema ? Helpers.escapeHtml(cinema.shortName || cinema.name) : ''}<br>
+                      ${showtime ? `${showtime.date} - ${showtime.startTime}` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div class="order-line"><span class="order-line-label">Mã Đặt Vé</span><span class="order-line-value">${Helpers.escapeHtml(bookingCode)}</span></div>
+                <div class="order-line"><span class="order-line-label">Rạp Chiếu</span><span class="order-line-value">${cinema ? Helpers.escapeHtml(cinema.name || cinema.shortName) : ''}</span></div>
+                <div class="order-line"><span class="order-line-label">Ghế</span><span class="order-line-value order-seat-list">${Helpers.escapeHtml(seatNames)}</span></div>
+                <div class="order-line"><span class="order-line-label">Giữ ghế còn lại</span><span class="order-line-value" id="booking-hold-countdown">--:--</span></div>
+                ${seatDetails}
+                ${this._comboSummary(booking.comboItems || [])}
+                <div class="order-final">
+                  <span>Tổng Cộng</span>
+                  <span class="order-final-amount" id="final-total">${Helpers.formatCurrency(booking.totalPrice)}</span>
+                </div>
               </div>
-            </div>
+            </aside>
           </div>
         </div>
-      </div>
-    </div>
+      </div>`;
 
-    <div id="payment-processing-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:var(--z-modal);align-items:center;justify-content:center;">
-      <div style="text-align:center;color:#fff;">
-        <div class="processing-icon"><i class="fas fa-credit-card"></i></div>
-        <h3 style="margin-bottom:8px;">Đang Xử Lý Thanh Toán</h3>
-        <p style="color:rgba(255,255,255,0.7);">Vui lòng không tắt trang này...</p>
-        <div class="spinner" style="margin-top:24px;"></div>
-      </div>
-    </div>`;
-
-    document.querySelectorAll('.payment-method-option').forEach((option) => {
-      option.addEventListener('click', () => {
-        this._selectedMethod = option.dataset.method;
-        document.querySelectorAll('.payment-method-option').forEach((item) => item.classList.remove('selected'));
-        option.classList.add('selected');
-        const cardForm = document.getElementById('card-form');
-        if (cardForm) cardForm.classList.toggle('show', this._selectedMethod === 'card');
-      });
-    });
     this._startHoldCountdown(booking.expiresAt, booking.showtimeId);
+    PaymentController.startSepayPayment(booking);
   },
 
   _comboSummary(comboItems) {
@@ -150,6 +112,149 @@ const PaymentView = {
         <span class="order-row-value">${Helpers.formatCurrency(Number(combo.lineTotal || combo.unitPrice * combo.quantity || 0))}</span>
       </div>
     `).join('');
+  },
+
+  renderSepayLoading() {
+    const container = document.getElementById('sepay-payment-container');
+    if (container) container.innerHTML = this._sepayLoadingTemplate();
+  },
+
+  _sepayLoadingTemplate() {
+    return `
+      <div class="sepay-inline-state">
+        <div class="spinner"></div>
+        <h3>Đang tạo mã QR SePay</h3>
+        <p>Vui lòng giữ trang này trong khi hệ thống chuẩn bị thông tin chuyển khoản.</p>
+      </div>`;
+  },
+
+  renderSepayError(message) {
+    this._clearSepayTimers();
+    const container = document.getElementById('sepay-payment-container');
+    if (!container) return;
+    container.innerHTML = `
+      <div class="sepay-inline-state sepay-inline-error">
+        <i class="fas fa-exclamation-circle"></i>
+        <h3>Không tạo được mã QR</h3>
+        <p>${Helpers.escapeHtml(message || 'Vui lòng kiểm tra cấu hình SePay và thử lại.')}</p>
+        <button class="btn btn-primary" onclick="PaymentController.startSepayPayment(State.get('currentBooking'))">
+          <i class="fas fa-sync-alt"></i> Thử lại
+        </button>
+      </div>`;
+  },
+
+  renderSepayQr(payment, booking) {
+    this._clearSepayTimers();
+    const container = document.getElementById('sepay-payment-container');
+    if (!container) return;
+
+    const accountNumber = payment.bankAccount || payment.accountNumber || '';
+    const transferContent = payment.transferContent || payment.providerRef || payment.paymentCode || '';
+    const amount = Math.round(Number(payment.amount || booking.totalPrice || 0));
+
+    container.innerHTML = `
+      <div class="sepay-qr-layout">
+        <div class="sepay-qr-panel">
+          <div class="sepay-qr-frame">
+            <img src="${payment.qrUrl}" alt="Mã QR thanh toán SePay" />
+          </div>
+          <div class="sepay-status-pill" id="sepay-status">
+            <i class="fas fa-spinner fa-spin"></i> Đang chờ SePay xác nhận...
+          </div>
+          <div class="sepay-countdown" id="sepay-countdown">Thời gian còn lại: --:--</div>
+        </div>
+
+        <div class="sepay-transfer-panel">
+          <div class="sepay-transfer-title">Thông tin chuyển khoản</div>
+          ${this._transferRow('Ngân hàng', payment.bankCode || '')}
+          ${this._transferRow('Số tài khoản', accountNumber, true)}
+          ${this._transferRow('Chủ tài khoản', payment.accountName || '')}
+          ${this._transferRow('Số tiền', Helpers.formatCurrency(amount), true, String(amount))}
+          ${this._transferRow('Nội dung', transferContent, true)}
+          <div class="sepay-warning">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>Vui lòng chuyển khoản đúng số tiền và đúng nội dung để hệ thống tự xác nhận.</span>
+          </div>
+        </div>
+      </div>`;
+
+    this._startSepayCountdown(payment.expiresAt);
+    this._startSepayPolling(payment.bookingId);
+  },
+
+  _transferRow(label, value, copyable = false, copyValue = value) {
+    return `
+      <div class="sepay-transfer-row">
+        <span>${Helpers.escapeHtml(label)}</span>
+        <strong>${Helpers.escapeHtml(value)}</strong>
+        ${copyable ? this._copyButton(copyValue) : ''}
+      </div>`;
+  },
+
+  _copyButton(value) {
+    return `<button class="sepay-copy-btn" onclick="PaymentView.copySepayText(decodeURIComponent('${encodeURIComponent(String(value || ''))}'))">Copy</button>`;
+  },
+
+  _startSepayPolling(bookingId) {
+    this._sepayPollTimer = setInterval(async () => {
+      try {
+        const status = await API.getPaymentStatus(bookingId);
+        if (status.bookingStatus === 'PAID' || status.paymentStatus === 'SUCCESS') {
+          this._clearSepayTimers();
+          this._clearHoldCountdown();
+          State.set('currentBooking', null);
+          SeatController.selectedSeats = [];
+          Router.navigate(`/ticket/${bookingId}`);
+          Toast.success('SePay đã xác nhận thanh toán!');
+          return;
+        }
+
+        if (status.bookingStatus === 'EXPIRED' || status.paymentStatus === 'EXPIRED') {
+          this._clearSepayTimers();
+          const statusEl = document.getElementById('sepay-status');
+          if (statusEl) statusEl.innerHTML = '<i class="fas fa-clock"></i> Mã thanh toán đã hết hạn';
+          Toast.error('Mã thanh toán SePay đã hết hạn.');
+        }
+      } catch (error) {
+        console.warn('SePay status poll failed:', error);
+        const statusEl = document.getElementById('sepay-status');
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra lại trạng thái thanh toán...';
+      }
+    }, 3000);
+  },
+
+  _startSepayCountdown(expiresAt) {
+    const expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : null;
+    const update = () => {
+      const el = document.getElementById('sepay-countdown');
+      if (!el || !expiresAtMs) return;
+      const remaining = expiresAtMs - Date.now();
+      if (remaining <= 0) {
+        el.textContent = 'Thời gian còn lại: đã hết hạn';
+        this._clearSepayTimers();
+        const statusEl = document.getElementById('sepay-status');
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-clock"></i> Mã thanh toán đã hết hạn';
+        return;
+      }
+      const totalSeconds = Math.ceil(remaining / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      el.textContent = `Thời gian còn lại: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    update();
+    this._sepayCountdownTimer = setInterval(update, 1000);
+  },
+
+  _clearSepayTimers() {
+    if (this._sepayPollTimer) {
+      clearInterval(this._sepayPollTimer);
+      this._sepayPollTimer = null;
+    }
+    if (this._sepayCountdownTimer) {
+      clearInterval(this._sepayCountdownTimer);
+      this._sepayCountdownTimer = null;
+    }
   },
 
   _startHoldCountdown(expiresAt, showtimeId) {
@@ -164,6 +269,7 @@ const PaymentView = {
       const remaining = new Date(expiresAt).getTime() - Date.now();
       if (remaining <= 0) {
         this._clearHoldCountdown();
+        this._clearSepayTimers();
         el.textContent = 'Đã hết hạn';
         try {
           await API.expireBookings();
@@ -193,85 +299,6 @@ const PaymentView = {
     }
   },
 
-  _methodOption(method, iconClass, iconType, label, desc) {
-    return `
-    <label class="payment-method-option ${method === this._selectedMethod ? 'selected' : ''}" data-method="${method}">
-      <input type="radio" name="payment-method" value="${method}" ${method === this._selectedMethod ? 'checked' : ''} />
-      <div class="payment-method-icon ${iconType}"><i class="${iconClass}"></i></div>
-      <div>
-        <div class="payment-method-label">${label}</div>
-        <div class="payment-method-desc">${desc}</div>
-      </div>
-    </label>`;
-  },
-
-  showSepayQr(payment, booking) {
-    const accountNumber = payment.bankAccount || payment.accountNumber || '';
-    const transferContent = payment.transferContent || payment.providerRef || payment.paymentCode || '';
-    const expiresAt = payment.expiresAt ? new Date(payment.expiresAt).getTime() : null;
-    const content = `
-      <div class="sepay-box">
-        <div style="text-align:center;margin-bottom:18px;">
-          <img src="${payment.qrUrl}" alt="SePay QR" style="width:min(340px,100%);border-radius:16px;background:#fff;padding:12px;" />
-        </div>
-        <div class="order-line"><span class="order-line-label">Ngân hàng</span><span class="order-line-value">${Helpers.escapeHtml(payment.bankCode || '')}</span></div>
-        <div class="order-line"><span class="order-line-label">Số tài khoản</span><span class="order-line-value">${Helpers.escapeHtml(accountNumber)} <button class="btn btn-sm btn-outline" onclick="PaymentView.copySepayText('${Helpers.escapeHtml(accountNumber)}')">Copy</button></span></div>
-        <div class="order-line"><span class="order-line-label">Chủ tài khoản</span><span class="order-line-value">${Helpers.escapeHtml(payment.accountName || '')}</span></div>
-        <div class="order-line"><span class="order-line-label">Số tiền</span><span class="order-line-value" style="color:var(--color-primary);font-weight:800;">${Helpers.formatCurrency(payment.amount)} <button class="btn btn-sm btn-outline" onclick="PaymentView.copySepayText('${Math.round(Number(payment.amount || 0))}')">Copy</button></span></div>
-        <div class="order-line"><span class="order-line-label">Nội dung</span><span class="order-line-value" style="color:var(--color-primary);font-weight:800;">${Helpers.escapeHtml(transferContent)} <button class="btn btn-sm btn-outline" onclick="PaymentView.copySepayText('${Helpers.escapeHtml(transferContent)}')">Copy</button></span></div>
-        <div style="margin-top:14px;padding:12px;border:1px solid rgba(255,193,7,.35);border-radius:10px;color:var(--color-warning);">
-          Vui lòng chuyển khoản đúng số tiền và đúng nội dung. Hệ thống chỉ xác nhận khi SePay gửi webhook hợp lệ.
-        </div>
-        <p id="sepay-countdown" style="margin-top:14px;color:var(--color-text-muted);text-align:center;">Thời gian còn lại: --:--</p>
-        <p id="sepay-status" style="margin-top:10px;color:var(--color-warning);text-align:center;"><i class="fas fa-spinner fa-spin"></i> Đang chờ SePay xác nhận...</p>
-      </div>`;
-    Modal.show('Thanh toán SePay', content, { size: 'md' });
-    const poll = setInterval(async () => {
-      try {
-        const status = await API.getPaymentStatus(payment.bookingId);
-        if (status.bookingStatus === 'PAID' || status.paymentStatus === 'SUCCESS') {
-          clearInterval(poll);
-          clearInterval(countdown);
-          Modal.close();
-          this._clearHoldCountdown();
-          State.set('currentBooking', null);
-          SeatController.selectedSeats = [];
-          Router.navigate(`/ticket/${payment.bookingId}`);
-          Toast.success('SePay đã xác nhận thanh toán!');
-        }
-        if (status.bookingStatus === 'EXPIRED' || status.paymentStatus === 'EXPIRED') {
-          clearInterval(poll);
-          clearInterval(countdown);
-          const statusEl = document.getElementById('sepay-status');
-          if (statusEl) statusEl.innerHTML = '<i class="fas fa-clock"></i> Mã thanh toán đã hết hạn. Vui lòng đặt vé lại.';
-          Toast.error('Mã thanh toán SePay đã hết hạn.');
-        }
-      } catch (error) {
-        console.warn('SePay status poll failed:', error);
-        const statusEl = document.getElementById('sepay-status');
-        if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra lại trạng thái thanh toán...';
-      }
-    }, 3000);
-
-    const countdown = setInterval(() => {
-      const el = document.getElementById('sepay-countdown');
-      if (!el || !expiresAt) return;
-      const remaining = expiresAt - Date.now();
-      if (remaining <= 0) {
-        el.textContent = 'Thời gian còn lại: đã hết hạn';
-        clearInterval(countdown);
-        clearInterval(poll);
-        const statusEl = document.getElementById('sepay-status');
-        if (statusEl) statusEl.innerHTML = '<i class="fas fa-clock"></i> Mã thanh toán đã hết hạn.';
-        return;
-      }
-      const totalSeconds = Math.ceil(remaining / 1000);
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = totalSeconds % 60;
-      el.textContent = `Thời gian còn lại: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }, 1000);
-  },
-
   async copySepayText(value) {
     try {
       await navigator.clipboard.writeText(value);
@@ -279,48 +306,6 @@ const PaymentView = {
     } catch (error) {
       console.warn('Could not copy SePay text:', error);
       Toast.warning('Không copy được, vui lòng sao chép thủ công');
-    }
-  },
-
-  updateTotal(total, discount) {
-    const finalEl = document.getElementById('final-total');
-    const discountLine = document.getElementById('discount-line');
-    const discountVal = document.getElementById('discount-value');
-    if (finalEl) finalEl.textContent = Helpers.formatCurrency(total - discount);
-    if (discountLine) discountLine.style.display = discount > 0 ? '' : 'none';
-    if (discountVal) discountVal.textContent = '- ' + Helpers.formatCurrency(discount);
-  },
-
-  showPromoResult(promo, discount) {
-    const container = document.getElementById('promo-result-container');
-    if (!container) return;
-    container.innerHTML = `<div class="promo-result"><span class="promo-result-success"><i class="fas fa-check-circle"></i> ${Helpers.escapeHtml(promo.title)} - Giảm ${Helpers.formatCurrency(discount)}</span></div>`;
-  },
-
-  hidePromoResult() {
-    const container = document.getElementById('promo-result-container');
-    if (container) container.innerHTML = '';
-  },
-
-  showProcessing() {
-    this._processing = true;
-    const overlay = document.getElementById('payment-processing-overlay');
-    if (overlay) overlay.style.display = 'flex';
-    const btn = document.getElementById('pay-btn');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<div class="spinner spinner-sm"></div> Đang xử lý...';
-    }
-  },
-
-  hideProcessing() {
-    this._processing = false;
-    const overlay = document.getElementById('payment-processing-overlay');
-    if (overlay) overlay.style.display = 'none';
-    const btn = document.getElementById('pay-btn');
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-lock"></i> Xác Nhận Thanh Toán';
     }
   },
 };

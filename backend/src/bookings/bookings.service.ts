@@ -98,13 +98,6 @@ export class BookingsService {
   // Đọc và lọc dữ liệu cần thiết trong khối getPaymentMethods.
   getPaymentMethods() {
     const sepayEnabled = this.isSepayConfigured();
-    const vnpayDemo = this.isVnpayDemoMode();
-    const vnpayConfigured = Boolean(
-      process.env.VNPAY_TMN_CODE?.trim() &&
-        process.env.VNPAY_HASH_SECRET?.trim() &&
-        !process.env.VNPAY_TMN_CODE?.startsWith('YOUR_') &&
-        !process.env.VNPAY_HASH_SECRET?.startsWith('YOUR_'),
-    );
 
     return {
       methods: [
@@ -113,14 +106,6 @@ export class BookingsService {
           enabled: sepayEnabled,
           mode: sepayEnabled ? 'live' : 'unavailable',
         },
-        {
-          id: 'vnpay',
-          enabled: vnpayDemo || vnpayConfigured,
-          mode: vnpayDemo ? 'demo' : 'live',
-        },
-        { id: 'momo', enabled: true, mode: 'demo' },
-        { id: 'zalopay', enabled: true, mode: 'demo' },
-        { id: 'card', enabled: true, mode: 'demo' },
       ],
     };
   }

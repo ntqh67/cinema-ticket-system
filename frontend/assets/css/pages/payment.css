@@ -12,6 +12,175 @@
   margin: 0 auto;
 }
 
+.payment-steps {
+  max-width: 720px;
+  margin: 0 auto var(--spacing-10);
+}
+
+.sepay-payment-layout {
+  grid-template-columns: minmax(0, 1fr) 380px;
+  max-width: 1180px;
+}
+
+.sepay-payment-card {
+  min-width: 0;
+}
+
+.sepay-payment-subtitle {
+  margin: var(--spacing-2) 0 0;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.sepay-qr-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1fr);
+  gap: var(--spacing-6);
+  align-items: stretch;
+}
+
+.sepay-qr-panel,
+.sepay-transfer-panel {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5);
+}
+
+.sepay-qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.sepay-qr-frame {
+  width: min(360px, 100%);
+  padding: var(--spacing-4);
+  background: #fff;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.3);
+}
+
+.sepay-qr-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
+.sepay-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-5);
+  padding: 10px 14px;
+  color: var(--color-warning);
+  background: rgba(255,193,7,0.1);
+  border: 1px solid rgba(255,193,7,0.24);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-bold);
+}
+
+.sepay-countdown {
+  margin-top: var(--spacing-3);
+  color: var(--color-text-muted);
+}
+
+.sepay-transfer-title {
+  margin-bottom: var(--spacing-4);
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.sepay-transfer-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  gap: var(--spacing-3);
+  align-items: center;
+  padding: var(--spacing-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sepay-transfer-row span {
+  color: var(--color-text-muted);
+}
+
+.sepay-transfer-row strong {
+  min-width: 0;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.sepay-transfer-row:nth-last-child(2) strong,
+.sepay-transfer-row:nth-last-child(3) strong {
+  color: var(--color-primary);
+}
+
+.sepay-copy-btn {
+  height: 36px;
+  padding: 0 12px;
+  color: var(--color-primary);
+  background: rgba(229,9,20,0.08);
+  border: 1px solid rgba(229,9,20,0.5);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sepay-copy-btn:hover {
+  color: #fff;
+  background: var(--color-primary);
+}
+
+.sepay-warning {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-5);
+  padding: var(--spacing-4);
+  color: var(--color-warning);
+  background: rgba(255,193,7,0.1);
+  border: 1px solid rgba(255,193,7,0.28);
+  border-radius: var(--radius-lg);
+  line-height: 1.55;
+}
+
+.sepay-inline-state {
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.sepay-inline-state h3 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.sepay-inline-state p {
+  max-width: 420px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.sepay-inline-error i {
+  color: var(--color-danger);
+  font-size: 2rem;
+}
+
+.order-seat-list {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 /* Combo bắp nước */
 .concession-steps {
   max-width: 720px;
@@ -337,6 +506,15 @@
 @media (max-width: 768px) {
   .payment-layout,
   .concession-layout { grid-template-columns: 1fr; }
+  .sepay-payment-layout,
+  .sepay-qr-layout { grid-template-columns: 1fr; }
+  .sepay-transfer-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-2);
+  }
+  .sepay-copy-btn {
+    width: 100%;
+  }
   .order-panel { position: static; }
   .concession-grid { grid-template-columns: 1fr; }
   .concession-hero { align-items: flex-start; }
