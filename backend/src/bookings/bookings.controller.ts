@@ -12,6 +12,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
+import { ApplyBookingPromotionDto } from './dto/apply-booking-promotion.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingCombosDto } from './dto/update-booking-combos.dto';
 
@@ -81,6 +82,15 @@ export class BookingsController {
     @Body() dto: UpdateBookingCombosDto,
   ) {
     return this.bookingsService.updateBookingCombos(bookingId, dto);
+  }
+
+  @Patch(':bookingId/promotion')
+  // Nhận mã khách nhập và giao toàn bộ việc tính giá cho BookingsService.
+  applyPromotion(
+    @Param('bookingId') bookingId: string,
+    @Body() dto: ApplyBookingPromotionDto,
+  ) {
+    return this.bookingsService.applyPromotion(bookingId, dto);
   }
 
   @Post(':bookingId/pay')

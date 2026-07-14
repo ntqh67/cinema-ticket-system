@@ -181,6 +181,85 @@
   line-height: 1.45;
 }
 
+/* Mã ưu đãi nằm trong phần tổng kết để khách thấy giá mới trước khi phát hành vé. */
+.payment-promotion-box {
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-4) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.payment-promotion-box label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.payment-promotion-box label i {
+  color: var(--color-success);
+}
+
+.payment-promotion-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--spacing-2);
+}
+
+.payment-promotion-row input {
+  min-width: 0;
+  height: 40px;
+  padding: 0 var(--spacing-3);
+  color: var(--color-text);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-transform: uppercase;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.payment-promotion-row input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(229,9,20,0.12);
+}
+
+.payment-promotion-row button {
+  height: 40px;
+  padding: 0 var(--spacing-3);
+  color: #fff;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.payment-promotion-row button:disabled,
+.payment-promotion-row input:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.payment-promotion-message {
+  min-height: 20px;
+  margin-top: var(--spacing-2);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.payment-promotion-message.success,
+.payment-promotion-summary .order-row-label,
+.payment-promotion-summary .order-row-value {
+  color: var(--color-success);
+}
+
+.payment-promotion-message.error {
+  color: var(--color-danger);
+}
+
 /* Combo bắp nước */
 .concession-steps {
   max-width: 720px;

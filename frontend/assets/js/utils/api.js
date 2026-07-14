@@ -520,6 +520,14 @@ const API = {
     });
   },
 
+  // Gửi mã ưu đãi đến booking đang chờ thanh toán.
+  applyBookingPromotion(bookingId, code) {
+    return this.backendRequest(`/bookings/${bookingId}/promotion`, {
+      method: 'PATCH',
+      body: JSON.stringify({ code })
+    });
+  },
+
   cancelBooking(bookingId) {
     return this.backendRequest(`/bookings/${bookingId}`, {
       method: 'DELETE'

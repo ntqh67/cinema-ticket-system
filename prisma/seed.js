@@ -45,6 +45,15 @@ const CONCESSION_COMBOS = [
   },
 ];
 
+const PROMOTIONS = [
+  {
+    id: 'promo-uudai100',
+    code: 'UUDAI100',
+    name: 'Ưu đãi toàn bộ đơn hàng',
+    discountPercent: 100,
+  },
+];
+
 const CINEMAS = [
   {
     chain: 'CR Cinema',
@@ -320,6 +329,7 @@ async function main() {
   const showtimes = await createShowtimes(movies, roomSeatMap);
   await createShowtimeSeats(showtimes, roomSeatMap);
   await createConcessionCombos();
+  await createPromotions();
 
   console.log('Seed completed:', {
     adminUser: adminUser.email,
@@ -332,6 +342,7 @@ async function main() {
     roomCount: roomSeatMap.length,
     showtimeCount: showtimes.length,
     concessionComboCount: CONCESSION_COMBOS.length,
+    promotionCount: PROMOTIONS.length,
     currency: 'VND',
   });
 }
@@ -339,6 +350,7 @@ async function main() {
 async function clearDatabase() {
   await prisma.ticketCheckIn.deleteMany();
   await prisma.ticket.deleteMany();
+  await prisma.bookingPromotion.deleteMany();
   await prisma.bookingItem.deleteMany();
   await prisma.bookingComboItem.deleteMany();
   await prisma.payment.deleteMany();
@@ -351,6 +363,7 @@ async function clearDatabase() {
   await prisma.cinema.deleteMany();
   await prisma.cinemaChain.deleteMany();
   await prisma.concessionCombo.deleteMany();
+  await prisma.promotion.deleteMany();
   await prisma.movieGenre.deleteMany();
   await prisma.movieReview.deleteMany();
   await prisma.genre.deleteMany();
@@ -583,6 +596,16 @@ async function createConcessionCombos() {
   await prisma.concessionCombo.createMany({
     data: CONCESSION_COMBOS.map((combo) => ({
       ...combo,
+      isActive: true,
+    })),
+  });
+}
+
+// Tạo mã ưu đãi demo từ cùng dữ liệu chuẩn sau mỗi lần reset seed.
+async function createPromotions() {
+  await prisma.promotion.createMany({
+    data: PROMOTIONS.map((promotion) => ({
+      ...promotion,
       isActive: true,
     })),
   });

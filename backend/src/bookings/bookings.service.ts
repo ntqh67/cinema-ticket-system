@@ -14,6 +14,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SeatHoldsService } from '../seat-holds/seat-holds.service';
 import { CheckInTicketDto } from './dto/check-in-ticket.dto';
+import { ApplyBookingPromotionDto } from './dto/apply-booking-promotion.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingCombosDto } from './dto/update-booking-combos.dto';
 import {
@@ -401,6 +402,12 @@ export class BookingsService {
     }, 0);
 
     const updatedBooking = await this.prisma.$transaction(async (tx) => {
+      // Combo thay đổi làm ảnh chụp ưu đãi cũ hết hiệu lực; khách phải áp lại mã trên tổng tiền mới.
+      await tx.bookingPromotion.deleteMany({ where: { bookingId } });
+      await tx.payment.updateMany({
+        where: { bookingId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
       await tx.bookingComboItem.deleteMany({ where: { bookingId } });
       // Kiểm tra số lượng phần tử để xử lý trường hợp rỗng hoặc vượt giới hạn.
       if (normalizedItems.length) {
@@ -449,6 +456,106 @@ export class BookingsService {
     };
   }
 
+  // Áp mã ưu đãi từ PostgreSQL và chốt lại tổng tiền booking trong cùng transaction.
+  async applyPromotion(bookingId: string, dto: ApplyBookingPromotionDto) {
+    const normalizedCode = dto.code.trim().toUpperCase();
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const [booking, promotion] = await Promise.all([
+        tx.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            bookingItems: true,
+            comboItems: true,
+          },
+        }),
+        tx.promotion.findUnique({ where: { code: normalizedCode } }),
+      ]);
+
+      if (!booking) throw new NotFoundException('Booking not found');
+      if (booking.status !== 'PENDING') {
+        throw new BadRequestException(
+          'Chỉ có thể áp mã cho booking đang chờ thanh toán',
+        );
+      }
+      if (booking.expiresAt && booking.expiresAt < now) {
+        throw new BadRequestException('Booking has expired');
+      }
+      if (
+        !promotion ||
+        !promotion.isActive ||
+        (promotion.startsAt && promotion.startsAt > now) ||
+        (promotion.endsAt && promotion.endsAt < now)
+      ) {
+        throw new BadRequestException('Mã ưu đãi không hợp lệ hoặc đã hết hạn');
+      }
+
+      const discountPercent = promotion.discountPercent;
+      if (discountPercent < 0 || discountPercent > 100) {
+        throw new ConflictException('Cấu hình phần trăm ưu đãi không hợp lệ');
+      }
+
+      const originalAmount =
+        booking.bookingItems.reduce(
+          (sum, item) => sum + Number(item.unitPrice),
+          0,
+        ) +
+        booking.comboItems.reduce(
+          (sum, item) => sum + Number(item.unitPrice) * item.quantity,
+          0,
+        );
+      const discountAmount = Math.min(
+        originalAmount,
+        Math.round((originalAmount * discountPercent) / 100),
+      );
+      const totalAmount = originalAmount - discountAmount;
+
+      // QR SePay cũ không còn đúng số tiền sau ưu đãi nên phải vô hiệu hóa ngay.
+      await tx.payment.updateMany({
+        where: { bookingId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+      await tx.bookingPromotion.upsert({
+        where: { bookingId },
+        create: {
+          bookingId,
+          promotionId: promotion.id,
+          originalAmount,
+          discountAmount,
+        },
+        update: {
+          promotionId: promotion.id,
+          originalAmount,
+          discountAmount,
+          appliedAt: now,
+        },
+      });
+      const updatedBooking = await tx.booking.updateMany({
+        where: { id: bookingId, status: 'PENDING' },
+        data: { totalAmount },
+      });
+      if (updatedBooking.count !== 1) {
+        throw new ConflictException(
+          'Booking vừa thay đổi trạng thái, vui lòng tải lại',
+        );
+      }
+
+      return {
+        bookingId,
+        promotion: {
+          code: promotion.code,
+          name: promotion.name,
+          discountPercent,
+        },
+        originalAmount,
+        discountAmount,
+        totalAmount,
+        currency: booking.currency,
+      };
+    });
+  }
+
   // Thực hiện bước thanh toán trong khối pay với kiểm tra trạng thái an toàn.
   async pay(bookingId: string) {
     const booking = await this.prisma.booking.findUnique({
@@ -480,6 +587,9 @@ export class BookingsService {
         user: {
           select: { role: true },
         },
+        promotionApplication: {
+          include: { promotion: true },
+        },
       },
     });
 
@@ -488,9 +598,17 @@ export class BookingsService {
       throw new NotFoundException('Booking not found');
     }
 
-    if (booking.user.role !== 'ADMIN' || Number(booking.totalAmount) !== 0) {
+    const isZeroAmount = Number(booking.totalAmount) === 0;
+    const isAdminFreeBooking = booking.user.role === 'ADMIN' && isZeroAmount;
+    const isPromotionFreeBooking = Boolean(
+      isZeroAmount &&
+      booking.promotionApplication &&
+      Number(booking.promotionApplication.discountAmount) >=
+        Number(booking.promotionApplication.originalAmount),
+    );
+    if (!isAdminFreeBooking && !isPromotionFreeBooking) {
       throw new BadRequestException(
-        'Direct ticket issuing is only available for Admin bookings with a 0 VND total',
+        'Chỉ booking Admin hoặc booking có ưu đãi toàn phần mới được phát hành vé 0 VND',
       );
     }
 
@@ -575,8 +693,11 @@ export class BookingsService {
       const payment = await tx.payment.create({
         data: {
           bookingId: booking.id,
-          provider: 'mock',
-          providerRef: randomUUID(),
+          provider: isPromotionFreeBooking ? 'promotion' : 'mock',
+          providerRef:
+            isPromotionFreeBooking && booking.promotionApplication
+              ? `${booking.promotionApplication.promotion.code}:${booking.id}`
+              : randomUUID(),
           amount: booking.totalAmount,
           currency: booking.currency,
           status: 'SUCCESS',
@@ -1269,12 +1390,28 @@ export class BookingsService {
         'REVIEW_REQUIRED',
         'SePay payment code not found',
       );
-      return { success: true, reviewRequired: true, reason: 'PAYMENT_NOT_FOUND' };
+      return {
+        success: true,
+        reviewRequired: true,
+        reason: 'PAYMENT_NOT_FOUND',
+      };
     }
     // Rẽ nhánh theo trạng thái hiện tại để chỉ cho phép luồng nghiệp vụ hợp lệ.
     if (payment.status === 'SUCCESS') {
       await this.completeWebhookEvent(event.id, 'DUPLICATE');
       return { success: true, duplicate: true };
+    }
+    if (payment.status !== 'PENDING') {
+      await this.completeWebhookEvent(
+        event.id,
+        'IGNORED',
+        'SePay payment is no longer pending',
+      );
+      return {
+        success: true,
+        ignored: true,
+        reason: 'PAYMENT_NOT_PENDING',
+      };
     }
     // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
     if (normalized.amount !== Number(payment.amount)) {
@@ -1779,6 +1916,11 @@ export class BookingsService {
           combo: true,
         },
       },
+      promotionApplication: {
+        include: {
+          promotion: true,
+        },
+      },
       payments: {
         orderBy: { createdAt: Prisma.SortOrder.desc },
       },
@@ -1842,11 +1984,22 @@ export class BookingsService {
           }
         : null,
     }));
+    const promotionApplication = booking.promotionApplication
+      ? {
+          code: booking.promotionApplication.promotion.code,
+          name: booking.promotionApplication.promotion.name,
+          discountPercent:
+            booking.promotionApplication.promotion.discountPercent,
+          originalAmount: Number(booking.promotionApplication.originalAmount),
+          discountAmount: Number(booking.promotionApplication.discountAmount),
+        }
+      : null;
 
     return {
       id: booking.id,
       status: booking.status,
       totalAmount: Number(booking.totalAmount),
+      promotion: promotionApplication,
       currency: booking.currency,
       expiresAt: booking.expiresAt,
       createdAt: booking.createdAt,
@@ -1994,10 +2147,10 @@ export class BookingsService {
   private isSepayConfigured(config = this.getSepayConfig()) {
     return Boolean(
       config.enabled &&
-        config.bankAccount &&
-        config.bankCode &&
-        config.accountName &&
-        config.apiKey,
+      config.bankAccount &&
+      config.bankCode &&
+      config.accountName &&
+      config.apiKey,
     );
   }
 
@@ -2032,11 +2185,11 @@ export class BookingsService {
     const amount = Number(
       payload.transferAmount || payload.amount || payload.money || 0,
     );
-    const upperContent = `${String(payload.code || '')} ${content}`.toUpperCase();
+    const upperContent =
+      `${String(payload.code || '')} ${content}`.toUpperCase();
     const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const providerRef =
-      upperContent.match(new RegExp(`${escapedPrefix}[A-Z0-9]+`))?.[0] ||
-      null;
+      upperContent.match(new RegExp(`${escapedPrefix}[A-Z0-9]+`))?.[0] || null;
     const isIncoming =
       direction === 'in' ||
       direction.includes('credit') ||

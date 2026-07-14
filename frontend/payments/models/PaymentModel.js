@@ -13,4 +13,12 @@ const PaymentModel = {
     const sepay = await API.createSepayPayment(bookingData.backendBookingId);
     return { success: true, sepay: true, payment: sepay, booking: bookingData };
   },
+
+  // Gửi mã lên backend để giá cuối cùng luôn được tính từ dữ liệu PostgreSQL.
+  async applyPromotion(backendBookingId, code) {
+    if (!backendBookingId) {
+      throw new Error('Booking không có mã backend. Vui lòng chọn ghế lại.');
+    }
+    return API.applyBookingPromotion(backendBookingId, code);
+  },
 };

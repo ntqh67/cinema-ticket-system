@@ -228,6 +228,35 @@ describe('BookingsService SePay payment flow', () => {
     });
   });
 
+  it('ignores a cancelled SePay payment after the booking amount changes', async () => {
+    const { service, prisma } = createService();
+    prisma.paymentWebhookEvent.create.mockResolvedValue({ id: 'event-old-qr' });
+    prisma.payment.findUnique.mockResolvedValue(null);
+    prisma.payment.findFirst.mockResolvedValue({
+      id: 'payment-old-qr',
+      bookingId: pendingBooking.id,
+      providerRef: 'CRTOLDQR',
+      amount: 120000,
+      status: 'CANCELLED',
+      booking: pendingBooking,
+    });
+    prisma.paymentWebhookEvent.update.mockResolvedValue({});
+
+    const result = await service.handleSepayWebhook('Apikey test-key', {
+      id: 'txn-old-qr',
+      transferType: 'in',
+      transferAmount: 120000,
+      content: 'Thanh toan CRTOLDQR',
+    });
+
+    expect(result).toEqual({
+      success: true,
+      ignored: true,
+      reason: 'PAYMENT_NOT_PENDING',
+    });
+    expect(prisma.payment.update).not.toHaveBeenCalled();
+  });
+
   it('confirms booking when SePay webhook is valid', async () => {
     const { service, prisma } = createService();
     const payment = {
@@ -262,6 +291,83 @@ describe('BookingsService SePay payment flow', () => {
   });
 });
 
+describe('BookingsService promotion flow', () => {
+  const createService = () => {
+    const tx = {
+      booking: {
+        findUnique: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      promotion: { findUnique: jest.fn() },
+      payment: { updateMany: jest.fn() },
+      bookingPromotion: { upsert: jest.fn() },
+    };
+    const prisma = {
+      $transaction: jest.fn((callback) => callback(tx)),
+    };
+    const service = new BookingsService(prisma as any, {} as any);
+    return { service, prisma, tx };
+  };
+
+  const pendingBooking = {
+    id: 'booking-promotion',
+    status: 'PENDING',
+    currency: 'VND',
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    bookingItems: [{ unitPrice: 85000 }, { unitPrice: 85000 }],
+    comboItems: [{ unitPrice: 135000, quantity: 1 }],
+  };
+
+  // Mã 100% phải giảm cả vé và combo, đồng thời hủy QR SePay theo giá cũ.
+  it('applies UUDAI100 to the complete booking amount', async () => {
+    const { service, tx } = createService();
+    tx.booking.findUnique.mockResolvedValue(pendingBooking);
+    tx.promotion.findUnique.mockResolvedValue({
+      id: 'promo-uudai100',
+      code: 'UUDAI100',
+      name: 'Ưu đãi toàn bộ đơn hàng',
+      discountPercent: 100,
+      isActive: true,
+      startsAt: null,
+      endsAt: null,
+    });
+    tx.booking.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await service.applyPromotion('booking-promotion', {
+      code: 'uudai100',
+    });
+
+    expect(result).toMatchObject({
+      originalAmount: 305000,
+      discountAmount: 305000,
+      totalAmount: 0,
+      promotion: { code: 'UUDAI100', discountPercent: 100 },
+    });
+    expect(tx.payment.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: 'booking-promotion', status: 'PENDING' },
+      data: { status: 'CANCELLED' },
+    });
+    expect(tx.booking.updateMany).toHaveBeenCalledWith({
+      where: { id: 'booking-promotion', status: 'PENDING' },
+      data: { totalAmount: 0 },
+    });
+  });
+
+  // Mã không tồn tại không được phép thay đổi giá hoặc payment hiện tại.
+  it('rejects an unknown promotion without changing the booking', async () => {
+    const { service, tx } = createService();
+    tx.booking.findUnique.mockResolvedValue(pendingBooking);
+    tx.promotion.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.applyPromotion('booking-promotion', { code: 'KHONGTONTAI' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tx.payment.updateMany).not.toHaveBeenCalled();
+    expect(tx.bookingPromotion.upsert).not.toHaveBeenCalled();
+    expect(tx.booking.updateMany).not.toHaveBeenCalled();
+  });
+});
+
 describe('BookingsService direct Admin ticket issuing', () => {
   it('rejects direct payment for a non-zero customer booking', async () => {
     const prisma = {
@@ -280,7 +386,89 @@ describe('BookingsService direct Admin ticket issuing', () => {
     const service = new BookingsService(prisma as any, {} as any);
 
     await expect(service.pay('booking-customer')).rejects.toThrow(
-      'Direct ticket issuing is only available for Admin bookings with a 0 VND total',
+      'Chỉ booking Admin hoặc booking có ưu đãi toàn phần mới được phát hành vé 0 VND',
     );
+  });
+
+  // Mỗi payment ưu đãi phải có mã đối soát riêng dù nhiều booking dùng cùng coupon.
+  it('creates a unique payment reference for each free promotion booking', async () => {
+    const booking = {
+      id: 'booking-promotion-free',
+      userId: 'customer-1',
+      showtimeId: 'showtime-1',
+      status: 'PENDING',
+      totalAmount: 0,
+      currency: 'VND',
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      user: { role: 'CUSTOMER' },
+      promotionApplication: {
+        originalAmount: 400000,
+        discountAmount: 400000,
+        promotion: { code: 'UUDAI100' },
+      },
+      payments: [],
+      tickets: [],
+      bookingItems: [
+        {
+          id: 'booking-item-1',
+          showtimeSeatId: 'showtime-seat-1',
+          showtimeSeat: {
+            status: 'AVAILABLE',
+            seat: { row: 'I', number: 4, type: 'COUPLE' },
+          },
+        },
+      ],
+    };
+    const tx = {
+      showtimeSeat: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      payment: {
+        create: jest.fn().mockResolvedValue({
+          id: 'payment-promotion-free',
+          status: 'SUCCESS',
+          amount: 0,
+          currency: 'VND',
+          provider: 'promotion',
+          providerRef: 'UUDAI100:booking-promotion-free',
+          paidAt: new Date(),
+        }),
+      },
+      ticket: { create: jest.fn().mockResolvedValue({}) },
+      booking: {
+        update: jest.fn().mockResolvedValue({
+          id: booking.id,
+          status: 'PAID',
+          tickets: [
+            {
+              id: 'ticket-1',
+              qrToken: 'qr-1',
+              status: 'VALID',
+              bookingItem: booking.bookingItems[0],
+            },
+          ],
+        }),
+      },
+    };
+    const prisma = {
+      booking: { findUnique: jest.fn().mockResolvedValue(booking) },
+      $transaction: jest.fn((callback) => callback(tx)),
+    };
+    const seatHolds = {
+      verifyBookingHolds: jest.fn(),
+      releaseBookingHolds: jest.fn(),
+    };
+    const service = new BookingsService(prisma as any, seatHolds as any);
+
+    const result = await service.pay(booking.id);
+
+    expect(tx.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        provider: 'promotion',
+        providerRef: 'UUDAI100:booking-promotion-free',
+        amount: 0,
+      }),
+    });
+    expect(result).toMatchObject({ bookingId: booking.id, status: 'PAID' });
   });
 });

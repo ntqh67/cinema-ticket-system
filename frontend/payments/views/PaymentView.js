@@ -68,12 +68,12 @@ const PaymentView = {
             <section class="booking-card sepay-payment-card">
               <div class="booking-card-header">
                 <div>
-                  <div class="booking-card-title"><i class="fas fa-${isFreeBooking ? 'ticket-alt' : 'qrcode'}"></i> ${isFreeBooking ? 'Phát hành vé Admin 0 ₫' : 'Thanh toán SePay'}</div>
-                  <p class="sepay-payment-subtitle">${isFreeBooking ? 'Đơn hàng Admin không cần thanh toán. Xác nhận để phát hành vé trực tiếp.' : 'Quét QR hoặc chuyển khoản đúng thông tin bên dưới. Hệ thống sẽ tự xác nhận khi SePay gửi webhook hợp lệ.'}</p>
+                  <div class="booking-card-title"><i class="fas fa-${isFreeBooking ? 'ticket-alt' : 'qrcode'}"></i> ${isFreeBooking ? (booking.promotion ? 'Đơn hàng ưu đãi 0 ₫' : 'Phát hành vé Admin 0 ₫') : 'Thanh toán SePay'}</div>
+                  <p class="sepay-payment-subtitle">${isFreeBooking ? 'Đơn hàng không cần chuyển khoản. Xác nhận để phát hành vé trực tiếp.' : 'Quét QR hoặc chuyển khoản đúng thông tin bên dưới. Hệ thống sẽ tự xác nhận khi SePay gửi webhook hợp lệ.'}</p>
                 </div>
               </div>
               <div class="booking-card-body" id="sepay-payment-container">
-                ${isFreeBooking ? this._adminFreeTemplate() : this._sepayLoadingTemplate()}
+                ${isFreeBooking ? this._zeroAmountTemplate(booking) : this._sepayLoadingTemplate()}
               </div>
             </section>
 
@@ -97,6 +97,25 @@ const PaymentView = {
                 ${seatDetails}
                 ${booking.ticketDiscountPercent ? `<div class="order-row"><span class="order-row-label" style="color:var(--color-success);">Ưu đãi ${booking.accountRole === 'ADMIN' ? 'Admin' : 'Nhân viên'} (${booking.ticketDiscountPercent}%)</span><span class="order-row-value" style="color:var(--color-success);">- ${Helpers.formatCurrency(ticketDiscount)}</span></div>` : ''}
                 ${this._comboSummary(booking.comboItems || [])}
+                <div class="payment-promotion-box">
+                  <label for="payment-promotion-code"><i class="fas fa-tag"></i> Mã giảm giá thanh toán</label>
+                  <div class="payment-promotion-row">
+                    <input
+                      id="payment-promotion-code"
+                      type="text"
+                      maxlength="50"
+                      autocomplete="off"
+                      placeholder="Nhập mã giảm giá"
+                      onkeydown="if(event.key === 'Enter'){event.preventDefault();PaymentController.handleApplyPromotion();}"
+                    />
+                    <button id="apply-payment-promotion" type="button" onclick="PaymentController.handleApplyPromotion()">Áp dụng</button>
+                  </div>
+                  <div class="payment-promotion-message" id="payment-promotion-message" aria-live="polite"></div>
+                </div>
+                <div class="order-row payment-promotion-summary" id="payment-promotion-summary" hidden>
+                  <span class="order-row-label" id="payment-promotion-label">Mã ưu đãi</span>
+                  <span class="order-row-value" id="payment-promotion-discount">- 0 ₫</span>
+                </div>
                 <div class="order-final">
                   <span>Tổng Cộng</span>
                   <span class="order-final-amount" id="final-total">${Helpers.formatCurrency(booking.totalPrice)}</span>
@@ -120,36 +139,40 @@ const PaymentView = {
     `).join('');
   },
 
-  _adminFreeTemplate() {
+  _zeroAmountTemplate(booking) {
+    const promotionCode = booking?.promotion?.code;
     return `
       <div class="sepay-inline-state admin-free-ticket-state">
         <i class="fas fa-shield-alt"></i>
-        <h3>Vé Admin có tổng tiền 0 ₫</h3>
-        <p>Không tạo giao dịch SePay cho đơn hàng này. Bấm xác nhận để phát hành vé.</p>
+        <h3>Đơn hàng có tổng tiền 0 ₫</h3>
+        <p>${promotionCode ? `Mã ${Helpers.escapeHtml(promotionCode)} đã giảm toàn bộ đơn hàng.` : 'Đơn hàng Admin không cần tạo giao dịch SePay.'}</p>
         <button class="btn btn-primary" onclick="PaymentController.startSepayPayment(State.get('currentBooking'))">
           <i class="fas fa-ticket-alt"></i> Xác nhận vé 0 ₫
         </button>
       </div>`;
   },
 
-  renderAdminFreeProcessing() {
+  // Hiển thị trạng thái phát hành vé khi tổng tiền đã được backend xác nhận bằng 0.
+  renderZeroAmountProcessing(booking) {
     const container = document.getElementById('sepay-payment-container');
     if (!container) return;
     container.innerHTML = `
       <div class="sepay-inline-state">
         <div class="spinner"></div>
-        <h3>Đang phát hành vé Admin</h3>
-        <p>Vui lòng giữ trang này trong khi hệ thống xác nhận đơn hàng 0 ₫.</p>
+        <h3>Đang phát hành vé 0 ₫</h3>
+        <p>${booking?.promotion ? `Đang xác nhận mã ${Helpers.escapeHtml(booking.promotion.code)}.` : 'Đang xác nhận quyền ưu đãi Admin.'}</p>
+        <p>Vui lòng giữ trang này trong khi hệ thống phát hành vé.</p>
       </div>`;
   },
 
-  renderAdminFreeError(message) {
+  // Cho phép thử lại nếu bước phát hành vé 0 đồng không hoàn tất.
+  renderZeroAmountError(message) {
     const container = document.getElementById('sepay-payment-container');
     if (!container) return;
     container.innerHTML = `
       <div class="sepay-inline-state sepay-inline-error">
         <i class="fas fa-exclamation-circle"></i>
-        <h3>Không thể phát hành vé Admin</h3>
+        <h3>Không thể phát hành vé 0 ₫</h3>
         <p>${Helpers.escapeHtml(message || 'Vui lòng thử lại.')}</p>
         <button class="btn btn-primary" onclick="PaymentController.startSepayPayment(State.get('currentBooking'))">
           <i class="fas fa-sync-alt"></i> Thử lại
@@ -160,6 +183,49 @@ const PaymentView = {
   renderSepayLoading() {
     const container = document.getElementById('sepay-payment-container');
     if (container) container.innerHTML = this._sepayLoadingTemplate();
+  },
+
+  // Khóa thao tác trong lúc backend đang kiểm tra mã để tránh gửi lặp.
+  setPromotionBusy(isBusy) {
+    const input = document.getElementById('payment-promotion-code');
+    const button = document.getElementById('apply-payment-promotion');
+    if (input) input.disabled = isBusy;
+    if (button) {
+      button.disabled = isBusy;
+      button.textContent = isBusy ? 'Đang kiểm tra...' : 'Áp dụng';
+    }
+  },
+
+  // Hiển thị kết quả áp mã thành công ngay trong khối tổng kết đơn hàng.
+  showPromotionSuccess(result) {
+    const message = document.getElementById('payment-promotion-message');
+    if (!message) return;
+    message.className = 'payment-promotion-message success';
+    message.textContent = `${result.promotion.code}: giảm ${Helpers.formatCurrency(result.discountAmount)}`;
+  },
+
+  // Hiển thị lỗi do backend trả về mà không thay đổi giá đang thanh toán.
+  showPromotionError(errorMessage) {
+    const message = document.getElementById('payment-promotion-message');
+    if (!message) return;
+    message.className = 'payment-promotion-message error';
+    message.textContent = errorMessage;
+  },
+
+  // Đồng bộ dòng ưu đãi và tổng cộng từ kết quả backend đã xác thực.
+  updatePromotionSummary(result) {
+    const summary = document.getElementById('payment-promotion-summary');
+    const label = document.getElementById('payment-promotion-label');
+    const discount = document.getElementById('payment-promotion-discount');
+    const total = document.getElementById('final-total');
+    if (summary) summary.hidden = false;
+    if (label) {
+      label.textContent = `${result.promotion.code} (${result.promotion.discountPercent}%)`;
+    }
+    if (discount) {
+      discount.textContent = `- ${Helpers.formatCurrency(result.discountAmount)}`;
+    }
+    if (total) total.textContent = Helpers.formatCurrency(result.totalAmount);
   },
 
   _sepayLoadingTemplate() {
