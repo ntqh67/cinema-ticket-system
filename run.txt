@@ -110,6 +110,19 @@ KHÔNG chạy: npx prisma db seed
 Hai lệnh trên sẽ làm dữ liệu không còn giống dump của nhánh.
 
 
+III.B. XÓA VÀ DỰNG LẠI DATABASE TỪ ĐẦU
+========================================
+
+CẢNH BÁO: Lệnh này xóa toàn bộ dữ liệu hiện tại, chạy lại tất cả migration
+và tự động chạy seed để tạo lại dữ liệu mẫu:
+
+cd ~/Desktop/Project/cinema-ticket-system
+npx prisma migrate reset --force
+
+Chỉ dùng lệnh này khi muốn dựng lại database từ migration + seed.
+Không dùng ngay sau khi đã import database dump ở mục III.
+
+
 IV. CẬP NHẬT CODE TỪ NHÁNH
 ==========================
 
