@@ -31,6 +31,9 @@ try {
   Write-Host "Dang export database ra dump..."
   docker compose exec -T postgres pg_dump -U postgres -d cinema_ticket_system --clean --if-exists --no-owner --no-privileges |
     Set-Content -Encoding UTF8 $DumpPath
+  if ($LASTEXITCODE -ne 0) {
+    throw "Export database that bai voi ma loi $LASTEXITCODE. File dump khong duoc phep dung de chia se."
+  }
 
   Write-Host "Da export dump: $DumpPath"
 }
