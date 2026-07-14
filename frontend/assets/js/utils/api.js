@@ -345,6 +345,8 @@ const API = {
   },
 
   _mapBackendCinema(cinema) {
+    const localCinemaImage = this._localCinemaImage(cinema);
+    const imageUrl = localCinemaImage || cinema.imageUrl || '';
     return {
       id: cinema.id,
       code: cinema.code || '',
@@ -356,10 +358,34 @@ const API = {
       ward: cinema.ward || '',
       city: cinema.city || '',
       phone: cinema.phone || '',
-      imageUrl: cinema.imageUrl || '',
+      imageUrl,
       facilities: ['2D'],
-      image: cinema.imageUrl || `https://picsum.photos/seed/${cinema.id}/600/400`,
+      image: imageUrl || `https://picsum.photos/seed/${cinema.id}/600/400`,
     };
+  },
+
+  // Chuẩn hóa ảnh rạp CR từ asset local để không phụ thuộc dữ liệu cache/localStorage cũ.
+  _localCinemaImage(cinema) {
+    const code = String(cinema?.code || '').toUpperCase();
+    const name = String(cinema?.name || cinema?.shortName || '').toLowerCase();
+    const images = {
+      CR01: '/assets/images/cinemas/cr01-riverside.jpg',
+      CR02: '/assets/images/cinemas/cr02-central-park.jpg',
+      CR03: '/assets/images/cinemas/cr03-ocean-view.jpg',
+      CR04: '/assets/images/cinemas/cr04-marble-mountain.jpg',
+      CR05: '/assets/images/cinemas/cr05-northwest.jpg',
+      CR06: '/assets/images/cinemas/cr06-green-square.jpg',
+      CR07: '/assets/images/cinemas/cr07-golden-hills.jpg',
+    };
+    if (images[code]) return images[code];
+    if (name.includes('riverside')) return images.CR01;
+    if (name.includes('central park')) return images.CR02;
+    if (name.includes('ocean view')) return images.CR03;
+    if (name.includes('marble mountain')) return images.CR04;
+    if (name.includes('northwest')) return images.CR05;
+    if (name.includes('green square')) return images.CR06;
+    if (name.includes('golden hills')) return images.CR07;
+    return '';
   },
 
   _mapBackendRoom(room, cinema) {

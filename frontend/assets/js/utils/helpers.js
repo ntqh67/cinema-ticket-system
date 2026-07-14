@@ -249,7 +249,7 @@ const Helpers = {
   // Dựng phần giao diện tương ứng trong khối escapeHtml.
   escapeHtml(str) {
     if (!str) return '';
-    return str
+    return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')

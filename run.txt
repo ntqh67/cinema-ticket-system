@@ -1,174 +1,258 @@
-CHẠY DỰ ÁN CINEMA TICKET SYSTEM
-================================
+HUONG DAN CHAY DU AN CRTicket
+=============================
 
-Nhánh sử dụng: merge-main-db-safe
-Database: cinema_ticket_system tại localhost:5432
-Redis: localhost:6379
-
-
-I. MỖI LẦN BẬT MÁY
-===================
-
-1. BẬT POSTGRESQL VÀ REDIS
---------------------------
-
-Mở terminal và chạy:
-
-sudo systemctl start postgresql
-sudo systemctl start redis-server
-
-Kiểm tra:
-
-pg_isready -h localhost -p 5432
-redis-cli -h localhost -p 6379 ping
-
-Kết quả đúng:
-
-localhost:5432 - accepting connections
-PONG
-
-
-2. CHẠY BACKEND - TERMINAL 1
-----------------------------
-
-cd ~/Desktop/Project/cinema-ticket-system/backend
-npm run start:dev
-
-Địa chỉ:
-
-API:     http://localhost:3000/api
-Health:  http://localhost:3000/api/health
+Nhanh hien tai: merge-main2-with-445-db
+Database dump dung de chia se: database/cinema_ticket_system_dump.sql
+Frontend: http://localhost:5173
+Backend API: http://localhost:3000/api
 Swagger: http://localhost:3000/api/docs
 
+Luu y quan trong:
+- File .env KHONG duoc push len Git vi co secret SePay/TMDB.
+- Nguoi pull ve can tao .env tu .env.example roi dien gia tri that neu muon test SePay/TMDB.
+- Neu muon database giong het may Huy tai thoi diem push, phai import file dump, KHONG chay prisma db seed sau do.
 
-3. CHẠY FRONTEND - TERMINAL 2
------------------------------
 
-cd ~/Desktop/Project/cinema-ticket-system/frontend
-npx vite --host 0.0.0.0 --port 5173
+1. KEO CODE VE MAY
+==================
 
-Mở trình duyệt:
+git clone <repo-url>
+cd "Project 4 - Cinema"
+git fetch origin
+git switch merge-main2-with-445-db
+git pull --ff-only origin merge-main2-with-445-db
+
+
+2. CAI DEPENDENCY
+=================
+
+npm.cmd install
+cd backend
+npm.cmd install
+cd ..
+
+
+3. TAO FILE .env
+================
+
+Neu chua co .env:
+
+copy .env.example .env
+
+Gia tri local toi thieu:
+
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cinema_ticket_system?schema=public"
+FRONTEND_URL="http://localhost:5173"
+BOOKING_HOLD_MINUTES="10"
+
+Neu muon test SePay that, dien them:
+
+SEPAY_ENABLED="true"
+SEPAY_BANK_ACCOUNT="<SO_TAI_KHOAN_NGAN_HANG>"
+SEPAY_BANK_CODE="<MA_NGAN_HANG_VI_DU_MBBank>"
+SEPAY_ACCOUNT_NAME="<TEN_CHU_TAI_KHOAN>"
+SEPAY_API_KEY="<API_KEY_SEPAY>"
+SEPAY_PAYMENT_PREFIX="CRT"
+SEPAY_WEBHOOK_URL="https://<ngrok-domain>/api/bookings/sepay-webhook"
+
+Neu khong test SePay:
+
+SEPAY_ENABLED="false"
+
+
+4. BAT DOCKER POSTGRES VA REDIS
+===============================
+
+docker compose up -d
+docker compose ps
+
+Can thay 2 container dang Up:
+- postgres
+- redis
+
+
+5. XOA DATABASE CU VA IMPORT DUMP CUA NHANH
+===========================================
+
+Canh bao: cac lenh duoi day xoa toan bo database local hien tai.
+
+docker compose exec -T postgres psql -U postgres -d cinema_ticket_system -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+Get-Content database\cinema_ticket_system_dump.sql | docker compose exec -T postgres psql -U postgres -d cinema_ticket_system -v ON_ERROR_STOP=1
+docker compose exec redis redis-cli FLUSHDB
+npx.cmd prisma generate
+npx.cmd prisma migrate status
+
+Sau khi import dump:
+- KHONG chay npx.cmd prisma db seed
+- KHONG chay npx.cmd prisma migrate reset
+
+Neu chay seed/reset thi database se khong con giong file dump nua.
+
+
+6. CHAY BACKEND
+===============
+
+Mo terminal PowerShell thu nhat:
+
+cd "D:\My Project\Project 4 - Cinema\backend"
+npm.cmd run start:dev
+
+Kiem tra backend:
+
+http://localhost:3000/api/health
+http://localhost:3000/api/bookings/payment-methods
+
+Neu SePay cau hinh dung, payment-methods se tra ve:
+
+{"methods":[{"id":"sepay","enabled":true,"mode":"live"}]}
+
+
+7. CHAY FRONTEND
+================
+
+Mo terminal PowerShell thu hai:
+
+cd "D:\My Project\Project 4 - Cinema\frontend"
+npx.cmd vite --host 0.0.0.0 --port 5173
+
+Mo trinh duyet:
 
 http://localhost:5173
 
+Neu giao dien con du lieu cu:
+- Bam Ctrl + F5
+- Hoac mo DevTools Console va chay:
 
-4. TÀI KHOẢN DEMO
------------------
+localStorage.removeItem('cineticket_cinemas')
+location.reload()
+
+
+8. CHAY NGROK CHO SEPAY WEBHOOK
+===============================
+
+Mo terminal PowerShell thu ba:
+
+ngrok http 3000
+
+Lay Forwarding HTTPS, vi du:
+
+https://xxxxx.ngrok-free.dev
+
+Cap nhat .env:
+
+SEPAY_WEBHOOK_URL="https://xxxxx.ngrok-free.dev/api/bookings/sepay-webhook"
+
+Sau khi sua .env, phai restart backend.
+
+Kiem tra ngrok:
+
+https://xxxxx.ngrok-free.dev/api/bookings/payment-methods
+
+Luu y:
+- Mo thang https://xxxxx.ngrok-free.dev/ bi Cannot GET / la binh thuong.
+- Ngrok dang tro toi backend API, khong phai frontend.
+
+
+9. CAU HINH WEBHOOK TREN SEPAY
+==============================
+
+Trong SePay, them webhook:
+
+URL nhan webhook:
+https://xxxxx.ngrok-free.dev/api/bookings/sepay-webhook
+
+Loai giao dich:
+Tien vao
+
+Dinh dang du lieu:
+JSON
+
+Bao mat:
+API Key
+
+API Key phai trung voi SEPAY_API_KEY trong .env.
+
+Sau khi tao webhook, restart backend neu vua sua .env.
+
+
+10. TEST LUONG THANH TOAN SEPAY
+===============================
+
+1. Mo http://localhost:5173
+2. Dang nhap user
+3. Chon phim
+4. Chon rap/suat chieu
+5. Chon ghe
+6. Chon bap nuoc hoac bo qua
+7. Vao thanh toan
+8. QR SePay hien tu dong
+9. Chuyen khoan dung so tien va dung noi dung
+10. SePay goi webhook qua ngrok
+11. Web tu chuyen sang ve dien tu
+
+
+11. TAI KHOAN DEMO
+==================
 
 Admin:
-admin@cinema.test
-admin123
+Email: admin@cinema.test
+Password: admin123
 
 User:
-hung@example.com
-user123
+Email: hung@example.com
+Password: user123
 
 
-II. CHỈ CẤU HÌNH MỘT LẦN
-========================
+12. LENH KIEM TRA CHAT LUONG
+============================
 
-1. Cho PostgreSQL và Redis tự khởi động cùng máy:
-
-sudo systemctl enable postgresql
-sudo systemctl enable redis-server
-
-2. Cài dependency:
-
-cd ~/Desktop/Project/cinema-ticket-system
-npm install
-npm --prefix backend install
-npx prisma generate
-
-
-III. IMPORT ĐÚNG DATABASE CỦA NHÁNH
-===================================
-
-CẢNH BÁO:
-Lệnh dưới đây xóa dữ liệu database hiện tại và thay bằng dữ liệu trong
-database/cinema_ticket_system_dump.sql.
-Chỉ chạy khi cần khôi phục database hoặc vừa kéo nhánh về máy.
-
-cd ~/Desktop/Project/cinema-ticket-system
-
-set -a
-source .env
-set +a
-
-DB_URL="${DATABASE_URL%%\?*}"
-
-sed '1s/^\xEF\xBB\xBF//' database/cinema_ticket_system_dump.sql \
-  | psql "$DB_URL" -v ON_ERROR_STOP=1
-
-redis-cli -h localhost -p 6379 FLUSHDB
-npx prisma generate
-
-Sau khi import dump:
-
-KHÔNG chạy: npx prisma migrate dev
-KHÔNG chạy: npx prisma db seed
-
-Hai lệnh trên sẽ làm dữ liệu không còn giống dump của nhánh.
+npx.cmd prisma validate
+npx.cmd prisma generate
+cd backend
+npm.cmd run build
+npm.cmd test -- --runInBand
+cd ..
+node --check frontend\assets\js\utils\helpers.js
+node --check frontend\assets\js\utils\api.js
+node --check frontend\cinemas\models\CinemaModel.js
+node --check frontend\cinemas\views\CinemaView.js
+node --check frontend\assets\js\app.js
 
 
-III.B. XÓA VÀ DỰNG LẠI DATABASE TỪ ĐẦU
-========================================
+13. XUAT LAI DATABASE DUMP SAU KHI SUA DU LIEU
+==============================================
 
-CẢNH BÁO: Lệnh này xóa toàn bộ dữ liệu hiện tại, chạy lại tất cả migration
-và tự động chạy seed để tạo lại dữ liệu mẫu:
+Chi dung khi muon dong goi database local hien tai de day len Git:
 
-cd ~/Desktop/Project/cinema-ticket-system
-npx prisma migrate reset --force
+cmd /c "docker compose exec -T postgres pg_dump -U postgres -d cinema_ticket_system --clean --if-exists --no-owner --no-privileges --encoding=UTF8 > database\cinema_ticket_system_dump.sql"
 
-Chỉ dùng lệnh này khi muốn dựng lại database từ migration + seed.
-Không dùng ngay sau khi đã import database dump ở mục III.
+Sau do commit file:
 
-
-IV. CẬP NHẬT CODE TỪ NHÁNH
-==========================
-
-Chỉ chạy khi muốn lấy code mới:
-
-cd ~/Desktop/Project/cinema-ticket-system
-git switch merge-main-db-safe
-git pull --ff-only origin merge-main-db-safe
-
-Sau khi package.json thay đổi:
-
-npm install
-npm --prefix backend install
-npx prisma generate
+git add database/cinema_ticket_system_dump.sql run.txt
+git commit -m "db: update packaged database dump"
 
 
-V. DỪNG DỰ ÁN
-==============
+14. LOI THUONG GAP
+==================
 
-Nhấn Ctrl + C trong terminal backend và frontend.
+SePay bao "bank account is not configured":
+- Kiem tra .env co SEPAY_ENABLED=true va SEPAY_BANK_ACCOUNT khong rong.
+- Restart backend sau khi sua .env.
 
-Không cần dừng PostgreSQL và Redis sau mỗi lần code.
+Ngrok hien "Cannot GET /":
+- Binh thuong, vi ngrok tro toi backend.
+- Kiem tra bang /api/bookings/payment-methods.
 
-Nếu muốn dừng:
+Anh rap khong dung:
+- Bam Ctrl + F5.
+- Xoa localStorage key cineticket_cinemas.
 
-sudo systemctl stop postgresql
-sudo systemctl stop redis-server
+Port 3000 dang bi chiem:
 
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
 
-VI. XỬ LÝ LỖI NHANH
-===================
+Port 5173 dang bi chiem:
 
-1. Lỗi Prisma không nhận trường mới:
-
-cd ~/Desktop/Project/cinema-ticket-system
-npx prisma generate
-
-2. Lỗi cổng 3000 hoặc 5173 đang được sử dụng:
-
-ss -ltnp | grep -E ':3000|:5173'
-
-3. Giao diện còn dữ liệu cũ:
-
-Nhấn Ctrl + F5 hoặc xóa localStorage trong DevTools.
-
-4. Backend không kết nối database:
-
-pg_isready -h localhost -p 5432
-cat ~/Desktop/Project/cinema-ticket-system/.env
+netstat -ano | findstr :5173
+taskkill /PID <PID> /F

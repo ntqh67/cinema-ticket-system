@@ -18,9 +18,10 @@ const CinemaView = {
 
   _cinemaCard(c) {
     const rooms = API.mockData.rooms.filter(r => r.cinemaId === c.id);
+    const imageUrl = this._cinemaImage(c);
     return `
-    <div class="card" style="cursor:pointer;" onclick="Toast.info('Chi tiết rạp đang phát triển')">
-      <img src="${Helpers.escapeHtml(c.imageUrl || c.image || '')}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
+    <div class="card" style="cursor:pointer;" onclick="Router.navigate('/cinemas/${c.id}')">
+      <img src="${Helpers.escapeHtml(imageUrl)}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
       <div class="card-body">
         <h4 style="margin-bottom:8px;">${Helpers.escapeHtml(c.name)}</h4>
         ${c.code ? `<div class="badge badge-secondary" style="margin-bottom:8px;">${Helpers.escapeHtml(c.code)}</div>` : ''}
@@ -36,6 +37,154 @@ const CinemaView = {
         </div>
       </div>
     </div>`;
+  },
+
+  renderDetail(params) {
+    document.getElementById('footer').style.display = '';
+    const cinema = CinemaModel.getById(params.id);
+    const main = document.getElementById('main-content');
+    if (!main) return;
+
+    if (!cinema) {
+      main.innerHTML = `
+        <div class="page-wrapper">
+          <div class="container">
+            <div class="empty-state">
+              <i class="fas fa-building"></i>
+              <h3>Không tìm thấy rạp</h3>
+              <p>Rạp bạn chọn không còn tồn tại trong dữ liệu hiện tại.</p>
+              <button class="btn btn-primary" onclick="Router.navigate('/cinemas')">Quay lại danh sách rạp</button>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const rooms = API.mockData.rooms.filter(room => room.cinemaId === cinema.id);
+    const showtimes = API.mockData.showtimes
+      .filter(showtime => showtime.cinemaId === cinema.id)
+      .sort((a, b) => `${a.date || ''} ${a.startTime || ''}`.localeCompare(`${b.date || ''} ${b.startTime || ''}`));
+    const movies = [...new Map(showtimes
+      .map(showtime => MovieModel.getById(showtime.movieId))
+      .filter(Boolean)
+      .map(movie => [movie.id, movie])).values()];
+    const imageUrl = this._cinemaImage(cinema);
+    const address = [cinema.address, cinema.ward, cinema.city].filter(Boolean).join(', ');
+
+    main.innerHTML = `
+      <div class="page-wrapper">
+        <div class="container">
+          <button class="btn btn-outline" style="margin-bottom:24px;" onclick="Router.navigate('/cinemas')">
+            <i class="fas fa-arrow-left"></i> Quay lại rạp chiếu
+          </button>
+
+          <section class="card" style="overflow:hidden;margin-bottom:24px;">
+            <img src="${Helpers.escapeHtml(imageUrl)}" alt="${Helpers.escapeHtml(cinema.name)}" style="width:100%;height:320px;object-fit:cover;" onerror="this.src='https://picsum.photos/900/360?grayscale'" />
+            <div class="card-body" style="padding:28px;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+                <div>
+                  ${cinema.code ? `<span class="badge badge-secondary" style="margin-bottom:10px;">${Helpers.escapeHtml(cinema.code)}</span>` : ''}
+                  <h1 style="margin:0 0 12px;font-size:2rem;">${Helpers.escapeHtml(cinema.name)}</h1>
+                  <p style="color:var(--color-text-muted);font-size:1rem;margin-bottom:14px;">
+                    <i class="fas fa-map-marker-alt" style="color:var(--color-primary);"></i>
+                    ${Helpers.escapeHtml(address || 'Chưa cập nhật địa chỉ')}
+                  </p>
+                  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    ${(cinema.facilities || ['2D']).map(f => `<span class="badge badge-secondary">${Helpers.escapeHtml(f)}</span>`).join('')}
+                  </div>
+                </div>
+                <div style="display:grid;gap:10px;min-width:220px;color:var(--color-text-muted);">
+                  <span><i class="fas fa-door-open"></i> ${rooms.length} phòng chiếu</span>
+                  <span><i class="fas fa-phone"></i> ${Helpers.escapeHtml(cinema.phone || 'Chưa cập nhật')}</span>
+                  ${cinema.email ? `<span><i class="fas fa-envelope"></i> ${Helpers.escapeHtml(cinema.email)}</span>` : ''}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="grid grid-2" style="gap:24px;align-items:start;">
+            <section class="card">
+              <div class="card-body">
+                <h2 style="margin-bottom:16px;">Phòng Chiếu</h2>
+                ${rooms.length ? rooms.map(room => `
+                  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-border);padding:12px 0;">
+                    <div>
+                      <strong>${Helpers.escapeHtml(room.name)}</strong>
+                      <p style="color:var(--color-text-muted);font-size:0.875rem;margin-top:4px;">${Helpers.escapeHtml(room.type || '2D')}</p>
+                    </div>
+                    <span class="badge badge-secondary">${Number(room.capacity || 0).toLocaleString('vi-VN')} ghế</span>
+                  </div>
+                `).join('') : '<p style="color:var(--color-text-muted);">Rạp chưa có phòng chiếu.</p>'}
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-body">
+                <h2 style="margin-bottom:16px;">Phim Đang Có Suất Chiếu</h2>
+                ${movies.length ? movies.slice(0, 6).map(movie => `
+                  <div style="display:flex;gap:12px;border-bottom:1px solid var(--color-border);padding:12px 0;">
+                    <img src="${Helpers.escapeHtml(movie.poster || '')}" alt="${Helpers.escapeHtml(movie.title)}" style="width:54px;height:76px;object-fit:cover;border-radius:6px;" onerror="this.src='https://picsum.photos/80/120?grayscale'" />
+                    <div style="flex:1;">
+                      <strong>${Helpers.escapeHtml(movie.title)}</strong>
+                      <p style="color:var(--color-text-muted);font-size:0.875rem;margin:4px 0;">${Helpers.escapeHtml(movie.genre || 'Đang cập nhật')}</p>
+                      <button class="btn btn-sm btn-primary" onclick="Router.navigate('/movies/${movie.id}')">Xem suất chiếu</button>
+                    </div>
+                  </div>
+                `).join('') : '<p style="color:var(--color-text-muted);">Rạp chưa có suất chiếu trong dữ liệu hiện tại.</p>'}
+              </div>
+            </section>
+          </div>
+
+          <section class="card" style="margin-top:24px;">
+            <div class="card-body">
+              <h2 style="margin-bottom:16px;">Lịch Chiếu Gần Nhất</h2>
+              ${showtimes.length ? `
+                <div class="table-wrapper">
+                  <table class="admin-table">
+                    <thead><tr><th>Phim</th><th>Ngày</th><th>Giờ</th><th>Giá từ</th><th></th></tr></thead>
+                    <tbody>
+                      ${showtimes.slice(0, 12).map(showtime => {
+                        const movie = MovieModel.getById(showtime.movieId);
+                        const price = typeof showtime.price === 'object' ? showtime.price.normal : showtime.price;
+                        return `<tr>
+                          <td><strong>${Helpers.escapeHtml(movie?.title || 'Đang cập nhật')}</strong></td>
+                          <td>${Helpers.escapeHtml(showtime.date || '')}</td>
+                          <td>${Helpers.escapeHtml(showtime.startTime || '')} - ${Helpers.escapeHtml(showtime.endTime || '')}</td>
+                          <td>${Helpers.formatCurrency(Number(price || 0))}</td>
+                          <td><button class="btn btn-sm btn-primary" onclick="Router.navigate('/seats/${showtime.id}')">Chọn ghế</button></td>
+                        </tr>`;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>` : '<p style="color:var(--color-text-muted);">Chưa có lịch chiếu cho rạp này.</p>'}
+            </div>
+          </section>
+        </div>
+      </div>`;
+  },
+
+  // Ưu tiên ảnh rạp CR từ thư mục assets local, kể cả khi cache trình duyệt còn dữ liệu cũ.
+  _cinemaImage(cinema) {
+    const code = String(cinema.code || '').toUpperCase();
+    const name = String(cinema.name || cinema.shortName || '').toLowerCase();
+    const localImages = {
+      CR01: '/assets/images/cinemas/cr01-riverside.jpg',
+      CR02: '/assets/images/cinemas/cr02-central-park.jpg',
+      CR03: '/assets/images/cinemas/cr03-ocean-view.jpg',
+      CR04: '/assets/images/cinemas/cr04-marble-mountain.jpg',
+      CR05: '/assets/images/cinemas/cr05-northwest.jpg',
+      CR06: '/assets/images/cinemas/cr06-green-square.jpg',
+      CR07: '/assets/images/cinemas/cr07-golden-hills.jpg',
+    };
+    if (localImages[code]) return localImages[code];
+    if (name.includes('riverside')) return localImages.CR01;
+    if (name.includes('central park')) return localImages.CR02;
+    if (name.includes('ocean view')) return localImages.CR03;
+    if (name.includes('marble mountain')) return localImages.CR04;
+    if (name.includes('northwest')) return localImages.CR05;
+    if (name.includes('green square')) return localImages.CR06;
+    if (name.includes('golden hills')) return localImages.CR07;
+    return cinema.imageUrl || cinema.image || '';
   },
 
   async renderAdmin() {
@@ -72,9 +221,10 @@ const CinemaView = {
             ${cinemas.map(c => {
               const rooms = c.rooms || API.mockData.rooms.filter(r => r.cinemaId === c.id);
               const prices = this._ticketPriceText(c.ticketPrices || []);
+              const imageUrl = this._cinemaImage(c);
               return `
               <div class="card" style="cursor:pointer;" onclick="Router.navigate('/admin/cinemas/${c.id}')">
-                <img src="${Helpers.escapeHtml(c.imageUrl || c.image || '')}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
+                <img src="${Helpers.escapeHtml(imageUrl)}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
                 <div class="card-body">
                   <h4 style="margin-bottom:6px;">${Helpers.escapeHtml(c.name)}</h4>
                   ${c.code ? `<div class="badge badge-secondary" style="margin-bottom:8px;">${Helpers.escapeHtml(c.code)}</div>` : ''}
