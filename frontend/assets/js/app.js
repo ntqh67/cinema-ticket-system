@@ -6,8 +6,8 @@
 const App = {
   // Khởi tạo luồng init và chuẩn bị các phụ thuộc cần thiết.
   async init() {
-    await API.init();
     State.hydrate();
+    await API.init();
     Navbar.mount();
     Footer.mount();
     this._registerRoutes();
@@ -143,7 +143,7 @@ const App = {
           <div class="grid grid-3" style="gap:24px;">
             ${cinemas.map(cinema => `
               <div class="card">
-                <img src="${Helpers.escapeHtml(cinema.imageUrl || cinema.image || '')}" alt="${Helpers.escapeHtml(cinema.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'">
+                <img src="${Helpers.escapeHtml(cinema.imageUrl || cinema.image || API.cinemaImageFallback)}" alt="${Helpers.escapeHtml(cinema.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.onerror=null;this.src=API.cinemaImageFallback">
                 <div class="card-body">
                   <h3>${Helpers.escapeHtml(cinema.name)}</h3>
                   <p style="font-size:0.875rem;color:var(--color-text-muted);margin:10px 0 14px;"><i class="fas fa-map-marker-alt" style="color:var(--color-primary);"></i> ${Helpers.escapeHtml(cinema.address)}</p>

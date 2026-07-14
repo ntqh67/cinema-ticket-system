@@ -276,6 +276,7 @@ export class MoviesService {
       },
       cinema: {
         id: showtime.room.cinema.id,
+        code: showtime.room.cinema.code,
         chainId: showtime.room.cinema.chainId,
         chain: showtime.room.cinema.chain
           ? {
@@ -286,8 +287,10 @@ export class MoviesService {
         name: showtime.room.cinema.name,
         shortName: showtime.room.cinema.name,
         address: showtime.room.cinema.address || '',
+        ward: showtime.room.cinema.ward || '',
         city: showtime.room.cinema.city || '',
         phone: showtime.room.cinema.phone || '',
+        imageUrl: showtime.room.cinema.imageUrl || '',
       },
       room: {
         id: showtime.room.id,

@@ -20,7 +20,7 @@ const CinemaView = {
     const rooms = API.mockData.rooms.filter(r => r.cinemaId === c.id);
     return `
     <div class="card" style="cursor:pointer;" onclick="Toast.info('Chi tiết rạp đang phát triển')">
-      <img src="${Helpers.escapeHtml(c.imageUrl || c.image || '')}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
+      <img src="${Helpers.escapeHtml(c.imageUrl || c.image || API.cinemaImageFallback)}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.onerror=null;this.src=API.cinemaImageFallback" />
       <div class="card-body">
         <h4 style="margin-bottom:8px;">${Helpers.escapeHtml(c.name)}</h4>
         ${c.code ? `<div class="badge badge-secondary" style="margin-bottom:8px;">${Helpers.escapeHtml(c.code)}</div>` : ''}
@@ -74,7 +74,7 @@ const CinemaView = {
               const prices = this._ticketPriceText(c.ticketPrices || []);
               return `
               <div class="card" style="cursor:pointer;" onclick="Router.navigate('/admin/cinemas/${c.id}')">
-                <img src="${Helpers.escapeHtml(c.imageUrl || c.image || '')}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
+                <img src="${Helpers.escapeHtml(c.imageUrl || c.image || API.cinemaImageFallback)}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:160px;object-fit:cover;" onerror="this.onerror=null;this.src=API.cinemaImageFallback" />
                 <div class="card-body">
                   <h4 style="margin-bottom:6px;">${Helpers.escapeHtml(c.name)}</h4>
                   ${c.code ? `<div class="badge badge-secondary" style="margin-bottom:8px;">${Helpers.escapeHtml(c.code)}</div>` : ''}
@@ -141,7 +141,7 @@ const CinemaView = {
               <button class="btn btn-secondary admin-cinema-back" onclick="Router.navigate('/admin/cinemas')"><i class="fas fa-arrow-left"></i> Danh sách rạp</button>
 
               <section class="admin-cinema-hero">
-                <img src="${Helpers.escapeHtml(cinema.imageUrl || cinema.image || '')}" alt="${Helpers.escapeHtml(cinema.name)}" onerror="this.src='https://picsum.photos/600/400?grayscale'" />
+                <img src="${Helpers.escapeHtml(cinema.imageUrl || cinema.image || API.cinemaImageFallback)}" alt="${Helpers.escapeHtml(cinema.name)}" onerror="this.onerror=null;this.src=API.cinemaImageFallback" />
                 <div class="admin-cinema-hero-info">
                   <div class="admin-cinema-hero-badges">
                     ${cinema.code ? `<span class="badge badge-secondary">${Helpers.escapeHtml(cinema.code)}</span>` : ''}

@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { CinemasModule } from './cinemas/cinemas.module';
 import { ConcessionsModule } from './concessions/concessions.module';
 import { HealthModule } from './health/health.module';
 import { MoviesModule } from './movies/movies.module';
@@ -30,6 +31,7 @@ import { StaffModule } from './staff/staff.module';
     AuthModule,
     AdminModule,
     MoviesModule,
+    CinemasModule,
     SeatHoldsModule,
     SeatsModule,
     UsersModule,

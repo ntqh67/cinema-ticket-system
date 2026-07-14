@@ -4,6 +4,7 @@ const API = {
   backendBaseUrl: localStorage.getItem('cineticket_api_base') || `${window.location.protocol}//${window.location.hostname}:3000/api`,
   catalogLoadedFromBackend: false,
   moviePosterFallback: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600"%3E%3Crect width="400" height="600" fill="%23171717"/%3E%3Crect x="28" y="28" width="344" height="544" rx="18" fill="%23222222" stroke="%23444444"/%3E%3Ctext x="200" y="290" text-anchor="middle" fill="%23bbbbbb" font-family="Arial" font-size="28" font-weight="700"%3ECRTicket%3C/text%3E%3Ctext x="200" y="330" text-anchor="middle" fill="%23777777" font-family="Arial" font-size="18"%3EPoster dang cap nhat%3C/text%3E%3C/svg%3E',
+  cinemaImageFallback: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"%3E%3Crect width="600" height="400" fill="%23171717"/%3E%3Crect x="24" y="24" width="552" height="352" rx="18" fill="%23222222" stroke="%23444444"/%3E%3Ctext x="300" y="190" text-anchor="middle" fill="%23eeeeee" font-family="Arial" font-size="34" font-weight="700"%3ECRTicket%3C/text%3E%3Ctext x="300" y="235" text-anchor="middle" fill="%23999999" font-family="Arial" font-size="20"%3EAnh rap dang cap nhat%3C/text%3E%3C/svg%3E',
 
   // ========== MOCK DATA ==========
   mockData: {
@@ -275,15 +276,15 @@ const API = {
       }
 
       try {
-        const adminCinemas = await this.getAdminCinemas();
-        (adminCinemas || []).forEach((cinema) => {
+        const cinemaData = await this.getBackendCinemas();
+        (cinemaData.cinemas || []).forEach((cinema) => {
           cinemasById.set(cinema.id, this._mapBackendCinema(cinema));
           (cinema.rooms || []).forEach((room) => {
             roomsById.set(room.id, this._mapBackendRoom(room, cinema));
           });
         });
       } catch (error) {
-        console.warn('Admin cinema catalog is unavailable:', error);
+        console.warn('Public cinema catalog is unavailable:', error);
       }
 
       this.mockData.movies = movies;
@@ -358,7 +359,7 @@ const API = {
       phone: cinema.phone || '',
       imageUrl: cinema.imageUrl || '',
       facilities: ['2D'],
-      image: cinema.imageUrl || `https://picsum.photos/seed/${cinema.id}/600/400`,
+      image: cinema.imageUrl || this.cinemaImageFallback,
     };
   },
 
@@ -464,6 +465,11 @@ const API = {
 
   getBackendMovies() {
     return this.backendRequest('/movies');
+  },
+
+  // Đọc toàn bộ rạp công khai, không yêu cầu quyền Admin.
+  getBackendCinemas() {
+    return this.backendRequest('/cinemas');
   },
 
   getBackendMovie(movieId) {
