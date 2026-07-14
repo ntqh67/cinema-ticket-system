@@ -1,174 +1,117 @@
-CHẠY DỰ ÁN CINEMA TICKET SYSTEM
-================================
+QUY TRÌNH CHẠY VÀ BÀN GIAO DATABASE
+====================================
 
-Nhánh sử dụng: merge-main-db-safe
-Database: cinema_ticket_system tại localhost:5432
-Redis: localhost:6379
-
-
-I. MỖI LẦN BẬT MÁY
-===================
-
-1. BẬT POSTGRESQL VÀ REDIS
---------------------------
-
-Mở terminal và chạy:
-
-sudo systemctl start postgresql
-sudo systemctl start redis-server
-
-Kiểm tra:
-
-pg_isready -h localhost -p 5432
-redis-cli -h localhost -p 6379 ping
-
-Kết quả đúng:
-
-localhost:5432 - accepting connections
-PONG
+Quy ước:
+- Nhánh daubuoi chỉ dùng để nhận và bàn giao file dump PostgreSQL.
+- Nhánh main dùng để chạy và phát triển code.
+- Chỉ một người được cập nhật dữ liệu database tại một thời điểm.
+- Tất cả lệnh dưới đây chạy bằng PowerShell tại thư mục gốc dự án.
 
 
-2. CHẠY BACKEND - TERMINAL 1
-----------------------------
+I. NHẬN DATABASE MỚI NHẤT
+=========================
 
-cd ~/Desktop/Project/cinema-ticket-system/backend
+CẢNH BÁO:
+Lệnh import sẽ thay dữ liệu PostgreSQL hiện tại bằng dữ liệu trong dump.
+Nếu máy đang có dữ liệu chưa bàn giao thì phải export và push trước.
+
+git switch daubuoi
+git pull --ff-only origin daubuoi
+
+docker compose up -d postgres redis
+
+Get-Content -Raw .\database\cinema_ticket_system_dump.sql |
+  docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d cinema_ticket_system
+
+npx prisma generate
+
+Sau khi import:
+- KHÔNG chạy: npx prisma db seed
+- KHÔNG chạy: npx prisma migrate reset
+- KHÔNG chạy lại import nếu chỉ muốn bật dự án vào lần sau.
+
+
+II. CHUYỂN VỀ NHÁNH CODE
+========================
+
+git switch main
+git pull --ff-only origin main
+
+Nếu package.json vừa thay đổi:
+
+npm install
+npm --prefix backend install
+npx prisma generate
+
+
+III. CHẠY BACKEND - TERMINAL 1
+==============================
+
+cd backend
 npm run start:dev
 
-Địa chỉ:
-
 API:     http://localhost:3000/api
-Health:  http://localhost:3000/api/health
 Swagger: http://localhost:3000/api/docs
 
 
-3. CHẠY FRONTEND - TERMINAL 2
------------------------------
+IV. CHẠY FRONTEND - TERMINAL 2
+==============================
 
-cd ~/Desktop/Project/cinema-ticket-system/frontend
+cd frontend
 npx vite --host 0.0.0.0 --port 5173
 
-Mở trình duyệt:
-
-http://localhost:5173
+Frontend: http://localhost:5173
 
 
-4. TÀI KHOẢN DEMO
------------------
+V. NHỮNG LẦN CHẠY SAU
+======================
 
-Admin:
-admin@cinema.test
-admin123
+Không cần import lại dump. Chỉ chạy:
 
-User:
-hung@example.com
-user123
+docker compose up -d
 
+Sau đó chạy backend và frontend ở hai terminal như mục III và IV.
 
-II. CHỈ CẤU HÌNH MỘT LẦN
-========================
-
-1. Cho PostgreSQL và Redis tự khởi động cùng máy:
-
-sudo systemctl enable postgresql
-sudo systemctl enable redis-server
-
-2. Cài dependency:
-
-cd ~/Desktop/Project/cinema-ticket-system
-npm install
-npm --prefix backend install
-npx prisma generate
+Không chạy docker compose down -v vì lệnh này xóa volume database.
 
 
-III. IMPORT ĐÚNG DATABASE CỦA NHÁNH
-===================================
+VI. BÀN GIAO DỮ LIỆU
+====================
 
-CẢNH BÁO:
-Lệnh dưới đây xóa dữ liệu database hiện tại và thay bằng dữ liệu trong
-database/cinema_ticket_system_dump.sql.
-Chỉ chạy khi cần khôi phục database hoặc vừa kéo nhánh về máy.
+Trước khi bàn giao:
+- Dừng nhập dữ liệu và bảo đảm không còn request đang ghi database.
+- Code đang sửa trên main phải được commit hoặc xử lý riêng trước khi đổi nhánh.
+- Không có người thứ hai cùng cập nhật database.
 
-cd ~/Desktop/Project/cinema-ticket-system
+Từ thư mục gốc dự án:
 
-set -a
-source .env
-set +a
+git switch daubuoi
+git pull --ff-only origin daubuoi
 
-DB_URL="${DATABASE_URL%%\?*}"
+powershell -ExecutionPolicy Bypass -File .\scripts\export-database-dump.ps1
 
-sed '1s/^\xEF\xBB\xBF//' database/cinema_ticket_system_dump.sql \
-  | psql "$DB_URL" -v ON_ERROR_STOP=1
+git add database\cinema_ticket_system_dump.sql
+git diff --cached --check
+git commit -m "chore: update database dump"
+git push origin daubuoi
 
-redis-cli -h localhost -p 6379 FLUSHDB
-npx prisma generate
+Sau khi push thành công, báo cho người tiếp theo nhận lượt database.
 
-Sau khi import dump:
+Nếu cần tiếp tục chạy code sau khi bàn giao:
 
-KHÔNG chạy: npx prisma migrate dev
-KHÔNG chạy: npx prisma db seed
-
-Hai lệnh trên sẽ làm dữ liệu không còn giống dump của nhánh.
+git switch main
+git pull --ff-only origin main
 
 
-III.B. XÓA VÀ DỰNG LẠI DATABASE TỪ ĐẦU
-========================================
+VII. TÓM TẮT LUỒNG LÀM VIỆC
+===========================
 
-CẢNH BÁO: Lệnh này xóa toàn bộ dữ liệu hiện tại, chạy lại tất cả migration
-và tự động chạy seed để tạo lại dữ liệu mẫu:
+Người A:
+nhận dump -> chuyển main -> chạy code -> nhập dữ liệu -> chuyển daubuoi
+-> export dump -> commit -> push -> bàn giao
 
-cd ~/Desktop/Project/cinema-ticket-system
-npx prisma migrate reset --force
+Người B:
+chờ A bàn giao -> pull daubuoi -> import dump -> chuyển main -> tiếp tục làm
 
-Chỉ dùng lệnh này khi muốn dựng lại database từ migration + seed.
-Không dùng ngay sau khi đã import database dump ở mục III.
-
-
-IV. CẬP NHẬT CODE TỪ NHÁNH
-==========================
-
-Chỉ chạy khi muốn lấy code mới:
-
-cd ~/Desktop/Project/cinema-ticket-system
-git switch merge-main-db-safe
-git pull --ff-only origin merge-main-db-safe
-
-Sau khi package.json thay đổi:
-
-npm install
-npm --prefix backend install
-npx prisma generate
-
-
-V. DỪNG DỰ ÁN
-==============
-
-Nhấn Ctrl + C trong terminal backend và frontend.
-
-Không cần dừng PostgreSQL và Redis sau mỗi lần code.
-
-Nếu muốn dừng:
-
-sudo systemctl stop postgresql
-sudo systemctl stop redis-server
-
-
-VI. XỬ LÝ LỖI NHANH
-===================
-
-1. Lỗi Prisma không nhận trường mới:
-
-cd ~/Desktop/Project/cinema-ticket-system
-npx prisma generate
-
-2. Lỗi cổng 3000 hoặc 5173 đang được sử dụng:
-
-ss -ltnp | grep -E ':3000|:5173'
-
-3. Giao diện còn dữ liệu cũ:
-
-Nhấn Ctrl + F5 hoặc xóa localStorage trong DevTools.
-
-4. Backend không kết nối database:
-
-pg_isready -h localhost -p 5432
-cat ~/Desktop/Project/cinema-ticket-system/.env
+Dữ liệu doanh thu, booking, thanh toán và vé chỉ được bàn giao nếu chúng đã
+nằm trong PostgreSQL trước lúc chạy export dump.
