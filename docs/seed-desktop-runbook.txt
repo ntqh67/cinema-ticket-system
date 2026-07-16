@@ -1,0 +1,164 @@
+HƯỚNG DẪN CHẠY DATABASE BẰNG SEED DESKTOP
+=========================================
+
+Mục đích
+--------
+File `prisma/seed.js` trên nhánh này đã được thay bằng seed Desktop dùng cho
+nhánh `test-seed-experiment`. Người khác pull nhánh này về nên tạo database
+riêng và chạy seed này, không import dump cũ, để dữ liệu không bị lệch.
+
+Lưu ý về tiếng Việt
+-------------------
+Seed này tạo dữ liệu trực tiếp bằng Prisma và PostgreSQL UTF-8. Nếu web bị lỗi
+tiếng Việt, nguyên nhân thường là đang chạy nhầm database cũ hoặc trình duyệt
+đang cache file cũ. Hãy reset database theo đúng lệnh bên dưới và nhấn
+`Ctrl + F5` ở trình duyệt.
+
+Nhánh cần checkout
+------------------
+```powershell
+git fetch origin
+git checkout test-seed-experiment
+git pull origin test-seed-experiment
+```
+
+Chạy từ đầu bằng database riêng
+-------------------------------
+Mở PowerShell tại thư mục root dự án:
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema"
+
+docker compose up -d
+
+docker compose exec -T postgres psql -U postgres -c "DROP DATABASE IF EXISTS cinema_ticket_system_seed_desktop;"
+docker compose exec -T postgres psql -U postgres -c "CREATE DATABASE cinema_ticket_system_seed_desktop;"
+
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cinema_ticket_system_seed_desktop?schema=public"
+
+npm.cmd install
+npx.cmd prisma migrate deploy
+npx.cmd prisma generate
+npx.cmd prisma db seed
+```
+
+Nếu gặp lỗi EPERM khi chạy Prisma generate
+------------------------------------------
+Trên Windows, lỗi dạng dưới đây thường xảy ra khi backend, Prisma Studio hoặc
+Node process khác đang giữ file Prisma Client:
+
+```text
+EPERM: operation not permitted, rename ... query_engine-windows.dll.node
+```
+
+Cách xử lý:
+
+```powershell
+Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+npx.cmd prisma generate
+```
+
+Sau đó chạy lại:
+
+```powershell
+npx.cmd prisma db seed
+```
+
+Chạy backend bằng database seed Desktop
+---------------------------------------
+Mở PowerShell mới:
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema"
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cinema_ticket_system_seed_desktop?schema=public"
+
+cd backend
+npm.cmd install
+npm.cmd run start:dev
+```
+
+Chạy frontend
+-------------
+Mở PowerShell mới:
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema\frontend"
+npm.cmd install
+npx.cmd vite --host 0.0.0.0
+```
+
+Mở trình duyệt:
+
+```text
+http://localhost:5173
+```
+
+Kiểm tra database
+-----------------
+Mở PowerShell tại root dự án:
+
+```powershell
+cd "D:\My Project\Project 4 - Cinema"
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/cinema_ticket_system_seed_desktop?schema=public"
+npx.cmd prisma studio
+```
+
+Dữ liệu kỳ vọng sau khi seed
+----------------------------
+- 1 chuỗi rạp `CR Cinema`.
+- 7 chi nhánh rạp `CR01` đến `CR07`.
+- 35 phòng chiếu.
+- Khoảng 4804 ghế.
+- 8 phim.
+- Hơn 1000 suất chiếu.
+- 4 combo bắp nước.
+- 100 booking demo.
+- Đơn vị tiền tệ `VND`.
+
+Tài khoản seed
+--------------
+Admin:
+
+```text
+Email: admin@cinema.test
+Password: admin123
+```
+
+Nhân viên:
+
+```text
+Email: staff@cinema.test
+Password: staff123
+```
+
+Khách hàng:
+
+```text
+Email: customer@cinema.test
+Password: customer123
+```
+
+Khách hàng demo:
+
+```text
+Email: hung@example.com
+Password: user123
+```
+
+Ghi chú về SePay
+----------------
+SePay cần cấu hình trong `.env` của từng máy. Không commit API key thật lên Git.
+Nếu chỉ test seed/database thì không cần SePay. Nếu test thanh toán thật thì cần
+cấu hình `SEPAY_ENABLED`, `SEPAY_BANK_ACCOUNT`, `SEPAY_BANK_CODE`,
+`SEPAY_ACCOUNT_NAME`, `SEPAY_API_KEY` và `SEPAY_WEBHOOK_URL` riêng cho máy đang
+chạy backend.
+
+Nếu muốn quay lại database chính
+--------------------------------
+Dừng backend, mở PowerShell mới và để `DATABASE_URL` trỏ về:
+
+```text
+postgresql://postgres:postgres@localhost:5432/cinema_ticket_system?schema=public
+```
+
+Sau đó chạy lại backend.

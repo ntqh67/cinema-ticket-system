@@ -1,7 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
-const dotenv = require('dotenv');
-const { normalizeGenreName } = require('../scripts/genre-map');
+const { PrismaClient, Prisma } = require("@prisma/client");
+const { randomUUID } = require("crypto");
+const bcrypt = require("bcryptjs");
+const dotenv = require("dotenv");
+const { normalizeGenreName } = require("../scripts/genre-map");
 
 dotenv.config();
 
@@ -15,145 +16,145 @@ const PRICE_BY_SEAT_TYPE = {
 };
 
 const CINEMA_PRICE_BY_CHAIN = {
-  'CR Cinema': { STANDARD: 85000, COUPLE: 200000 },
+  "CR Cinema": { STANDARD: 85000, COUPLE: 200000 },
 };
 
 const CONCESSION_COMBOS = [
   {
-    name: 'My Combo',
-    description: '1 bắp rang cỡ lớn và 1 nước ngọt.',
+    name: "My Combo",
+    description: "1 bắp rang cỡ lớn và 1 nước ngọt.",
     price: 95000,
-    imageUrl: '/assets/images/combos/my_combo.jpg',
+    imageUrl: "/assets/images/combos/my_combo.jpg",
   },
   {
-    name: 'Double Combo',
-    description: '1 bắp rang cỡ lớn và 2 nước ngọt.',
+    name: "Double Combo",
+    description: "1 bắp rang cỡ lớn và 2 nước ngọt.",
     price: 115000,
-    imageUrl: '/assets/images/combos/double_combo.jpg',
+    imageUrl: "/assets/images/combos/double_combo.jpg",
   },
   {
-    name: 'Hattrick Combo',
-    description: '1 bắp rang, 1 nước ngọt và 1 phần nachos phô mai.',
+    name: "Hattrick Combo",
+    description: "1 bắp rang, 1 nước ngọt và 1 phần nachos phô mai.",
     price: 135000,
-    imageUrl: '/assets/images/combos/hattrick_combo.jpg',
+    imageUrl: "/assets/images/combos/hattrick_combo.jpg",
   },
   {
-    name: 'Poker Combo',
-    description: '2 bắp rang, 2 nước ngọt và 1 phần nachos phô mai.',
+    name: "Poker Combo",
+    description: "2 bắp rang, 2 nước ngọt và 1 phần nachos phô mai.",
     price: 230000,
-    imageUrl: '/assets/images/combos/poker_combo.jpg',
+    imageUrl: "/assets/images/combos/poker_combo.jpg",
   },
 ];
 
 const PROMOTIONS = [
   {
-    id: 'promo-uudai100',
-    code: 'UUDAI100',
-    name: 'Ưu đãi toàn bộ đơn hàng',
+    id: "promo-uudai100",
+    code: "UUDAI100",
+    name: "Ưu đãi toàn bộ đơn hàng",
     discountPercent: 100,
   },
 ];
 
 const CINEMAS = [
   {
-    chain: 'CR Cinema',
-    code: 'CR01',
-    name: 'CR Cinema Riverside',
-    address: '128 Bạch Đằng',
-    ward: 'Hải Châu',
+    chain: "CR Cinema",
+    code: "CR01",
+    name: "CR Cinema Riverside",
+    address: "128 Bạch Đằng",
+    ward: "Hải Châu",
     roomCount: 7,
-    imageUrl: '/assets/images/cinemas/cr01-riverside.jpg',
+    imageUrl: "/assets/images/cinemas/cr01-riverside.jpg",
   },
   {
-    chain: 'CR Cinema',
-    code: 'CR02',
-    name: 'CR Cinema Central Park',
-    address: '215 Điện Biên Phủ',
-    ward: 'Thanh Khê',
+    chain: "CR Cinema",
+    code: "CR02",
+    name: "CR Cinema Central Park",
+    address: "215 Điện Biên Phủ",
+    ward: "Thanh Khê",
     roomCount: 7,
-    imageUrl: '/assets/images/cinemas/cr02-central-park.jpg',
+    imageUrl: "/assets/images/cinemas/cr02-central-park.jpg",
   },
   {
-    chain: 'CR Cinema',
-    code: 'CR03',
-    name: 'CR Cinema Ocean View',
-    address: '96 Võ Nguyên Giáp',
-    ward: 'Sơn Trà',
+    chain: "CR Cinema",
+    code: "CR03",
+    name: "CR Cinema Ocean View",
+    address: "96 Võ Nguyên Giáp",
+    ward: "Sơn Trà",
     roomCount: 5,
-    imageUrl: '/assets/images/cinemas/cr03-ocean-view.jpg',
+    imageUrl: "/assets/images/cinemas/cr03-ocean-view.jpg",
   },
   {
-    chain: 'CR Cinema',
-    code: 'CR04',
-    name: 'CR Cinema Marble Mountain',
-    address: '168 Ngũ Hành Sơn',
-    ward: 'Ngũ Hành Sơn',
+    chain: "CR Cinema",
+    code: "CR04",
+    name: "CR Cinema Marble Mountain",
+    address: "168 Ngũ Hành Sơn",
+    ward: "Ngũ Hành Sơn",
     roomCount: 5,
-    imageUrl: '/assets/images/cinemas/cr04-marble-mountain.jpg',
+    imageUrl: "/assets/images/cinemas/cr04-marble-mountain.jpg",
   },
   {
-    chain: 'CR Cinema',
-    code: 'CR05',
-    name: 'CR Cinema Northwest',
-    address: '305 Nguyễn Lương Bằng',
-    ward: 'Liên Chiểu',
+    chain: "CR Cinema",
+    code: "CR05",
+    name: "CR Cinema Northwest",
+    address: "305 Nguyễn Lương Bằng",
+    ward: "Liên Chiểu",
     roomCount: 5,
-    imageUrl: '/assets/images/cinemas/cr05-northwest.jpg',
+    imageUrl: "/assets/images/cinemas/cr05-northwest.jpg",
   },
   {
-    chain: 'CR Cinema',
-    code: 'CR06',
-    name: 'CR Cinema Green Square',
-    address: '142 Cách Mạng Tháng Tám',
-    ward: 'Cẩm Lệ',
+    chain: "CR Cinema",
+    code: "CR06",
+    name: "CR Cinema Green Square",
+    address: "142 Cách Mạng Tháng Tám",
+    ward: "Cẩm Lệ",
     roomCount: 3,
-    imageUrl: '/assets/images/cinemas/cr06-green-square.jpg',
+    imageUrl: "/assets/images/cinemas/cr06-green-square.jpg",
   },
   {
-    chain: 'CR Cinema',
-    code: 'CR07',
-    name: 'CR Cinema Golden Hills',
-    address: '75 Quốc lộ 14B',
-    ward: 'Hòa Vang',
+    chain: "CR Cinema",
+    code: "CR07",
+    name: "CR Cinema Golden Hills",
+    address: "75 Quốc lộ 14B",
+    ward: "Hòa Vang",
     roomCount: 3,
-    imageUrl: '/assets/images/cinemas/cr07-golden-hills.jpg',
+    imageUrl: "/assets/images/cinemas/cr07-golden-hills.jpg",
   },
 ];
 
 const ROOM_LAYOUTS = [
   {
-    label: 'Layout 1 - Split Sweetbox',
+    label: "Layout 1 - Split Sweetbox",
     seatRows: [
-      ...makeRows('ABCDEFGH', makePositions(14, 1, 6)),
-      ...makeRows('IJ', makePositions(16, 1, 6)),
-      makeCoupleRow('K', [1, 3, 5, 8, 10, 12, 14]),
+      ...makeRows("ABCDEFGH", makePositions(14, 1, 6)),
+      ...makeRows("IJ", makePositions(16, 1, 6)),
+      makeCoupleRow("K", [1, 3, 5, 8, 10, 12, 14]),
     ],
   },
   {
-    label: 'Layout 2 - Standard',
-    seatRows: makeRows('ABCDEFGHI', makePositions(16)),
+    label: "Layout 2 - Standard",
+    seatRows: makeRows("ABCDEFGHI", makePositions(16)),
   },
   {
-    label: 'Layout 3 - Compact Sweetbox',
+    label: "Layout 3 - Compact Sweetbox",
     seatRows: [
-      ...makeRows('ABCDEFG', makePositions(10, 3)),
-      { row: 'H', positions: makePositions(12) },
-      makeCoupleRow('I', [1, 4, 7, 10, 13]),
+      ...makeRows("ABCDEFG", makePositions(10, 3)),
+      { row: "H", positions: makePositions(12) },
+      makeCoupleRow("I", [1, 4, 7, 10, 13]),
     ],
   },
   {
-    label: 'Layout 4 - Large Sweetbox',
+    label: "Layout 4 - Large Sweetbox",
     seatRows: [
-      ...makeRows('ABCDEFGHIJKL', makePositions(16, 1, 10)),
-      makeCoupleRow('M', [1, 3, 5, 7, 11, 13, 15, 17]),
+      ...makeRows("ABCDEFGHIJKL", makePositions(16, 1, 10)),
+      makeCoupleRow("M", [1, 3, 5, 7, 11, 13, 15, 17]),
     ],
   },
   {
-    label: 'Layout 5 - Premium Sweetbox',
+    label: "Layout 5 - Premium Sweetbox",
     seatRows: [
-      ...makeRows('ABCDEFGHI', makePositions(10, 3)),
-      { row: 'J', positions: makePositions(12) },
-      makeCoupleRow('K', [1, 3, 5, 7, 9, 11]),
+      ...makeRows("ABCDEFGHI", makePositions(10, 3)),
+      { row: "J", positions: makePositions(12) },
+      makeCoupleRow("K", [1, 3, 5, 7, 9, 11]),
     ],
   },
 ];
@@ -170,156 +171,171 @@ function makeRows(labels, positions) {
 }
 
 function makeCoupleRow(row, positions) {
-  return { row, positions, type: 'COUPLE' };
+  return { row, positions, type: "COUPLE" };
 }
 
 const GENRES = [
-  'Hành Động',
-  'Phiêu Lưu',
-  'Hoạt Hình',
-  'Hài',
-  'Chính Kịch',
-  'Gia Đình',
-  'Giả Tưởng',
-  'Kinh Dị',
-  'Khoa Học Viễn Tưởng',
-  'Giật Gân',
+  "Hành Động",
+  "Phiêu Lưu",
+  "Hoạt Hình",
+  "Hài",
+  "Chính Kịch",
+  "Gia Đình",
+  "Giả Tưởng",
+  "Kinh Dị",
+  "Khoa Học Viễn Tưởng",
+  "Giật Gân",
 ];
 
 const NOW_SHOWING_MOVIES = [
   {
     tmdbId: null,
-    title: 'Superman',
-    description: 'A new generation of Superman begins with action, heart, and hope.',
-    durationMin: 129,
-    releaseDate: '2026-07-10',
-    ageRating: 'C13',
-    genres: ['Hành Động', 'Phiêu Lưu', 'Giả Tưởng'],
-    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/32/Superman_%282025_film%29_poster.jpg/250px-Superman_%282025_film%29_poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed/MikgqM0LXr4',
-  },
-  {
-    tmdbId: null,
-    title: 'F1: The Movie',
-    description: 'A high-speed racing drama following a veteran driver and a rising rookie.',
-    durationMin: 155,
-    releaseDate: '2026-06-27',
-    ageRating: 'C13',
-    genres: ['Hành Động', 'Chính Kịch'],
-    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/38/F1_%282025_film%29.png/250px-F1_%282025_film%29.png',
-    trailerUrl: 'https://www.youtube.com/embed/RXQtH7kLRWw',
-  },
-  {
-    tmdbId: null,
-    title: 'Jurassic World: Rebirth',
-    description: 'A new expedition enters a dangerous world of dinosaurs and genetic secrets.',
-    durationMin: 134,
-    releaseDate: '2026-07-02',
-    ageRating: 'C13',
-    genres: ['Hành Động', 'Phiêu Lưu', 'Khoa Học Viễn Tưởng'],
-    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a5/Jurassic_World_Rebirth_poster.jpg/250px-Jurassic_World_Rebirth_poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed/2ZhB-YO5Tnk',
-  },
-  {
-    tmdbId: null,
-    title: 'How to Train Your Dragon',
-    description: 'A live-action adventure about friendship, courage, and dragons.',
-    durationMin: 125,
-    releaseDate: '2026-06-13',
-    ageRating: 'P',
-    genres: ['Phiêu Lưu', 'Gia Đình', 'Giả Tưởng'],
-    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/8/80/How_To_Train_Your_Dragon_2025_Poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed/agfeEa8nEIo',
-  },
-  {
-    tmdbId: null,
-    title: 'Doraemon: Nobita va The Gioi Trong Tranh',
-    description: 'Nobita and friends begin a colorful adventure inside a mysterious painting world.',
-    durationMin: 105,
-    releaseDate: '2026-05-23',
-    ageRating: 'P',
-    genres: ['Hoạt Hình', 'Gia Đình', 'Phiêu Lưu'],
-    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/44/Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg/250px-Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed/0Fse1acKOD4',
-  },
-  {
-    tmdbId: null,
-    title: 'Obsession',
+    title: "Superman",
     description:
-      'A supernatural horror story about a wish that turns affection into a dangerous obsession.',
+      "A new generation of Superman begins with action, heart, and hope.",
+    durationMin: 129,
+    releaseDate: "2026-07-10",
+    ageRating: "C13",
+    genres: ["Hành Động", "Phiêu Lưu", "Giả Tưởng"],
+    posterUrl:
+      "https://upload.wikimedia.org/wikipedia/en/thumb/3/32/Superman_%282025_film%29_poster.jpg/250px-Superman_%282025_film%29_poster.jpg",
+    trailerUrl: "https://www.youtube.com/embed/MikgqM0LXr4",
+  },
+  {
+    tmdbId: null,
+    title: "F1: The Movie",
+    description:
+      "A high-speed racing drama following a veteran driver and a rising rookie.",
+    durationMin: 155,
+    releaseDate: "2026-06-27",
+    ageRating: "C13",
+    genres: ["Hành Động", "Chính Kịch"],
+    posterUrl:
+      "https://upload.wikimedia.org/wikipedia/en/thumb/3/38/F1_%282025_film%29.png/250px-F1_%282025_film%29.png",
+    trailerUrl: "https://www.youtube.com/embed/RXQtH7kLRWw",
+  },
+  {
+    tmdbId: null,
+    title: "Jurassic World: Rebirth",
+    description:
+      "A new expedition enters a dangerous world of dinosaurs and genetic secrets.",
+    durationMin: 134,
+    releaseDate: "2026-07-02",
+    ageRating: "C13",
+    genres: ["Hành Động", "Phiêu Lưu", "Khoa Học Viễn Tưởng"],
+    posterUrl:
+      "https://upload.wikimedia.org/wikipedia/en/thumb/a/a5/Jurassic_World_Rebirth_poster.jpg/250px-Jurassic_World_Rebirth_poster.jpg",
+    trailerUrl: "https://www.youtube.com/embed/2ZhB-YO5Tnk",
+  },
+  {
+    tmdbId: null,
+    title: "How to Train Your Dragon",
+    description:
+      "A live-action adventure about friendship, courage, and dragons.",
+    durationMin: 125,
+    releaseDate: "2026-06-13",
+    ageRating: "P",
+    genres: ["Phiêu Lưu", "Gia Đình", "Giả Tưởng"],
+    posterUrl:
+      "https://upload.wikimedia.org/wikipedia/en/8/80/How_To_Train_Your_Dragon_2025_Poster.jpg",
+    trailerUrl: "https://www.youtube.com/embed/agfeEa8nEIo",
+  },
+  {
+    tmdbId: null,
+    title: "Doraemon: Nobita va The Gioi Trong Tranh",
+    description:
+      "Nobita and friends begin a colorful adventure inside a mysterious painting world.",
+    durationMin: 105,
+    releaseDate: "2026-05-23",
+    ageRating: "P",
+    genres: ["Hoạt Hình", "Gia Đình", "Phiêu Lưu"],
+    posterUrl:
+      "https://upload.wikimedia.org/wikipedia/en/thumb/4/44/Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg/250px-Doraemon_Nobita%27s_Art_World_Tales_Poster.jpg",
+    trailerUrl: "https://www.youtube.com/embed/0Fse1acKOD4",
+  },
+  {
+    tmdbId: null,
+    title: "Obsession",
+    description:
+      "A supernatural horror story about a wish that turns affection into a dangerous obsession.",
     durationMin: 109,
-    releaseDate: '2026-05-15',
-    ageRating: 'C18',
-    genres: ['Kinh Dị', 'Giật Gân'],
-    posterUrl: null,
-    trailerUrl: null,
+    releaseDate: "2026-05-15",
+    ageRating: "C18",
+    genres: ["Kinh Dị", "Giật Gân"],
+    posterUrl:
+      "https://image.tmdb.org/t/p/w500/15qLAM3QM8DoPL9Fps4JOTdqWqt.jpg",
+    trailerUrl: "https://www.youtube.com/embed/gMC8kkwbIQQ",
   },
   {
     tmdbId: null,
-    title: 'Mang Me Di Bo',
-    description: 'A Vietnamese family drama about love, regret, and the road back home.',
+    title: "Mang Me Di Bo",
+    description:
+      "A Vietnamese family drama about love, regret, and the road back home.",
     durationMin: 112,
-    releaseDate: '2026-07-01',
-    ageRating: 'C13',
-    genres: ['Chính Kịch', 'Gia Đình'],
-    posterUrl: null,
-    trailerUrl: null,
+    releaseDate: "2026-07-01",
+    ageRating: "C13",
+    genres: ["Chính Kịch", "Gia Đình"],
+    posterUrl:
+      "https://image.tmdb.org/t/p/w500/5SiQsz5YCxZdCN5vhKdiQ2dQnr6.jpg",
+    trailerUrl: "https://www.youtube.com/embed/-VhpW1WO5Q4",
   },
   {
     tmdbId: null,
-    title: '28 Years Later',
-    description: 'A tense horror story set decades after a terrifying outbreak.',
+    title: "28 Years Later",
+    description:
+      "A tense horror story set decades after a terrifying outbreak.",
     durationMin: 115,
-    releaseDate: '2026-06-20',
-    ageRating: 'C18',
-    genres: ['Kinh Dị', 'Giật Gân'],
-    posterUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/3/38/28_Years_Later_film_poster.jpg/250px-28_Years_Later_film_poster.jpg',
-    trailerUrl: 'https://www.youtube.com/embed/IYGG55qwQZQ',
+    releaseDate: "2026-06-20",
+    ageRating: "C18",
+    genres: ["Kinh Dị", "Giật Gân"],
+    posterUrl:
+      "https://upload.wikimedia.org/wikipedia/en/thumb/3/38/28_Years_Later_film_poster.jpg/250px-28_Years_Later_film_poster.jpg",
+    trailerUrl: "https://www.youtube.com/embed/IYGG55qwQZQ",
   },
 ];
 
 const BASE_SCHEDULES = [
-  ['08:30', '11:15', '14:00', '16:45', '19:30', '22:15'],
-  ['09:00', '11:45', '14:30', '17:15', '20:00', '22:45'],
-  ['09:30', '12:15', '15:00', '17:45', '20:30'],
-  ['10:00', '12:45', '15:30', '18:15', '21:00'],
-  ['10:30', '13:15', '16:00', '18:45', '21:30'],
+  ["08:30", "11:15", "14:00", "16:45", "19:30", "22:15"],
+  ["09:00", "11:45", "14:30", "17:15", "20:00", "22:45"],
+  ["09:30", "12:15", "15:00", "17:45", "20:30"],
+  ["10:00", "12:45", "15:30", "18:15", "21:00"],
+  ["10:30", "13:15", "16:00", "18:45", "21:30"],
 ];
 
 async function main() {
   await clearDatabase();
 
   const adminUser = await createUser({
-    username: 'admin',
-    email: 'admin@cinema.test',
-    password: '123123123',
-    firstName: 'Admin',
-    lastName: 'User',
-    role: 'ADMIN',
+    username: "admin",
+    email: "admin@cinema.test",
+    password: "123123123",
+    firstName: "Admin",
+    lastName: "User",
+    role: "ADMIN",
   });
   const staffUser = await createUser({
-    username: 'staff',
-    email: 'staff@cinema.test',
-    password: '123123123',
-    firstName: 'Staff',
-    lastName: 'User',
-    role: 'STAFF',
+    username: "staff",
+    email: "staff@cinema.test",
+    password: "123123123",
+    firstName: "Staff",
+    lastName: "User",
+    role: "STAFF",
   });
   const customerUser = await createUser({
-    username: 'customer',
-    id: 'cmr4ezer0000256u181u0ijfy',
-    email: 'customer@cinema.test',
-    password: '123123123',
-    firstName: 'Customer',
-    lastName: 'User',
-    role: 'CUSTOMER',
+    username: "customer",
+    id: "cmr4ezer0000256u181u0ijfy",
+    email: "customer@cinema.test",
+    password: "123123123",
+    firstName: "Customer",
+    lastName: "User",
+    role: "CUSTOMER",
   });
   const hungUser = await createUser({
-    email: 'hung@example.com',
-    password: 'user123',
-    firstName: 'Nguyen Van',
-    lastName: 'Hung',
-    role: 'CUSTOMER',
+    email: "hung@example.com",
+    password: "user123",
+    firstName: "Nguyen Van",
+    lastName: "Hung",
+    role: "CUSTOMER",
   });
 
   const genres = await createGenres();
@@ -330,8 +346,13 @@ async function main() {
   await createShowtimeSeats(showtimes, roomSeatMap);
   await createConcessionCombos();
   await createPromotions();
+  const demoBookings = await createDemoBookings({
+    showtimes,
+    users: { customerUser, hungUser },
+    count: 100,
+  });
 
-  console.log('Seed completed:', {
+  console.log("Seed completed:", {
     adminUser: adminUser.email,
     staffUser: staffUser.email,
     customerUser: customerUser.email,
@@ -343,7 +364,8 @@ async function main() {
     showtimeCount: showtimes.length,
     concessionComboCount: CONCESSION_COMBOS.length,
     promotionCount: PROMOTIONS.length,
-    currency: 'VND',
+    demoBookings,
+    currency: "VND",
   });
 }
 
@@ -372,7 +394,15 @@ async function clearDatabase() {
   await prisma.user.deleteMany();
 }
 
-function createUser({ id, username, email, password, firstName, lastName, role }) {
+function createUser({
+  id,
+  username,
+  email,
+  password,
+  firstName,
+  lastName,
+  role,
+}) {
   return prisma.user.create({
     data: {
       id,
@@ -404,13 +434,15 @@ async function createMovies(genres) {
         description: movieConfig.description,
         durationMin: movieConfig.durationMin,
         releaseDate: new Date(`${movieConfig.releaseDate}T00:00:00.000+07:00`),
-        ageRating: movieConfig.ageRating || 'P',
+        ageRating: movieConfig.ageRating || "P",
         posterUrl: movieConfig.posterUrl || null,
         trailerUrl: movieConfig.trailerUrl || null,
-        status: 'NOW_SHOWING',
+        status: "NOW_SHOWING",
         genres: {
           create: movieConfig.genres.map((genreName) => ({
-            genre: { connect: { id: genres.get(normalizeGenreName(genreName)).id } },
+            genre: {
+              connect: { id: genres.get(normalizeGenreName(genreName)).id },
+            },
           })),
         },
       },
@@ -429,7 +461,7 @@ async function createCinemaChains() {
     const chain = await prisma.cinemaChain.create({
       data: {
         name,
-        city: 'Đà Nẵng',
+        city: "Đà Nẵng",
       },
     });
     chains.set(name, chain);
@@ -449,8 +481,8 @@ async function createCinemasRoomsAndSeats(chains) {
         name: cinemaConfig.name,
         address: cinemaConfig.address,
         ward: cinemaConfig.ward,
-        city: cinemaConfig.city || 'Đà Nẵng',
-        phone: '+84-236-000-0000',
+        city: cinemaConfig.city || "Đà Nẵng",
+        phone: "+84-236-000-0000",
         email: `${slugify(cinemaConfig.name)}@cinema.test`,
         imageUrl: cinemaConfig.imageUrl,
       },
@@ -458,7 +490,11 @@ async function createCinemasRoomsAndSeats(chains) {
 
     await createCinemaTicketPrices(cinema.id, cinemaConfig.chain);
 
-    for (let roomIndex = 0; roomIndex < cinemaConfig.roomCount; roomIndex += 1) {
+    for (
+      let roomIndex = 0;
+      roomIndex < cinemaConfig.roomCount;
+      roomIndex += 1
+    ) {
       const layout = ROOM_LAYOUTS[roomIndex % ROOM_LAYOUTS.length];
       const seatCount = countSeats(layout);
       const room = await prisma.room.create({
@@ -468,8 +504,17 @@ async function createCinemasRoomsAndSeats(chains) {
           capacity: seatCount,
         },
       });
-      const seats = await createSeatLayout({ roomId: room.id, seatRows: layout.seatRows });
-      roomSeatMap.push({ cinema, chainName: cinemaConfig.chain, room, seats, layout });
+      const seats = await createSeatLayout({
+        roomId: room.id,
+        seatRows: layout.seatRows,
+      });
+      roomSeatMap.push({
+        cinema,
+        chainName: cinemaConfig.chain,
+        room,
+        seats,
+        layout,
+      });
     }
   }
 
@@ -489,7 +534,10 @@ async function createCinemaTicketPrices(cinemaId, chainName) {
 }
 
 function countSeats(layout) {
-  return layout.seatRows.reduce((total, seatRow) => total + seatRow.positions.length, 0);
+  return layout.seatRows.reduce(
+    (total, seatRow) => total + seatRow.positions.length,
+    0,
+  );
 }
 
 async function createSeatLayout({ roomId, seatRows }) {
@@ -502,7 +550,7 @@ async function createSeatLayout({ roomId, seatRows }) {
           row: seatRow.row,
           number: index + 1,
           position,
-          type: seatRow.type || 'STANDARD',
+          type: seatRow.type || "STANDARD",
         },
       });
       seats.push(seat);
@@ -523,11 +571,16 @@ async function createShowtimes(movies, roomSeatMap) {
 
     for (let roomIndex = 0; roomIndex < roomSeatMap.length; roomIndex += 1) {
       const roomInfo = roomSeatMap[roomIndex];
-      const starts = BASE_SCHEDULES[(roomIndex + dayOffset) % BASE_SCHEDULES.length];
-      const slotLimit = Math.min(starts.length, 4 + ((roomIndex + dayOffset) % 3));
+      const starts =
+        BASE_SCHEDULES[(roomIndex + dayOffset) % BASE_SCHEDULES.length];
+      const slotLimit = Math.min(
+        starts.length,
+        4 + ((roomIndex + dayOffset) % 3),
+      );
 
       for (let slotIndex = 0; slotIndex < slotLimit; slotIndex += 1) {
-        const movie = movies[(dayOffset + roomIndex + slotIndex) % movies.length];
+        const movie =
+          movies[(dayOffset + roomIndex + slotIndex) % movies.length];
         const startAt = dateTimeAt(dateText, starts[slotIndex]);
         const endAt = addMinutes(startAt, movie.durationMin);
         const candidate = {
@@ -571,12 +624,15 @@ function createShowtime({ movieId, roomId, startAt, endAt }) {
 }
 
 async function createShowtimeSeats(showtimes, roomSeatMap) {
-  const roomInfoByRoomId = new Map(roomSeatMap.map((roomInfo) => [roomInfo.room.id, roomInfo]));
+  const roomInfoByRoomId = new Map(
+    roomSeatMap.map((roomInfo) => [roomInfo.room.id, roomInfo]),
+  );
 
   for (const showtime of showtimes) {
     const roomInfo = roomInfoByRoomId.get(showtime.roomId);
     const seats = roomInfo?.seats || [];
-    const priceSet = CINEMA_PRICE_BY_CHAIN[roomInfo?.chainName] || PRICE_BY_SEAT_TYPE;
+    const priceSet =
+      CINEMA_PRICE_BY_CHAIN[roomInfo?.chainName] || PRICE_BY_SEAT_TYPE;
     await prisma.showtime.update({
       where: { id: showtime.id },
       data: { basePrice: priceSet.STANDARD },
@@ -586,7 +642,7 @@ async function createShowtimeSeats(showtimes, roomSeatMap) {
         showtimeId: showtime.id,
         seatId: seat.id,
         price: priceSet[seat.type],
-        status: 'AVAILABLE',
+        status: "AVAILABLE",
       })),
     });
   }
@@ -611,19 +667,133 @@ async function createPromotions() {
   });
 }
 
+async function createDemoBookings({ showtimes, users, count }) {
+  const { customerUser, hungUser } = users;
+  const paymentDays = generatePaymentDays(count, 30);
+
+  const pastShowtimes = await prisma.showtime.findMany({
+    where: { startAt: { lt: new Date() } },
+    include: { room: { include: { cinema: true } } },
+    orderBy: { startAt: "desc" },
+  });
+
+  const bookingsToCreate = Math.min(count, pastShowtimes.length);
+
+  for (let i = 0; i < bookingsToCreate; i += 1) {
+    const showtime = pastShowtimes[i];
+    const user = i % 2 === 0 ? customerUser : hungUser;
+    const seatCount = 2 + (i % 4);
+    const paidAt = paymentDays[i];
+
+    await createPaidBooking({ user, showtime, seatCount, paidAt });
+  }
+
+  return bookingsToCreate;
+}
+
+async function createPaidBooking({ user, showtime, seatCount, paidAt }) {
+  const availableSeats = await prisma.showtimeSeat.findMany({
+    where: {
+      showtimeId: showtime.id,
+      status: "AVAILABLE",
+    },
+    take: seatCount,
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (availableSeats.length < seatCount) {
+    return;
+  }
+
+  const bookingItemsData = availableSeats.map((seat) => ({
+    showtimeSeatId: seat.id,
+    unitPrice: seat.price,
+  }));
+
+  const totalAmount = bookingItemsData.reduce(
+    (sum, item) => sum + Number(item.unitPrice),
+    0,
+  );
+
+  const booking = await prisma.booking.create({
+    data: {
+      userId: user.id,
+      showtimeId: showtime.id,
+      status: "PAID",
+      totalAmount: new Prisma.Decimal(totalAmount.toFixed(2)),
+      currency: "VND",
+      expiresAt: null,
+      createdAt: paidAt || new Date(),
+      updatedAt: paidAt || new Date(),
+      bookingItems: {
+        create: bookingItemsData,
+      },
+    },
+    include: {
+      bookingItems: true,
+    },
+  });
+
+  await prisma.showtimeSeat.updateMany({
+    where: {
+      id: { in: availableSeats.map((seat) => seat.id) },
+    },
+    data: { status: "BOOKED" },
+  });
+
+  const payment = await prisma.payment.create({
+    data: {
+      bookingId: booking.id,
+      provider: "mock",
+      providerRef: randomUUID(),
+      amount: new Prisma.Decimal(totalAmount.toFixed(2)),
+      currency: "VND",
+      status: "SUCCESS",
+      paidAt: paidAt || new Date(),
+      createdAt: paidAt || new Date(),
+      updatedAt: paidAt || new Date(),
+    },
+  });
+
+  await Promise.all(
+    booking.bookingItems.map((item) =>
+      prisma.ticket.create({
+        data: {
+          bookingId: booking.id,
+          bookingItemId: item.id,
+          qrToken: randomUUID(),
+          status: "VALID",
+          createdAt: paidAt || new Date(),
+          updatedAt: paidAt || new Date(),
+          issuedAt: paidAt || new Date(),
+        },
+      }),
+    ),
+  );
+}
+
+function generatePaymentDays(count, daysBack) {
+  const today = new Date();
+  const dayMs = 24 * 60 * 60 * 1000;
+  return Array.from({ length: count }, (_, index) => {
+    const offset = Math.floor((index / count) * daysBack);
+    return new Date(today.getTime() - offset * dayMs);
+  });
+}
+
 function startOfTodayInBangkok() {
   const now = new Date();
-  const bangkokDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+  const bangkokDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(now);
   return new Date(`${bangkokDate}T00:00:00.000+07:00`);
 }
 
 function formatSeedDate(date) {
-  return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 }
 
 function dateTimeAt(dateText, timeText) {
@@ -637,10 +807,10 @@ function addMinutes(date, minutes) {
 function slugify(value) {
   return value
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 main()
