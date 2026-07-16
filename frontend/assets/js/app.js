@@ -4,6 +4,10 @@
 /* CineTicket - Điểm khởi chạy ứng dụng */
 // Đối tượng App gom các hành vi có cùng trách nhiệm để các phần khác tái sử dụng.
 const App = {
+  _homeHeroTimer: null,
+  _homeHeroIndex: 0,
+  _homeHeroPaused: false,
+
   // Khởi tạo luồng init và chuẩn bị các phụ thuộc cần thiết.
   async init() {
     State.hydrate();
@@ -51,7 +55,11 @@ const App = {
     if (!main) return;
     document.getElementById('footer').style.display = '';
 
-    const featured = MovieModel.getNowShowing().slice(0, 5);
+    this._stopHomeHeroCarousel();
+
+    const featured = MovieModel.getNowShowing()
+      .sort((a, b) => new Date(b.releaseDate || 0) - new Date(a.releaseDate || 0))
+      .slice(0, 5);
     const firstMovie = featured[0];
     const comingSoon = MovieModel.getComingSoon().slice(0, 4);
     const cinemas = CinemaModel.getAll()
@@ -77,28 +85,14 @@ const App = {
     main.innerHTML = `
       <section class="hero">
         <div class="hero-slider">
-          <div class="hero-slide active">
-            <div class="hero-slide-bg" style="background-image:url('${firstMovie.banner}')"></div>
-            <div class="hero-slide-overlay"></div>
-            <div class="container hero-content">
-              <div class="hero-text">
-                <div class="hero-badges">
-                  <span class="badge badge-danger"><i class="fas fa-fire"></i> Đang chiếu nổi bật</span>
-                </div>
-                <h1 class="hero-title">${Helpers.escapeHtml(firstMovie.title)}</h1>
-                <div class="hero-meta">
-                  <span class="hero-meta-item"><i class="fas fa-star"></i> ${firstMovie.rating}/10</span>
-                  <span class="hero-meta-item"><i class="fas fa-clock"></i> ${Helpers.formatDuration(firstMovie.duration)}</span>
-                  <span class="hero-meta-item"><i class="fas fa-calendar"></i> ${Helpers.formatDate(firstMovie.releaseDate)}</span>
-                </div>
-                <p class="hero-desc">${Helpers.escapeHtml(firstMovie.description)}</p>
-                <div class="hero-actions">
-                  <button class="btn btn-primary btn-lg" onclick="Router.navigate('/movies/${firstMovie.id}')"><i class="fas fa-ticket-alt"></i> Đặt Vé Ngay</button>
-                  <button class="btn btn-outline btn-lg" onclick="Router.navigate('/movies')"><i class="fas fa-film"></i> Xem Phim</button>
-                </div>
-              </div>
+          ${featured.map((movie, index) => this._homeHeroSlide(movie, index)).join('')}
+          ${featured.length > 1 ? `
+            <button class="hero-arrow hero-arrow-prev" type="button" onclick="App.prevHomeHeroSlide(true)" aria-label="Phim trước"><i class="fas fa-chevron-left"></i></button>
+            <button class="hero-arrow hero-arrow-next" type="button" onclick="App.nextHomeHeroSlide(true)" aria-label="Phim tiếp theo"><i class="fas fa-chevron-right"></i></button>
+            <div class="hero-controls">
+              ${featured.map((_, index) => `<button class="hero-dot ${index === 0 ? 'active' : ''}" type="button" onclick="App.showHomeHeroSlide(${index}, true)" aria-label="Chuyển tới phim ${index + 1}"></button>`).join('')}
             </div>
-          </div>
+          ` : ''}
         </div>
       </section>
 
@@ -157,6 +151,73 @@ const App = {
           </div>
         </div>
       </section>`;
+
+    this._startHomeHeroCarousel(featured.length);
+  },
+
+  _homeHeroSlide(movie, index) {
+    const visual = Helpers.getMovieVisual(movie);
+    const background = visual.poster || movie.poster || movie.banner || API.moviePosterFallback;
+    return `
+      <div class="hero-slide ${index === 0 ? 'active' : ''}" data-hero-index="${index}">
+        <div class="hero-slide-bg" style="background-image:url('${Helpers.escapeHtml(background)}')"></div>
+        <div class="hero-slide-overlay"></div>
+        <div class="container hero-content">
+          <div class="hero-text">
+            <div class="hero-badges">
+              <span class="badge badge-danger"><i class="fas fa-fire"></i> Đang chiếu nổi bật</span>
+            </div>
+            <h1 class="hero-title">${Helpers.escapeHtml(movie.title)}</h1>
+            <div class="hero-meta">
+              <span class="hero-meta-item"><i class="fas fa-star"></i> ${movie.rating || 0}/10</span>
+              <span class="hero-meta-item"><i class="fas fa-clock"></i> ${Helpers.formatDuration(movie.duration)}</span>
+              <span class="hero-meta-item"><i class="fas fa-calendar"></i> ${Helpers.formatDate(movie.releaseDate)}</span>
+            </div>
+            <p class="hero-desc">${Helpers.escapeHtml(movie.description || 'Đang cập nhật')}</p>
+            <div class="hero-actions">
+              <button class="btn btn-primary btn-lg" onclick="Router.navigate('/movies/${movie.id}')"><i class="fas fa-ticket-alt"></i> Đặt Vé Ngay</button>
+              <button class="btn btn-outline btn-lg" onclick="Router.navigate('/movies/${movie.id}')"><i class="fas fa-film"></i> Xem Phim</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  },
+
+  _startHomeHeroCarousel(totalSlides) {
+    this._homeHeroIndex = 0;
+    this._homeHeroPaused = false;
+    if (totalSlides <= 1) return;
+    this._homeHeroTimer = setInterval(() => {
+      if (!this._homeHeroPaused) this.nextHomeHeroSlide(false);
+    }, 4000);
+  },
+
+  _stopHomeHeroCarousel() {
+    if (this._homeHeroTimer) clearInterval(this._homeHeroTimer);
+    this._homeHeroTimer = null;
+    this._homeHeroPaused = false;
+  },
+
+  showHomeHeroSlide(index, pauseAuto = false) {
+    const slides = Array.from(document.querySelectorAll('.hero-slide'));
+    if (!slides.length) return;
+    if (pauseAuto) this._homeHeroPaused = true;
+    const nextIndex = (index + slides.length) % slides.length;
+    slides.forEach((slide, slideIndex) => slide.classList.toggle('active', slideIndex === nextIndex));
+    document.querySelectorAll('.hero-dot').forEach((dot, dotIndex) => dot.classList.toggle('active', dotIndex === nextIndex));
+    this._homeHeroIndex = nextIndex;
+  },
+
+  nextHomeHeroSlide(pauseAuto = false) {
+    const totalSlides = document.querySelectorAll('.hero-slide').length;
+    if (!totalSlides) return;
+    this.showHomeHeroSlide(this._homeHeroIndex + 1, pauseAuto);
+  },
+
+  prevHomeHeroSlide(pauseAuto = false) {
+    const totalSlides = document.querySelectorAll('.hero-slide').length;
+    if (!totalSlides) return;
+    this.showHomeHeroSlide(this._homeHeroIndex - 1, pauseAuto);
   }
 };
 
