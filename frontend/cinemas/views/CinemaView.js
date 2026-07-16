@@ -19,7 +19,7 @@ const CinemaView = {
   _cinemaCard(c) {
     const rooms = API.mockData.rooms.filter(r => r.cinemaId === c.id);
     return `
-    <div class="card" style="cursor:pointer;" onclick="Toast.info('Chi tiết rạp đang phát triển')">
+    <div class="card" style="cursor:pointer;" onclick="Router.navigate('/cinemas/${c.id}')">
       <img src="${Helpers.escapeHtml(c.imageUrl || c.image || API.cinemaImageFallback)}" alt="${Helpers.escapeHtml(c.name)}" style="width:100%;height:180px;object-fit:cover;" onerror="this.onerror=null;this.src=API.cinemaImageFallback" />
       <div class="card-body">
         <h4 style="margin-bottom:8px;">${Helpers.escapeHtml(c.name)}</h4>
@@ -36,6 +36,123 @@ const CinemaView = {
         </div>
       </div>
     </div>`;
+  },
+
+  async renderDetail(params) {
+    document.getElementById('footer').style.display = '';
+    const main = document.getElementById('main-content');
+    if (!main) return;
+
+    main.innerHTML = `
+      <div class="page-wrapper">
+        <div class="container">
+          <div class="admin-table-card"><div class="admin-table-empty">Đang tải thông tin rạp từ PostgreSQL...</div></div>
+        </div>
+      </div>`;
+
+    try {
+      const detail = await API.getBackendCinemaDetail(params.id);
+      const cinema = detail.cinema;
+      if (!cinema) throw new Error('Không tìm thấy rạp');
+
+      const rooms = detail.rooms || [];
+      const seats = detail.seats || [];
+      const overview = detail.overview || {};
+      const address = [cinema.address, cinema.ward, cinema.city].filter(Boolean).join(', ');
+      this._publicCinemaDetail = { id: cinema.id, cinema, rooms, seats };
+
+      main.innerHTML = `
+        <div class="page-wrapper">
+          <div class="container admin-cinema-detail public-cinema-detail">
+            <button class="btn btn-secondary admin-cinema-back" onclick="Router.navigate('/cinemas')"><i class="fas fa-arrow-left"></i> Danh sách rạp</button>
+
+            <section class="admin-cinema-hero">
+              <img src="${Helpers.escapeHtml(cinema.imageUrl || API.cinemaImageFallback)}" alt="${Helpers.escapeHtml(cinema.name)}" onerror="this.onerror=null;this.src=API.cinemaImageFallback" />
+              <div class="admin-cinema-hero-info">
+                <div class="admin-cinema-hero-badges">
+                  ${cinema.code ? `<span class="badge badge-secondary">${Helpers.escapeHtml(cinema.code)}</span>` : ''}
+                  ${cinema.chain?.name ? `<span class="badge badge-secondary">${Helpers.escapeHtml(cinema.chain.name)}</span>` : ''}
+                </div>
+                <h1>${Helpers.escapeHtml(cinema.name)}</h1>
+                <p><i class="fas fa-location-dot"></i> ${Helpers.escapeHtml(address || 'Chưa cập nhật địa chỉ')}</p>
+                <div class="admin-cinema-contact">
+                  ${cinema.phone ? `<span><i class="fas fa-phone"></i> ${Helpers.escapeHtml(cinema.phone)}</span>` : ''}
+                  ${cinema.email ? `<span><i class="fas fa-envelope"></i> ${Helpers.escapeHtml(cinema.email)}</span>` : ''}
+                </div>
+              </div>
+            </section>
+
+            <section class="admin-cinema-kpis" aria-label="Tổng quan rạp">
+              <article><span class="red"><i class="fas fa-door-open"></i></span><div><small>Số phòng</small><strong>${Number(overview.rooms || rooms.length).toLocaleString('vi-VN')}</strong></div></article>
+              <article><span class="yellow"><i class="fas fa-couch"></i></span><div><small>Tổng ghế</small><strong>${Number(overview.seats || seats.length).toLocaleString('vi-VN')}</strong></div></article>
+              <article><span class="blue"><i class="fas fa-map-marker-alt"></i></span><div><small>Khu vực</small><strong>${Helpers.escapeHtml(cinema.ward || cinema.city || 'Đà Nẵng')}</strong></div></article>
+            </section>
+
+            <section class="admin-cinema-section">
+              <div class="admin-cinema-section-heading">
+                <div><span class="admin-dashboard-eyebrow">Phòng chiếu</span><h2>Sơ đồ ghế theo từng phòng</h2></div>
+                <span>${rooms.length} phòng</span>
+              </div>
+              <div class="admin-cinema-room-grid">
+                ${rooms.map((room) => this._publicRoomCard(room)).join('') || '<div class="admin-table-empty">Rạp chưa có phòng chiếu</div>'}
+              </div>
+            </section>
+          </div>
+        </div>`;
+    } catch (error) {
+      Toast.error(error.message || 'Không thể tải chi tiết rạp');
+      main.innerHTML = `
+        <div class="page-wrapper">
+          <div class="container">
+            <div class="empty-state">
+              <i class="fas fa-exclamation-triangle"></i>
+              <h3>Không tải được thông tin rạp</h3>
+              <p>${Helpers.escapeHtml(error.message || 'Vui lòng kiểm tra backend/database rồi thử lại.')}</p>
+              <button class="btn btn-primary" onclick="Router.navigate('/cinemas')">Về danh sách rạp</button>
+            </div>
+          </div>
+        </div>`;
+    }
+  },
+
+  _publicRoomCard(room) {
+    const seatSummary = room.seatTypeSummary || {};
+    return `
+      <article class="admin-cinema-room-card">
+        <div class="admin-cinema-room-icon"><i class="fas fa-film"></i></div>
+        <div class="admin-cinema-room-info">
+          <h3>${Helpers.escapeHtml(room.name)}</h3>
+          <p>${Number(room.rows || 0).toLocaleString('vi-VN')} hàng × ${Number(room.cols || 0).toLocaleString('vi-VN')} cột</p>
+          <div>
+            <span>${Number(room.capacity || room.seatCount || 0).toLocaleString('vi-VN')} ghế</span>
+            <span>Thường ${Number(seatSummary.STANDARD || 0).toLocaleString('vi-VN')}</span>
+            <span>Đôi ${Number(seatSummary.COUPLE || 0).toLocaleString('vi-VN')}</span>
+          </div>
+        </div>
+        <div class="admin-cinema-room-actions" style="grid-template-columns:1fr;">
+          <button class="btn btn-outline btn-sm" onclick="CinemaView.showPublicRoomSeatMap('${room.id}')"><i class="fas fa-couch"></i> Xem sơ đồ ghế</button>
+        </div>
+      </article>`;
+  },
+
+  showPublicRoomSeatMap(roomId) {
+    const detail = this._publicCinemaDetail;
+    const room = detail?.rooms.find(item => item.id === roomId);
+    if (!room) return;
+    const seats = detail.seats.filter(seat => seat.roomId === roomId);
+    const rows = [...new Set(seats.map(seat => seat.row))].sort((a, b) =>
+      String(a).localeCompare(String(b), 'vi', { numeric: true }),
+    );
+    const content = `
+      <div class="admin-room-seat-map">
+        <div class="admin-room-seat-summary"><strong>${Helpers.escapeHtml(room.name)}</strong><span>${seats.length} ghế · ${rows.length} hàng</span></div>
+        <div class="admin-room-screen"><span>Màn hình</span></div>
+        <div class="admin-room-seat-map-scroll">
+          ${rows.map(row => `<div class="admin-room-seat-row"><span>${Helpers.escapeHtml(row)}</span><div>${seats.filter(seat => seat.row === row).sort((a, b) => a.position - b.position).map(seat => `<span class="admin-room-seat ${seat.type === 'COUPLE' ? 'couple' : ''}" title="Ghế ${Helpers.escapeHtml(row)}${seat.number}">${seat.number}</span>`).join('')}</div><span>${Helpers.escapeHtml(row)}</span></div>`).join('') || '<div class="admin-table-empty">Phòng chưa có sơ đồ ghế</div>'}
+        </div>
+        <div class="admin-room-seat-legend"><span><i class="standard"></i> Ghế thường</span><span><i class="couple"></i> Ghế đôi</span></div>
+      </div>`;
+    Modal.show('Sơ Đồ Ghế', content, { size: 'xl', className: 'admin-room-seat-modal' });
   },
 
   async renderAdmin() {

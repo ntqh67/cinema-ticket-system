@@ -20,6 +20,7 @@ const App = {
     Router.register('/movies', (params) => MovieView.renderList(params));
     Router.register('/movies/:id', (params) => MovieView.renderDetail(params));
     Router.register('/cinemas', () => CinemaView.renderList());
+    Router.register('/cinemas/:id', (params) => CinemaView.renderDetail(params));
     Router.register('/login', () => AuthView.render());
     Router.register('/profile', () => UserView.renderProfile());
     Router.register('/history', () => UserView.renderHistory());

@@ -472,6 +472,10 @@ const API = {
     return this.backendRequest('/cinemas');
   },
 
+  getBackendCinemaDetail(cinemaId) {
+    return this.backendRequest(`/cinemas/${encodeURIComponent(cinemaId)}`);
+  },
+
   getBackendMovie(movieId) {
     return this.backendRequest(`/movies/${movieId}`);
   },

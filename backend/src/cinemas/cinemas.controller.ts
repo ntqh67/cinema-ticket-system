@@ -1,7 +1,7 @@
 /**
  * Mục đích: Tiếp nhận yêu cầu đọc catalog rạp công khai và chuyển cho service.
  */
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { CinemasService } from './cinemas.service';
 
 @Controller('cinemas')
@@ -13,5 +13,11 @@ export class CinemasController {
   // Trả danh sách rạp Đà Nẵng cho trang khách hàng.
   findAll() {
     return this.cinemasService.findAll();
+  }
+
+  @Get(':id')
+  // Trả chi tiết rạp công khai, gồm danh sách phòng và sơ đồ ghế chỉ đọc.
+  findOne(@Param('id') id: string) {
+    return this.cinemasService.findOne(id);
   }
 }
