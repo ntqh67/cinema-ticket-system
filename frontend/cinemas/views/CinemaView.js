@@ -516,7 +516,7 @@ const CinemaView = {
           ${rows.map(row => `<div class="admin-room-seat-row"><span>${Helpers.escapeHtml(row)}</span><div>${liveSeats.filter(seat => seat.row === row).sort((a, b) => a.position - b.position).map(seat => {
             const status = String(seat.status || 'AVAILABLE').toLowerCase();
             const classes = [seat.type === 'COUPLE' ? 'couple' : '', status].filter(Boolean).join(' ');
-            const statusLabel = { booked: 'Đã đặt', held: 'Đang giữ', blocked: 'Đã khóa', available: 'Còn trống' }[status] || status;
+            const statusLabel = { booked: 'Đã đặt', held: 'Đang giữ', available: 'Còn trống' }[status] || status;
             return `<span class="admin-room-seat ${classes}" title="Ghế ${Helpers.escapeHtml(row)}${seat.number} · ${statusLabel}">${seat.number}</span>`;
           }).join('')}</div><span>${Helpers.escapeHtml(row)}</span></div>`).join('') || '<div class="admin-table-empty">Phòng chưa có sơ đồ ghế</div>'}
         </div>
@@ -524,7 +524,6 @@ const CinemaView = {
           <span><i class="available"></i> Còn trống</span>
           <span><i class="held"></i> Đang giữ</span>
           <span><i class="booked"></i> Đã đặt</span>
-          <span><i class="blocked"></i> Đã khóa</span>
         </div>
       </div>`;
     Modal.show('Trạng Thái Phòng Chiếu', content, { size: 'xl', className: 'admin-room-seat-modal' });

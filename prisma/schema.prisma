@@ -43,7 +43,6 @@ enum ShowtimeSeatStatus {
   AVAILABLE
   HELD
   BOOKED
-  BLOCKED
 }
 
 // Định nghĩa các giá trị hợp lệ của BookingStatus để tránh trạng thái tự do trong cơ sở dữ liệu.

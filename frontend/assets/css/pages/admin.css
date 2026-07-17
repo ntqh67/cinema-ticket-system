@@ -1025,12 +1025,10 @@ body.admin-layout #main-content { padding-top: 0; height: 100vh; overflow: hidde
 .admin-room-seat.available { border-color: rgba(23, 162, 184, 0.4); background: rgba(23, 162, 184, 0.12); color: var(--color-info); }
 .admin-room-seat.held { border-color: rgba(255, 193, 7, 0.65); background: rgba(255, 193, 7, 0.22); color: var(--color-warning); }
 .admin-room-seat.booked { border-color: rgba(229, 9, 20, 0.75); background: rgba(229, 9, 20, 0.34); color: #fff; }
-.admin-room-seat.blocked { border-color: var(--color-border-light); background: #343434; color: var(--color-text-dim); }
 .admin-room-live-legend { flex-wrap: wrap; }
 .admin-room-live-legend i.available { background: rgba(23, 162, 184, 0.25); }
 .admin-room-live-legend i.held { background: rgba(255, 193, 7, 0.4); }
 .admin-room-live-legend i.booked { background: rgba(229, 9, 20, 0.55); }
-.admin-room-live-legend i.blocked { background: #444; }
 
 @media (max-width: 1250px) {
   .admin-cinema-room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

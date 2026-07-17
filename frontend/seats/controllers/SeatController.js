@@ -169,13 +169,13 @@ const SeatController = {
         for (let index = 1; index < block.length - 1; index += 1) {
           const current = block[index];
           const isAvailable = !current.isBooked
-            && !['HELD', 'BOOKED', 'BLOCKED'].includes(current.status)
+            && !['HELD', 'BOOKED'].includes(current.status)
             && !selectedIds.has(current.id);
           // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.
           if (!isAvailable) continue;
           const hasAvailableNeighbor = [block[index - 1], block[index + 1]].some((neighbor) =>
             !neighbor.isBooked
-              && !['HELD', 'BOOKED', 'BLOCKED'].includes(neighbor.status)
+              && !['HELD', 'BOOKED'].includes(neighbor.status)
               && !selectedIds.has(neighbor.id)
           );
           // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.

@@ -68,7 +68,7 @@ describe('SeatHoldsService', () => {
   });
 
   // Thực hiện trách nhiệm riêng của khối it.
-  it('rejects a booked or blocked database seat before Redis', async () => {
+  it('rejects a booked database seat before Redis', async () => {
     findUnique.mockResolvedValue({
       id: dto.showtimeSeatId,
       showtimeId: dto.showtimeId,

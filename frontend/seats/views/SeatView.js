@@ -170,7 +170,7 @@ const SeatView = {
 
   // Dựng phần giao diện tương ứng trong khối _seatHtml.
   _seatHtml(showtime, seat) {
-    const isUnavailable = (seat.isBooked || ['HELD', 'BOOKED', 'BLOCKED'].includes(seat.status)) && !seat.heldByMe;
+    const isUnavailable = (seat.isBooked || ['HELD', 'BOOKED'].includes(seat.status)) && !seat.heldByMe;
     const price = seat.price || SeatModel.getPriceForType(showtime, seat.type);
     const label = seat.type === 'couple' ? 'Đôi' : 'Thường';
     return `<button type="button" class="seat ${seat.type} ${isUnavailable ? 'booked' : ''} ${seat.heldByMe ? 'selected' : ''}"
