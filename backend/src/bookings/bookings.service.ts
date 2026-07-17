@@ -26,7 +26,7 @@ import {
   ticketPriceForRole,
 } from '../common/ticket-discount';
 
-const DEFAULT_BOOKING_HOLD_MINUTES = 10;
+const DEFAULT_BOOKING_HOLD_MINUTES = 5;
 const SEPAY_PROVIDER = 'sepay';
 const DEFAULT_SEPAY_PAYMENT_PREFIX = 'CRT';
 const BOOKING_QR_PREFIX = 'CINETICKET:BOOKING:';
