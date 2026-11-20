@@ -75,18 +75,22 @@ describe('BookingsService SePay payment flow', () => {
 
   const createService = () => {
     const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn(),
       booking: { findUnique: jest.fn() },
       payment: {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       paymentWebhookEvent: {
         create: jest.fn(),
         update: jest.fn(),
       },
     };
+    prisma.$transaction.mockImplementation((callback) => callback(prisma));
     const seatHolds = {
       verifyBookingHolds: jest.fn(),
     };
@@ -114,6 +118,7 @@ describe('BookingsService SePay payment flow', () => {
       ...oldEnv,
       SEPAY_ENABLED: 'true',
       SEPAY_BANK_ACCOUNT: '123456789',
+      SEPAY_VIRTUAL_ACCOUNT: '',
       SEPAY_BANK_CODE: 'MBBANK',
       SEPAY_ACCOUNT_NAME: 'CR TICKET',
       SEPAY_API_KEY: 'test-key',
@@ -138,7 +143,10 @@ describe('BookingsService SePay payment flow', () => {
       expiredAt: pendingBooking.expiresAt,
     });
 
-    const result = await service.createSepayPayment(pendingBooking.id);
+    const result = await service.createSepayPayment(
+      pendingBooking.id,
+      'user-1',
+    );
 
     expect(seatHolds.verifyBookingHolds).toHaveBeenCalledWith({
       userId: pendingBooking.userId,
@@ -177,7 +185,10 @@ describe('BookingsService SePay payment flow', () => {
       expiredAt: pendingBooking.expiresAt,
     });
 
-    const result = await service.createSepayPayment(pendingBooking.id);
+    const result = await service.createSepayPayment(
+      pendingBooking.id,
+      'user-1',
+    );
 
     expect(prisma.payment.create).not.toHaveBeenCalled();
     expect(result.paymentId).toBe('payment-old');
@@ -190,6 +201,108 @@ describe('BookingsService SePay payment flow', () => {
     await expect(
       service.handleSepayWebhook('Apikey wrong-key', {}),
     ).rejects.toThrow('Invalid SePay webhook API key');
+  });
+
+  // Callback tài khoản cũ hoặc thiếu tài khoản không được tác động tới giao dịch hiện tại.
+  it.each(['old-bank-account', undefined, 123456789])(
+    'ignores a webhook with an invalid receiving account: %s',
+    async (accountNumber) => {
+      const { service, prisma } = createService();
+      prisma.paymentWebhookEvent.create.mockResolvedValue({
+        id: 'event-wrong-account',
+      });
+      const confirm = jest.spyOn(service as any, 'confirmPaidBookingPayment');
+
+      const result = await service.handleSepayWebhook('Apikey test-key', {
+        id: 92704,
+        gateway: 'MBBank',
+        accountNumber,
+        transferType: 'in',
+        transferAmount: 120000,
+        content: 'CRTABC123456789 chuyen tien',
+      });
+
+      expect(result).toEqual({
+        success: true,
+        ignored: true,
+        reason: 'ACCOUNT_MISMATCH',
+      });
+      expect(prisma.payment.findUnique).not.toHaveBeenCalled();
+      expect(prisma.payment.findFirst).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+      expect(prisma.paymentWebhookEvent.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'IGNORED' }),
+        }),
+      );
+    },
+  );
+
+  // QR phải dùng tài khoản mới trong cấu hình, giữ nguyên số 0 đầu số tài khoản.
+  it('creates a QR for the VA instead of the main account', async () => {
+    const { service, prisma } = createService();
+    process.env.SEPAY_VIRTUAL_ACCOUNT = '962400000001';
+    prisma.booking.findUnique.mockResolvedValue(pendingBooking);
+    prisma.payment.findFirst.mockResolvedValue({
+      id: 'payment-va',
+      providerRef: 'CRTVA',
+      amount: 120000,
+      currency: 'VND',
+      status: 'PENDING',
+      expiredAt: pendingBooking.expiresAt,
+    });
+    const result = await service.createSepayPayment(
+      pendingBooking.id,
+      'user-1',
+    );
+    expect(result.accountNumber).toBe('962400000001');
+    expect(new URL(result.qrUrl).searchParams.get('acc')).toBe('962400000001');
+  });
+
+  // Tiền vào VA khác hoặc tài khoản chính không được thanh toán cho booking của VA đã chọn.
+  it.each(['', '962400000002', undefined])(
+    'ignores a mismatched VA: %s',
+    async (subAccount) => {
+      process.env.SEPAY_VIRTUAL_ACCOUNT = '962400000001';
+      const { service, prisma } = createService();
+      prisma.paymentWebhookEvent.create.mockResolvedValue({ id: 'event-va' });
+      const result = await service.handleSepayWebhook('Apikey test-key', {
+        id: 92704,
+        accountNumber: '123456789',
+        subAccount,
+        transferType: 'in',
+        transferAmount: 120000,
+        content: 'CRTABC123456789',
+      });
+      expect(result.reason).toBe('ACCOUNT_MISMATCH');
+      expect(prisma.payment.findFirst).not.toHaveBeenCalled();
+      expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  // Không có VA thì QR tiếp tục dùng tài khoản chính, giữ nguyên số 0 đầu.
+  it('uses the configured receiving account when creating a QR', async () => {
+    const { service, prisma } = createService();
+    process.env.SEPAY_BANK_ACCOUNT = '00123456789';
+    process.env.SEPAY_ACCOUNT_NAME = 'NEW OWNER';
+    prisma.booking.findUnique.mockResolvedValue(pendingBooking);
+    prisma.payment.findFirst.mockResolvedValue({
+      id: 'payment-1',
+      providerRef: 'CRTNEW',
+      amount: 120000,
+      currency: 'VND',
+      status: 'PENDING',
+      expiredAt: pendingBooking.expiresAt,
+    });
+
+    const result = await service.createSepayPayment(
+      pendingBooking.id,
+      'user-1',
+    );
+
+    expect(result.accountName).toBe('NEW OWNER');
+    expect(result.bankAccount).toBe('00123456789');
+    expect(new URL(result.qrUrl).searchParams.get('acc')).toBe('00123456789');
   });
 
   it('marks payment as review required when SePay amount is mismatched', async () => {
@@ -209,6 +322,7 @@ describe('BookingsService SePay payment flow', () => {
 
     const result = await service.handleSepayWebhook('Apikey test-key', {
       id: 'txn-1',
+      accountNumber: '123456789',
       transferType: 'in',
       transferAmount: 100000,
       content: 'Thanh toan CRTABC123456789',
@@ -219,8 +333,8 @@ describe('BookingsService SePay payment flow', () => {
       reviewRequired: true,
       reason: 'AMOUNT_MISMATCH',
     });
-    expect(prisma.payment.update).toHaveBeenCalledWith({
-      where: { id: 'payment-1' },
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { status: 'PENDING', id: 'payment-1' },
       data: {
         status: 'REVIEW_REQUIRED',
         providerTransactionId: 'txn-1',
@@ -244,6 +358,7 @@ describe('BookingsService SePay payment flow', () => {
 
     const result = await service.handleSepayWebhook('Apikey test-key', {
       id: 'txn-old-qr',
+      accountNumber: '123456789',
       transferType: 'in',
       transferAmount: 120000,
       content: 'Thanh toan CRTOLDQR',
@@ -257,43 +372,50 @@ describe('BookingsService SePay payment flow', () => {
     expect(prisma.payment.update).not.toHaveBeenCalled();
   });
 
-  it('confirms booking when SePay webhook is valid', async () => {
-    const { service, prisma } = createService();
-    const payment = {
-      id: 'payment-1',
-      bookingId: pendingBooking.id,
-      providerRef: 'CRTABC123456789',
-      amount: 120000,
-      status: 'PENDING',
-      booking: pendingBooking,
-    };
-    prisma.paymentWebhookEvent.create.mockResolvedValue({ id: 'event-1' });
-    prisma.payment.findUnique.mockResolvedValue(null);
-    prisma.payment.findFirst.mockResolvedValue(payment);
-    prisma.paymentWebhookEvent.update.mockResolvedValue({});
-    jest
-      .spyOn(service as any, 'confirmPaidBookingPayment')
-      .mockResolvedValue(undefined);
+  it.each(['', '962400000001'])(
+    'confirms booking with matching VA configuration: %s',
+    async (virtualAccount) => {
+      process.env.SEPAY_VIRTUAL_ACCOUNT = virtualAccount;
+      const { service, prisma } = createService();
+      const payment = {
+        id: 'payment-1',
+        bookingId: pendingBooking.id,
+        providerRef: 'CRTABC123456789',
+        amount: 120000,
+        status: 'PENDING',
+        booking: pendingBooking,
+      };
+      prisma.paymentWebhookEvent.create.mockResolvedValue({ id: 'event-1' });
+      prisma.payment.findUnique.mockResolvedValue(null);
+      prisma.payment.findFirst.mockResolvedValue(payment);
+      prisma.paymentWebhookEvent.update.mockResolvedValue({});
+      jest
+        .spyOn(service as any, 'confirmPaidBookingPayment')
+        .mockResolvedValue(undefined);
 
-    const result = await service.handleSepayWebhook('Apikey test-key', {
-      id: 'txn-2',
-      transferType: 'in',
-      transferAmount: 120000,
-      content: 'Thanh toan CRTABC123456789',
-    });
+      const result = await service.handleSepayWebhook('Apikey test-key', {
+        id: 'txn-2',
+        accountNumber: '123456789',
+        subAccount: virtualAccount,
+        transferType: 'in',
+        transferAmount: 120000,
+        content: 'Thanh toan CRTABC123456789',
+      });
 
-    expect(result).toEqual({ success: true, bookingId: pendingBooking.id });
-    expect((service as any).confirmPaidBookingPayment).toHaveBeenCalledWith(
-      payment,
-      'CRTABC123456789',
-      'txn-2',
-    );
-  });
+      expect(result).toEqual({ success: true, bookingId: pendingBooking.id });
+      expect((service as any).confirmPaidBookingPayment).toHaveBeenCalledWith(
+        payment,
+        'CRTABC123456789',
+        'txn-2',
+      );
+    },
+  );
 });
 
 describe('BookingsService promotion flow', () => {
   const createService = () => {
     const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       booking: {
         findUnique: jest.fn(),
         updateMany: jest.fn(),
@@ -311,6 +433,7 @@ describe('BookingsService promotion flow', () => {
 
   const pendingBooking = {
     id: 'booking-promotion',
+    userId: 'user-1',
     status: 'PENDING',
     currency: 'VND',
     expiresAt: new Date(Date.now() + 10 * 60 * 1000),
@@ -333,9 +456,13 @@ describe('BookingsService promotion flow', () => {
     });
     tx.booking.updateMany.mockResolvedValue({ count: 1 });
 
-    const result = await service.applyPromotion('booking-promotion', {
-      code: 'uudai100',
-    });
+    const result = await service.applyPromotion(
+      'booking-promotion',
+      {
+        code: 'uudai100',
+      },
+      'user-1',
+    );
 
     expect(result).toMatchObject({
       originalAmount: 305000,
@@ -360,7 +487,11 @@ describe('BookingsService promotion flow', () => {
     tx.promotion.findUnique.mockResolvedValue(null);
 
     await expect(
-      service.applyPromotion('booking-promotion', { code: 'KHONGTONTAI' }),
+      service.applyPromotion(
+        'booking-promotion',
+        { code: 'KHONGTONTAI' },
+        'user-1',
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.payment.updateMany).not.toHaveBeenCalled();
     expect(tx.bookingPromotion.upsert).not.toHaveBeenCalled();
@@ -374,6 +505,7 @@ describe('BookingsService direct Admin ticket issuing', () => {
       booking: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'booking-customer',
+          userId: 'user-1',
           status: 'PENDING',
           totalAmount: 120000,
           user: { role: 'CUSTOMER' },
@@ -385,7 +517,7 @@ describe('BookingsService direct Admin ticket issuing', () => {
     };
     const service = new BookingsService(prisma as any, {} as any);
 
-    await expect(service.pay('booking-customer')).rejects.toThrow(
+    await expect(service.pay('booking-customer', 'user-1')).rejects.toThrow(
       'Chỉ booking Admin hoặc booking có ưu đãi toàn phần mới được phát hành vé 0 VND',
     );
   });
@@ -420,6 +552,7 @@ describe('BookingsService direct Admin ticket issuing', () => {
       ],
     };
     const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       showtimeSeat: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -436,6 +569,7 @@ describe('BookingsService direct Admin ticket issuing', () => {
       },
       ticket: { create: jest.fn().mockResolvedValue({}) },
       booking: {
+        findUnique: jest.fn().mockResolvedValue(booking),
         update: jest.fn().mockResolvedValue({
           id: booking.id,
           status: 'PAID',
@@ -460,7 +594,7 @@ describe('BookingsService direct Admin ticket issuing', () => {
     };
     const service = new BookingsService(prisma as any, seatHolds as any);
 
-    const result = await service.pay(booking.id);
+    const result = await service.pay(booking.id, booking.userId);
 
     expect(tx.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({

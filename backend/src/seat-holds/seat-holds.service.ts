@@ -2,6 +2,7 @@
  * Mục đích: Cài đặt nghiệp vụ giữ ghế tạm thời; dữ liệu bền vững được truy cập qua Prisma.
  */
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,12 +10,16 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { CreateSeatHoldDto } from './dto/create-seat-hold.dto';
+import {
+  ownsHold,
+  type HoldActor,
+  type SeatHoldOwner,
+  type UserHoldActor,
+} from './hold-actor';
 
-export type SeatHoldPayload = {
+export type SeatHoldPayload = SeatHoldOwner & {
   showtimeId: string;
   showtimeSeatId: string;
-  sessionId: string;
-  userId?: string;
   expiresAt: string;
 };
 
@@ -26,43 +31,46 @@ export type BookingHoldOwner = {
 
 const HOLD_SECONDS = 5 * 60;
 const HOLD_PREFIX = 'seat_hold';
-const UPSERT_OWNED_HOLD_SCRIPT = `
-local existing = redis.call('GET', KEYS[1])
-if existing then
-  local hold = cjson.decode(existing)
-  local ownedBySession = ARGV[1] ~= '' and hold.sessionId == ARGV[1]
-  local ownedByUser = ARGV[2] ~= '' and hold.userId == ARGV[2]
-  if not ownedBySession and not ownedByUser then return 0 end
+// Lua kiểm tra ownership tại Redis; chỉ acquire/bind được chuyển guest sang user.
+const HOLD_OWNERSHIP_SCRIPT = `
+local function owns(hold, allowTransfer)
+  if hold.ownerType == 'USER' then
+    return ARGV[1] == 'USER' and ARGV[2] ~= '' and hold.userId == ARGV[2]
+  end
+  if hold.ownerType == 'GUEST' then
+    return ARGV[3] ~= '' and hold.guestSessionId == ARGV[3]
+      and (ARGV[1] == 'GUEST' or allowTransfer)
+  end
+  return false
 end
-redis.call('SET', KEYS[1], ARGV[3], 'EX', ARGV[4])
+`;
+const UPSERT_OWNED_HOLD_SCRIPT = `${HOLD_OWNERSHIP_SCRIPT}
+local existing = redis.call('GET', KEYS[1])
+if existing and not owns(cjson.decode(existing), true) then return 0 end
+redis.call('SET', KEYS[1], ARGV[4], 'EX', ARGV[5])
 return 1
 `;
-const RELEASE_OWNED_HOLD_SCRIPT = `
+const RELEASE_OWNED_HOLD_SCRIPT = `${HOLD_OWNERSHIP_SCRIPT}
 local existing = redis.call('GET', KEYS[1])
 if not existing then return 0 end
-local hold = cjson.decode(existing)
-local ownedBySession = ARGV[1] ~= '' and hold.sessionId == ARGV[1]
-local ownedByUser = ARGV[2] ~= '' and hold.userId == ARGV[2]
-if not ownedBySession and not ownedByUser then return -1 end
+if not owns(cjson.decode(existing), false) then return -1 end
 return redis.call('DEL', KEYS[1])
 `;
-const BIND_HOLDS_TO_USER_SCRIPT = `
+const BIND_HOLDS_TO_USER_SCRIPT = `${HOLD_OWNERSHIP_SCRIPT}
 local holds = {}
 for index, key in ipairs(KEYS) do
   local existing = redis.call('GET', key)
   if not existing then return 0 end
   local hold = cjson.decode(existing)
-  local ownedBySession = ARGV[1] ~= '' and hold.sessionId == ARGV[1]
-  local ownedByUser = hold.userId == ARGV[2]
-  if hold.showtimeId ~= ARGV[3] or (not ownedBySession and not ownedByUser) then
-    return 0
-  end
+  if hold.showtimeId ~= ARGV[4] or not owns(hold, true) then return 0 end
   holds[index] = hold
 end
 for index, key in ipairs(KEYS) do
+  holds[index].ownerType = 'USER'
   holds[index].userId = ARGV[2]
-  holds[index].expiresAt = ARGV[4]
-  redis.call('SET', key, cjson.encode(holds[index]), 'EX', ARGV[5])
+  holds[index].guestSessionId = nil
+  holds[index].expiresAt = ARGV[5]
+  redis.call('SET', key, cjson.encode(holds[index]), 'EX', ARGV[6])
 end
 return 1
 `;
@@ -72,7 +80,7 @@ for _, key in ipairs(KEYS) do
   local existing = redis.call('GET', key)
   if existing then
     local hold = cjson.decode(existing)
-    if hold.showtimeId == ARGV[1] and hold.userId == ARGV[2] then
+    if hold.ownerType == 'USER' and hold.showtimeId == ARGV[1] and hold.userId == ARGV[2] then
       released = released + redis.call('DEL', key)
     end
   end
@@ -89,7 +97,8 @@ export class SeatHoldsService {
   ) {}
 
   // Áp dụng quy tắc ghế và quyền sở hữu giữ ghế trong khối hold.
-  async hold(dto: CreateSeatHoldDto) {
+  async hold(dto: CreateSeatHoldDto, actor?: HoldActor) {
+    const ownerArgs = this.ownerArgs(actor);
     const showtimeSeat = await this.prisma.showtimeSeat.findUnique({
       where: { id: dto.showtimeSeatId },
       select: { id: true, showtimeId: true, status: true },
@@ -109,49 +118,47 @@ export class SeatHoldsService {
     const payload: SeatHoldPayload = {
       showtimeId: dto.showtimeId,
       showtimeSeatId: dto.showtimeSeatId,
-      sessionId: dto.sessionId,
-      userId: dto.userId,
+      ...(actor!.type === 'USER'
+        ? { ownerType: 'USER' as const, userId: actor!.userId }
+        : {
+            ownerType: 'GUEST' as const,
+            guestSessionId: actor!.guestSessionId,
+          }),
       expiresAt,
     };
     const key = this.key(dto.showtimeId, dto.showtimeSeatId);
     const saved = await this.redis.eval(
       UPSERT_OWNED_HOLD_SCRIPT,
       [key],
-      [
-        dto.sessionId,
-        dto.userId || '',
-        JSON.stringify(payload),
-        String(HOLD_SECONDS),
-      ],
+      [...ownerArgs, JSON.stringify(payload), String(HOLD_SECONDS)],
     );
 
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (saved !== 1) {
-      throw new ConflictException('Seat is temporarily held by another customer');
+      throw new ConflictException(
+        'Seat is temporarily held by another customer',
+      );
     }
 
     return { held: true, expiresAt, ttlSeconds: HOLD_SECONDS };
   }
 
   // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối release.
-  async release(params: {
-    showtimeSeatId: string;
-    sessionId?: string;
-    userId?: string;
-  }) {
+  async release(showtimeSeatId: string, actor?: HoldActor) {
+    const ownerArgs = this.ownerArgs(actor);
     const seat = await this.prisma.showtimeSeat.findUnique({
-      where: { id: params.showtimeSeatId },
+      where: { id: showtimeSeatId },
       select: { showtimeId: true },
     });
     // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
     if (!seat) return { released: false };
-    const existing = await this.getHold(seat.showtimeId, params.showtimeSeatId);
+    const existing = await this.getHold(seat.showtimeId, showtimeSeatId);
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!existing) return { released: false };
     const released = await this.redis.eval(
       RELEASE_OWNED_HOLD_SCRIPT,
-      [this.key(existing.showtimeId, params.showtimeSeatId)],
-      [params.sessionId || '', params.userId || ''],
+      [this.key(existing.showtimeId, showtimeSeatId)],
+      ownerArgs,
     );
     // Đánh giá điều kiện để chọn nhánh xử lý phù hợp và tránh cập nhật sai trạng thái.
     if (released === -1) {
@@ -185,24 +192,30 @@ export class SeatHoldsService {
   async bindHoldsToUser(params: {
     showtimeId: string;
     showtimeSeatIds: string[];
-    sessionId: string;
-    userId: string;
+    actor: UserHoldActor;
+    expiresAt?: Date;
   }) {
-    const expiresAt = new Date(Date.now() + HOLD_SECONDS * 1000).toISOString();
+    const expiresAt =
+      params.expiresAt || new Date(Date.now() + HOLD_SECONDS * 1000);
+    const ttlSeconds = Math.max(
+      1,
+      Math.ceil((expiresAt.getTime() - Date.now()) / 1000),
+    );
     const keys = params.showtimeSeatIds.map((showtimeSeatId) =>
       this.key(params.showtimeId, showtimeSeatId),
     );
     const bound = await this.redis.eval(BIND_HOLDS_TO_USER_SCRIPT, keys, [
-      params.sessionId,
-      params.userId,
+      ...this.ownerArgs(params.actor),
       params.showtimeId,
-      expiresAt,
-      String(HOLD_SECONDS),
+      expiresAt.toISOString(),
+      String(ttlSeconds),
     ]);
 
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (bound !== 1) {
-      throw new ConflictException('One or more selected seats are no longer held');
+      throw new ConflictException(
+        'One or more selected seats are no longer held',
+      );
     }
   }
 
@@ -219,7 +232,7 @@ export class SeatHoldsService {
       if (
         !hold ||
         hold.showtimeId !== params.showtimeId ||
-        hold.userId !== params.userId
+        !ownsHold(hold, { type: 'USER', userId: params.userId })
       ) {
         throw new ConflictException('One or more seats are no longer held');
       }
@@ -259,9 +272,26 @@ export class SeatHoldsService {
     }
   }
 
+  // Không cho tạo hold vô chủ; userId chỉ đến từ guard, guest cần proof riêng.
+  private ownerArgs(actor?: HoldActor): string[] {
+    if (
+      !actor ||
+      (actor.type === 'GUEST' && !actor.guestSessionId) ||
+      (actor.type === 'USER' && !actor.userId)
+    ) {
+      throw new BadRequestException(
+        'Vui lòng cung cấp guestSessionId hoặc đăng nhập',
+      );
+    }
+    return [
+      actor.type,
+      actor.type === 'USER' ? actor.userId : '',
+      actor.guestSessionId || '',
+    ];
+  }
+
   // Thực hiện trách nhiệm riêng của khối key.
   private key(showtimeId: string, showtimeSeatId: string) {
     return `${HOLD_PREFIX}:${showtimeId}:${showtimeSeatId}`;
   }
-
 }

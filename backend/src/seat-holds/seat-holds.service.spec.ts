@@ -27,8 +27,7 @@ describe('SeatHoldsService', () => {
   const dto = {
     showtimeId: 'showtime-1',
     showtimeSeatId: 'showtime-seat-1',
-    sessionId: 'session-1',
-    userId: 'user-1',
+    guestSessionId: 'session-1',
   };
 
   // Thực hiện trách nhiệm riêng của khối beforeEach.
@@ -45,7 +44,7 @@ describe('SeatHoldsService', () => {
     });
     evalRedis.mockResolvedValue(1);
 
-    const result = await service.hold(dto);
+    const result = await service.hold(dto, { type: 'USER', userId: 'user-1' });
 
     expect(result.held).toBe(true);
     expect(result.ttlSeconds).toBe(300);
@@ -64,7 +63,7 @@ describe('SeatHoldsService', () => {
     });
     evalRedis.mockResolvedValue(0);
 
-    await expect(service.hold(dto)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.hold(dto, { type: 'USER', userId: 'user-1' })).rejects.toBeInstanceOf(ConflictException);
   });
 
   // Thực hiện trách nhiệm riêng của khối it.
@@ -75,7 +74,7 @@ describe('SeatHoldsService', () => {
       status: 'BOOKED',
     });
 
-    await expect(service.hold(dto)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.hold(dto, { type: 'USER', userId: 'user-1' })).rejects.toBeInstanceOf(ConflictException);
     expect(evalRedis).not.toHaveBeenCalled();
   });
 
@@ -86,8 +85,7 @@ describe('SeatHoldsService', () => {
     await service.bindHoldsToUser({
       showtimeId: dto.showtimeId,
       showtimeSeatIds: ['seat-1', 'seat-2'],
-      sessionId: dto.sessionId,
-      userId: dto.userId,
+      actor: { type: 'USER', userId: 'user-1', guestSessionId: dto.guestSessionId },
     });
 
     expect(evalRedis).toHaveBeenCalledTimes(1);

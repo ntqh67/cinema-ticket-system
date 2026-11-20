@@ -248,6 +248,23 @@ const AuthView = {
     Modal.show('Quên Mật Khẩu', content, { size: 'sm' });
   },
 
+  // Hiển thị form đặt mật khẩu mới khi người dùng mở liên kết từ email.
+  showResetPassword() {
+    const content = `
+      <form id="reset-form" onsubmit="AuthController.handleResetPassword(event)">
+        <div class="form-group">
+          <label class="form-label">Mật khẩu mới</label>
+          <input type="password" class="form-control" id="reset-password" autocomplete="new-password" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nhập lại mật khẩu mới</label>
+          <input type="password" class="form-control" id="reset-password-confirm" autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Đặt Lại Mật Khẩu</button>
+      </form>`;
+    Modal.show('Đặt Lại Mật Khẩu', content, { size: 'sm' });
+  },
+
   // Xử lý việc gỡ bỏ, hủy hoặc giải phóng dữ liệu trong khối clearErrors.
   clearErrors(form) {
     // Dừng hoặc đổi hướng luồng khi dữ liệu bắt buộc chưa sẵn sàng.

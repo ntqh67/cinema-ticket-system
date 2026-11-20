@@ -1,7 +1,15 @@
 /* CineTicket - Seat Model */
 const SeatModel = {
   async getByShowtime(showtimeId) {
-    const data = await API.getShowtimeSeats(showtimeId);
+    let data = await API.getShowtimeSeats(showtimeId);
+    // Sau đăng nhập, acquire chuyển hold guest sang user trước khi khôi phục lựa chọn.
+    const guestSeats = data.seats.filter((seat) => seat.claimableByMe);
+    if (guestSeats.length) {
+      await Promise.all(guestSeats.map((seat) => API.holdSeat({
+        showtimeId, showtimeSeatId: seat.showtimeSeatId,
+      })));
+      data = await API.getShowtimeSeats(showtimeId);
+    }
     const rowsByLabel = {};
 
     data.seats.forEach((item) => {

@@ -368,7 +368,7 @@ async function clearDatabase() {
   await prisma.movieReview.deleteMany();
   await prisma.genre.deleteMany();
   await prisma.movie.deleteMany();
-  await prisma.refreshToken.deleteMany();
+  await prisma.authSession.deleteMany();
   await prisma.user.deleteMany();
 }
 

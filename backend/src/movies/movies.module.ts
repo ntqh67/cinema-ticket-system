@@ -1,3 +1,4 @@
+import { AuthModule } from '../auth/auth.module';
 /**
  * Mục đích: Khai báo module NestJS và liên kết các thành phần của miền phim và đánh giá phim.
  */
@@ -7,6 +8,7 @@ import { MovieStatusService } from './movie-status.service';
 import { MoviesService } from './movies.service';
 
 @Module({
+  imports: [AuthModule],
   controllers: [MoviesController],
   providers: [MoviesService, MovieStatusService],
   exports: [MovieStatusService],

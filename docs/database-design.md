@@ -45,15 +45,17 @@ Cot quan trong:
 - `role`: phan quyen.
 - `isActive`: khoa/mo tai khoan.
 
-#### `refresh_tokens`
+#### `auth_sessions`
 
-Da co model de ho tro refresh token, nhung auth hien tai chua phat hanh JWT/session that.
+Auth dung opaque bearer session token; database chi luu SHA-256 hash.
 
-Khi lam auth that:
-
-- Luu hash refresh token vao `refresh_tokens`.
-- Thu hoi token bang `revokedAt`.
-- Xoa/vo hieu hoa token het han bang `expiresAt`.
+- Quan he User 1 - n AuthSession, bang vat ly `auth_sessions`.
+- Raw token ngau nhien 32 byte chi tra client khi register/login.
+- `revokedAt` thu hoi phien hien tai khi logout; `expiresAt` gioi han 7 ngay.
+- `lastUsedAt` cap nhat toi da moi 5 phut; tai khoan inactive bi tu choi.
+- AuthGuard xac thuc chung; RolesGuard phan quyen tu enum Role.
+- Customer lay danh tinh tu session va chi thao tac booking/ve cua minh.
+- Xem [bao cao refactor Identity](identity-auth-refactor.md) de biet API va migration.
 
 ### Movie Catalog
 
@@ -308,7 +310,7 @@ Rule:
 
 ```text
 User 1 - n Booking
-User 1 - n RefreshToken
+User 1 - n AuthSession
 User 1 - n MovieReview
 
 Movie n - n Genre qua MovieGenre
@@ -400,8 +402,8 @@ Schema hien tai da co nen tot:
 
 ### Uu tien cao
 
-1. Them JWT/session flow thuc su dua tren `refresh_tokens`.
-2. Them AuthGuard va RoleGuard de bao ve admin/staff API.
+1. Bo sung rate limiting cho login/register khi trien khai.
+2. Theo doi va don dep AuthSession het han theo chinh sach luu tru.
 3. Them idempotency cho payment callback.
 4. Them unique/index cho `payments.providerRef` neu providerRef duoc dung de lookup callback.
 5. Them constraint/rule kiem tra rating trong khoang 1-5 hoac 1-10.

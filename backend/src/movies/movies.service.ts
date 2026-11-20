@@ -1,12 +1,13 @@
 /**
  * Mục đích: Cài đặt nghiệp vụ phim và đánh giá phim; dữ liệu bền vững được truy cập qua Prisma.
  */
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { MovieStatus, Prisma } from '@prisma/client';
 import {
-  formatDateInDaNang,
-  formatTimeInDaNang,
-} from '../common/danang-date';
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MovieStatus, Prisma } from '@prisma/client';
+import { formatDateInDaNang, formatTimeInDaNang } from '../common/danang-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMovieReviewDto } from './dto/movie-review.dto';
 import { MovieStatusService } from './movie-status.service';
@@ -53,7 +54,9 @@ const showtimeInclude = {
   },
 } satisfies Prisma.ShowtimeInclude;
 
-type MovieWithInclude = Prisma.MovieGetPayload<{ include: typeof movieInclude }>;
+type MovieWithInclude = Prisma.MovieGetPayload<{
+  include: typeof movieInclude;
+}>;
 type ShowtimeWithInclude = Prisma.ShowtimeGetPayload<{
   include: typeof showtimeInclude;
 }>;
@@ -142,7 +145,9 @@ export class MoviesService {
         },
         orderBy: { updatedAt: 'desc' },
       }),
-      userId ? this.userHasPaidMovieBooking(userId, movieId) : Promise.resolve(false),
+      userId
+        ? this.userHasPaidMovieBooking(userId, movieId)
+        : Promise.resolve(false),
       userId
         ? this.prisma.movieReview.findUnique({
             where: {
@@ -164,7 +169,10 @@ export class MoviesService {
       reviews: reviews.map((review) => ({
         id: review.id,
         userId: review.userId,
-        userName: [review.user.firstName, review.user.lastName].filter(Boolean).join(' ') || 'User',
+        userName:
+          [review.user.firstName, review.user.lastName]
+            .filter(Boolean)
+            .join(' ') || 'User',
         rating: review.rating,
         comment: review.comment || '',
         createdAt: review.createdAt,
@@ -174,23 +182,29 @@ export class MoviesService {
   }
 
   // Tạo dữ liệu mới trong khối createReview và trả về kết quả đã chuẩn hóa.
-  async createReview(movieId: string, dto: CreateMovieReviewDto) {
+  async createReview(
+    movieId: string,
+    dto: CreateMovieReviewDto,
+    userId: string,
+  ) {
     await this.ensureMovie(movieId);
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
     // Kiểm tra danh tính hoặc quyền sở hữu trước khi thao tác trên dữ liệu.
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const canReview = await this.userHasPaidMovieBooking(dto.userId, movieId);
+    const canReview = await this.userHasPaidMovieBooking(userId, movieId);
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!canReview) {
-      throw new BadRequestException('Only paid customers can review this movie');
+      throw new BadRequestException(
+        'Only paid customers can review this movie',
+      );
     }
 
     const review = await this.prisma.movieReview.upsert({
       where: {
         userId_movieId: {
-          userId: dto.userId,
+          userId: userId,
           movieId,
         },
       },
@@ -199,7 +213,7 @@ export class MoviesService {
         comment: dto.comment || null,
       },
       create: {
-        userId: dto.userId,
+        userId: userId,
         movieId,
         rating: dto.rating,
         comment: dto.comment || null,
@@ -266,7 +280,10 @@ export class MoviesService {
       endAt: showtime.endAt,
       price: {
         normal: priceBySeatType.STANDARD ?? Number(showtime.basePrice),
-        couple: priceBySeatType.COUPLE ?? priceBySeatType.STANDARD ?? Number(showtime.basePrice),
+        couple:
+          priceBySeatType.COUPLE ??
+          priceBySeatType.STANDARD ??
+          Number(showtime.basePrice),
       },
       totalSeats,
       bookedSeats,
@@ -305,15 +322,18 @@ export class MoviesService {
 
   // Áp dụng quy tắc ghế và quyền sở hữu giữ ghế trong khối priceBySeatType.
   private priceBySeatType(showtimeSeats: ShowtimeWithInclude['showtimeSeats']) {
-    return showtimeSeats.reduce((prices, showtimeSeat) => {
-      const seatType = showtimeSeat.seat.type;
-      const price = Number(showtimeSeat.price);
-      // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
-      if (prices[seatType] === undefined || price < prices[seatType]) {
-        prices[seatType] = price;
-      }
-      return prices;
-    }, {} as Record<string, number>);
+    return showtimeSeats.reduce(
+      (prices, showtimeSeat) => {
+        const seatType = showtimeSeat.seat.type;
+        const price = Number(showtimeSeat.price);
+        // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
+        if (prices[seatType] === undefined || price < prices[seatType]) {
+          prices[seatType] = price;
+        }
+        return prices;
+      },
+      {} as Record<string, number>,
+    );
   }
 
   // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối mapMovieStatus.
@@ -335,7 +355,9 @@ export class MoviesService {
 
   // Kiểm tra điều kiện nghiệp vụ trong khối ensureMovie trước khi tiếp tục.
   private async ensureMovie(movieId: string) {
-    const movie = await this.prisma.movie.findUnique({ where: { id: movieId } });
+    const movie = await this.prisma.movie.findUnique({
+      where: { id: movieId },
+    });
     if (!movie) {
       throw new NotFoundException('Movie not found');
     }

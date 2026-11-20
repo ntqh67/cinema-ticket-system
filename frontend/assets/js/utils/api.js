@@ -393,7 +393,8 @@ const API = {
     return sessionId;
   },
 
-  async backendRequest(path, options = {}) {
+  // Gửi request tới backend; gặp 401 với access token hết hạn thì refresh một lần rồi gửi lại.
+  async backendRequest(path, options = {}, retried = false) {
     const currentUser = typeof State !== 'undefined' && State.get ? State.get('currentUser') : null;
     const authorization = currentUser?.accessToken
       ? { Authorization: `Bearer ${currentUser.accessToken}` }
@@ -408,6 +409,9 @@ const API = {
     });
     const text = await response.text();
     const payload = text ? JSON.parse(text) : null;
+    if (response.status === 401 && !retried && currentUser?.refreshToken && !path.startsWith('/auth/')) {
+      if (await this.refreshSession()) return this.backendRequest(path, options, true);
+    }
     if (!response.ok) {
       const message = payload && payload.message
         ? Array.isArray(payload.message) ? payload.message.join(', ') : payload.message
@@ -417,33 +421,82 @@ const API = {
     return payload;
   },
 
+  // Refresh token xoay vòng nên các lệnh refresh đồng thời phải dùng chung một promise.
+  refreshSession() {
+    if (!this._refreshPromise) {
+      this._refreshPromise = this._doRefresh().finally(() => { this._refreshPromise = null; });
+    }
+    return this._refreshPromise;
+  },
+
+  async _doRefresh() {
+    const user = State.get('currentUser');
+    try {
+      const response = await fetch(`${this.backendBaseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: user.refreshToken })
+      });
+      if (!response.ok) throw new Error('refresh failed');
+      const tokens = await response.json();
+      const updated = { ...user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+      State.set('currentUser', updated);
+      State.persist('currentUser');
+      return true;
+    } catch (error) {
+      // Refresh thất bại nghĩa là phiên đã bị thu hồi hoặc hết hạn: bắt đăng nhập lại.
+      State.clearUser();
+      if (typeof Router !== 'undefined') Router.navigate('/login');
+      return false;
+    }
+  },
+
+  // Thu hồi phiên ở backend; lỗi mạng không được chặn việc đăng xuất cục bộ.
+  logoutBackend() {
+    const user = State.get('currentUser');
+    if (!user?.refreshToken) return;
+    fetch(`${this.backendBaseUrl}/auth/logout/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: user.refreshToken })
+    }).catch(() => {});
+  },
+
+  forgotPassword(email) {
+    return this.backendRequest('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+  },
+
+  resetPassword(token, newPassword) {
+    return this.backendRequest('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) });
+  },
+
+  changePassword(currentPassword, newPassword) {
+    return this.backendRequest('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+  },
+
   getShowtimeSeats(showtimeId) {
     const params = new URLSearchParams({
-      sessionId: this.getSeatHoldSessionId(),
+      guestSessionId: this.getSeatHoldSessionId(),
     });
-    const user = State && State.get ? State.get('currentUser') : null;
-    if (user && user.backendUserId) params.set('userId', user.backendUserId);
+
     return this.backendRequest(`/showtimes/${showtimeId}/seats?${params.toString()}`);
   },
 
   holdSeat(data) {
-    const user = State && State.get ? State.get('currentUser') : null;
     return this.backendRequest('/seat-holds', {
       method: 'POST',
       body: JSON.stringify({
         ...data,
-        sessionId: this.getSeatHoldSessionId(),
-        userId: user && user.backendUserId ? user.backendUserId : undefined,
+        guestSessionId: this.getSeatHoldSessionId(),
       })
     });
   },
 
   releaseSeat(showtimeSeatId) {
     const params = new URLSearchParams({
-      sessionId: this.getSeatHoldSessionId(),
+      guestSessionId: this.getSeatHoldSessionId(),
     });
-    const user = State && State.get ? State.get('currentUser') : null;
-    if (user && user.backendUserId) params.set('userId', user.backendUserId);
+
     return this.backendRequest(`/seat-holds/${showtimeSeatId}?${params.toString()}`, {
       method: 'DELETE'
     });

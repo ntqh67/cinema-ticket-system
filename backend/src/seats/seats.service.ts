@@ -8,6 +8,7 @@ import {
 } from '../common/danang-date';
 import { PrismaService } from '../prisma/prisma.service';
 import { SeatHoldsService } from '../seat-holds/seat-holds.service';
+import { ownsHold, type HoldActor } from '../seat-holds/hold-actor';
 
 @Injectable()
 // Lớp SeatsService tập trung các quy tắc nghiệp vụ và phối hợp truy cập dữ liệu.
@@ -18,10 +19,7 @@ export class SeatsService {
   ) {}
 
   // Dựng phần giao diện tương ứng trong khối findByShowtime.
-  async findByShowtime(
-    showtimeId: string,
-    viewer: { sessionId?: string; userId?: string } = {},
-  ) {
+  async findByShowtime(showtimeId: string, viewer?: HoldActor) {
     const showtime = await this.prisma.showtime.findUnique({
       where: { id: showtimeId },
       include: {
@@ -100,10 +98,7 @@ export class SeatsService {
       },
       seats: showtimeSeats.map((showtimeSeat) => {
         const hold = holdsBySeatId.get(showtimeSeat.id);
-        const heldByMe =
-          !!hold &&
-          ((viewer.sessionId && hold.sessionId === viewer.sessionId) ||
-            (viewer.userId && hold.userId === viewer.userId));
+        const heldByMe = !!hold && ownsHold(hold, viewer);
 
         return {
           showtimeSeatId: showtimeSeat.id,
@@ -113,10 +108,20 @@ export class SeatsService {
           position: showtimeSeat.seat.position,
           type: showtimeSeat.seat.type,
           price: Number(showtimeSeat.price),
-          status: hold && showtimeSeat.status === 'AVAILABLE'
-            ? 'HELD'
-            : showtimeSeat.status,
+          status:
+            hold && showtimeSeat.status === 'AVAILABLE'
+              ? 'HELD'
+              : showtimeSeat.status,
           heldByMe,
+          // Proof guest chỉ cho phép client yêu cầu acquire để chuyển quyền nguyên tử.
+          claimableByMe:
+            !!hold &&
+            viewer?.type === 'USER' &&
+            !!viewer.guestSessionId &&
+            ownsHold(hold, {
+              type: 'GUEST',
+              guestSessionId: viewer.guestSessionId,
+            }),
           holdExpiresAt: hold?.expiresAt || null,
         };
       }),

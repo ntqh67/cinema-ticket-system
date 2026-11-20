@@ -9,10 +9,11 @@ Can cau hinh trong `.env`:
 
 ```env
 SEPAY_ENABLED="true"
-SEPAY_BANK_ACCOUNT="SO_TAI_KHOAN_NHAN_TIEN"
+SEPAY_BANK_ACCOUNT="SO_TAI_KHOAN_CHINH"
+SEPAY_VIRTUAL_ACCOUNT="SO_VA_NHAN_TIEN_HOAC_DE_TRONG"
 SEPAY_BANK_CODE="MA_NGAN_HANG"
 SEPAY_ACCOUNT_NAME="TEN_CHU_TAI_KHOAN"
-SEPAY_API_KEY="API_KEY_CUA_SEPAY"
+SEPAY_API_KEY="KHOA_BAO_MAT_WEBHOOK_TU_DAT"
 SEPAY_PAYMENT_PREFIX="CRT"
 SEPAY_WEBHOOK_URL="https://xxxxx.ngrok-free.dev/api/bookings/sepay-webhook"
 BOOKING_HOLD_MINUTES="10"
@@ -108,6 +109,8 @@ Dung khi can test backend ma khong chuyen khoan that. Lay so tien va noi dung
 $headers = @{ Authorization = "Apikey <SEPAY_API_KEY>" }
 $body = @{
   id = "TXN-TEST-001"
+  accountNumber = "SO_TAI_KHOAN_CHINH"
+  subAccount = "SO_VA_HOAC_CHUOI_RONG"
   transferType = "in"
   transferAmount = 180000
   content = "Thanh toan CRT_MA_DANG_HIEN_TREN_QR"
@@ -142,3 +145,27 @@ Booking het han:
 
 - Mac dinh giu booking 10 phut.
 - Het han thi booking/payment thanh `EXPIRED`, can tao booking moi.
+
+
+## Chuyển sang BIDV cá nhân dùng VA
+
+- `SEPAY_BANK_ACCOUNT`: tài khoản chính đã liên kết với SePay.
+- `SEPAY_VIRTUAL_ACCOUNT`: số VA đang hoạt động; QR và thông tin chuyển khoản dùng số này.
+- `SEPAY_BANK_CODE`: `BIDV`.
+- `SEPAY_ACCOUNT_NAME`: tên chủ tài khoản.
+- Webhook phải có `accountNumber` khớp tài khoản chính và `subAccount` khớp VA.
+  Sai hoặc thiếu VA thì trả `ACCOUNT_MISMATCH`, không phát hành vé.
+- Khóa trong `SEPAY_API_KEY` là khóa xác thực webhook, phải giống giá trị nhập
+  trong cấu hình API Key của webhook. Không đưa khóa vào frontend hoặc Git.
+- `SEPAY_WEBHOOK_URL` chỉ ghi lại URL để cấu hình; ứng dụng không tự đăng ký webhook với SePay.
+
+Khi chuyển tài khoản, xử lý/đối soát các đơn cũ trước, không dùng lại QR cũ.
+Tạm đặt `SEPAY_ENABLED="false"` trong lúc cấu hình. Tạo webhook nhận **Tiền vào**,
+JSON, chọn đúng tài khoản BIDV và VA, xác thực **API Key**, URL HTTPS công khai
+kết thúc bằng `/api/bookings/sepay-webhook`. Sau khi kết nối được webhook,
+bật `SEPAY_ENABLED="true"` và khởi động lại backend. Tạo booking mới để thử.
+Không dùng tài khoản admin miễn phí để kiểm tra chuyển khoản thực tế.
+
+Tài liệu chính thức:
+- https://developer.sepay.vn/vi/sepay-webhooks/tich-hop-webhook
+- https://developer.sepay.vn/vi/sepay-webhooks/tai-khoan-ngan-hang

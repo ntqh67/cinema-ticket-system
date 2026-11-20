@@ -27,11 +27,15 @@ import {
   UpdateShowtimeDto,
   UpsertCinemaTicketPriceDto,
 } from './dto/admin.dto';
-import { AdminGuard } from './admin.guard';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@UseGuards(AdminGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
 @Controller('admin')
 // Lớp AdminController nhận thao tác từ HTTP hoặc giao diện và chuyển chúng tới lớp nghiệp vụ phù hợp.
 export class AdminController {

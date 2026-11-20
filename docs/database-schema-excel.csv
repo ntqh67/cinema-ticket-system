@@ -8,12 +8,13 @@ User & Auth,users,role,Role,Index,,Vai tro CUSTOMER / ADMIN / STAFF
 User & Auth,users,isActive,Boolean,,,Trang thai tai khoan
 User & Auth,users,createdAt,DateTime,,,Ngay tao
 User & Auth,users,updatedAt,DateTime,,,Ngay cap nhat
-User & Auth,refresh_tokens,id,String,Primary key,,Ma refresh token
-User & Auth,refresh_tokens,tokenHash,String,Unique,,Refresh token da hash
-User & Auth,refresh_tokens,userId,String,Foreign key,users.id,User so huu token
-User & Auth,refresh_tokens,expiresAt,DateTime,Index,,Thoi diem het han
-User & Auth,refresh_tokens,revokedAt,DateTime?,, ,Thoi diem thu hoi token
-User & Auth,refresh_tokens,createdAt,DateTime,,,Ngay tao
+User & Auth,auth_sessions,id,String,Primary key,,Ma session token
+User & Auth,auth_sessions,tokenHash,String,Unique,,Session token da hash
+User & Auth,auth_sessions,userId,String,Foreign key,users.id,User so huu token
+User & Auth,auth_sessions,expiresAt,DateTime,Index,,Thoi diem het han
+User & Auth,auth_sessions,revokedAt,DateTime?,, ,Thoi diem thu hoi token
+User & Auth,auth_sessions,createdAt,DateTime,,,Ngay tao
+User & Auth,auth_sessions,lastUsedAt,DateTime?,,,Lan su dung phien gan nhat
 Movie,movies,id,String,Primary key,,Ma phim
 Movie,movies,tmdbId,Int?,Index,,Ma phim tren TMDB
 Movie,movies,title,String,Index,,Ten phim

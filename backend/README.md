@@ -57,6 +57,24 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Kiểm thử tính nhất quán booking
+
+`npm run test:integrity` chạy service và Lua thật với PostgreSQL/Redis riêng,
+kiểm tra giữ ghế, callback SePay lặp, thao tác đồng thời, snapshot giá và bảo toàn vé.
+Không gửi giao dịch đến SePay. Cần tạo database `cinema_integrity_test` và áp dụng
+migrations trước khi chạy; không dùng database/Redis đang phục vụ ứng dụng.
+
+```bash
+# Chạy từ thư mục backend; thay tài khoản/cổng bằng dịch vụ kiểm thử của bạn.
+export INTEGRITY_DATABASE_URL='postgresql://USER@127.0.0.1:55439/cinema_integrity_test'
+export INTEGRITY_REDIS_URL='redis://127.0.0.1:56389'
+DATABASE_URL="$INTEGRITY_DATABASE_URL" npx prisma migrate deploy --schema ../prisma/schema.prisma
+npm run test:integrity
+```
+
+Booking giữ giá tại thời điểm tạo; cập nhật bảng giá chỉ áp dụng cho booking mới.
+Phòng đã có suất chiếu không được tạo lại sơ đồ. Suất đã có booking không được sửa/xóa.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

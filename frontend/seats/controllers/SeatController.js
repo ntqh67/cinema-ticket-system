@@ -108,10 +108,9 @@ const SeatController = {
 
     try {
       const booking = await BookingModel.create({
-        userId: API.getBackendUserId(),
         showtimeId: this.currentShowtime.id,
         showtimeSeatIds: this.selectedSeats.map((seat) => seat.showtimeSeatId),
-        sessionId: API.getSeatHoldSessionId(),
+        guestSessionId: API.getSeatHoldSessionId(),
       });
       const bookingItems = new Map(
         (booking.items || []).map(item => [item.showtimeSeatId, item]),

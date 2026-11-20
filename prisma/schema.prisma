@@ -75,21 +75,24 @@ enum TicketStatus {
 
 // Mô hình người dùng và vai trò truy cập.
 model User {
-  id            String            @id @default(cuid())
-  username      String?           @unique
-  email         String            @unique
-  passwordHash  String
-  firstName     String?
-  lastName      String?
-  phone         String?
-  role          Role              @default(CUSTOMER)
-  isActive      Boolean           @default(true)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  bookings      Booking[]
-  refreshTokens RefreshToken[]
-  movieReviews  MovieReview[]
-  attendances   StaffAttendance[]
+  id                  String               @id @default(cuid())
+  username            String?              @unique
+  email               String               @unique
+  passwordHash        String
+  firstName           String?
+  lastName            String?
+  phone               String?
+  role                Role                 @default(CUSTOMER)
+  isActive            Boolean              @default(true)
+  // Tăng khi đổi/đặt lại mật khẩu để vô hiệu mọi access token đã phát hành.
+  authVersion         Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  bookings            Booking[]
+  authSessions        AuthSession[]
+  passwordResetTokens PasswordResetToken[]
+  movieReviews        MovieReview[]
+  attendances         StaffAttendance[]
 
   @@index([email])
   @@index([role])
@@ -114,19 +117,51 @@ model StaffAttendance {
   @@map("staff_attendances")
 }
 
-// Mô hình refresh token phục vụ phiên đăng nhập.
-model RefreshToken {
-  id        String    @id @default(cuid())
-  tokenHash String    @unique
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+// Phiên đăng nhập opaque; chỉ lưu hash của bearer token.
+// Một lần đăng nhập = một family (sid); thu hồi family sẽ vô hiệu mọi token của nó.
+model AuthSession {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  refreshTokens RefreshToken[]
 
   @@index([userId])
   @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+// Refresh token xoay vòng: chỉ lưu SHA-256, đã tiêu (consumedAt) mà dùng lại thì thu hồi family.
+model RefreshToken {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tokenHash  String      @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime    @default(now())
+
+  @@index([sessionId])
+  @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+// Token đặt lại mật khẩu gửi qua email: dùng một lần, chỉ lưu SHA-256.
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 // Mô hình phim và thông tin trình chiếu.

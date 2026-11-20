@@ -1,3 +1,4 @@
+import { Password } from '../../auth/dto/password.decorator';
 /**
  * Mục đích: Định nghĩa dữ liệu đầu vào và các quy tắc kiểm tra cho miền quản trị.
  */
@@ -33,8 +34,7 @@ export class CreateStaffDto {
   phone?: string;
 
   @ApiProperty()
-  @IsString()
-  @MinLength(6)
+  @Password()
   password: string;
 }
 

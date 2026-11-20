@@ -4,6 +4,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -12,6 +13,7 @@ import { createHmac, randomUUID } from 'crypto';
 import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { lockShowtime } from '../common/showtime-lock';
 import { SeatHoldsService } from '../seat-holds/seat-holds.service';
 import { CheckInTicketDto } from './dto/check-in-ticket.dto';
 import { ApplyBookingPromotionDto } from './dto/apply-booking-promotion.dto';
@@ -77,6 +79,7 @@ type PaymentBooking = Pick<
 type SepayConfig = {
   enabled: boolean;
   bankAccount: string;
+  virtualAccount: string;
   bankCode: string;
   accountName: string;
   apiKey: string;
@@ -85,6 +88,8 @@ type SepayConfig = {
 
 type NormalizedSepayWebhook = {
   transactionId: string;
+  accountNumber: string;
+  subAccount: string;
   providerRef: string | null;
   amount: number;
   direction: string;
@@ -99,6 +104,44 @@ export class BookingsService {
     private readonly prisma: PrismaService,
     private readonly seatHoldsService: SeatHoldsService,
   ) {}
+
+  // Booking không đổi chủ trong hệ thống; mọi thao tác customer phải khớp session.
+  private assertBookingOwner(booking: { userId: string }, userId: string) {
+    if (!userId || booking.userId !== userId) {
+      throw new ForbiddenException('Booking không thuộc tài khoản của bạn');
+    }
+  }
+
+  // Khóa booking trước payment/ghế để mọi thay đổi của cùng đơn được tuần tự hóa.
+  private async lockBooking(tx: Prisma.TransactionClient, bookingId: string) {
+    await tx.$queryRaw`SELECT "id" FROM "bookings" WHERE "id" = ${bookingId} FOR UPDATE`;
+  }
+
+  // Đọc lại sau khóa, không dùng trạng thái hoặc giá chụp trước transaction.
+  private async requirePendingBooking(
+    tx: Prisma.TransactionClient,
+    bookingId: string,
+    userId: string,
+    expectedAmount?: Prisma.Decimal,
+  ) {
+    await this.lockBooking(tx, bookingId);
+    const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) throw new NotFoundException('Booking not found');
+    this.assertBookingOwner(booking, userId);
+    if (booking.status !== 'PENDING') {
+      throw new ConflictException('Booking không còn chờ thanh toán');
+    }
+    if (booking.expiresAt && booking.expiresAt <= new Date()) {
+      throw new ConflictException('Booking has expired');
+    }
+    if (
+      expectedAmount !== undefined &&
+      !new Prisma.Decimal(booking.totalAmount).equals(expectedAmount)
+    ) {
+      throw new ConflictException('Giá booking đã thay đổi, vui lòng tải lại');
+    }
+    return booking;
+  }
 
   // Đọc và lọc dữ liệu cần thiết trong khối getPaymentMethods.
   getPaymentMethods() {
@@ -116,95 +159,100 @@ export class BookingsService {
   }
 
   // Tạo dữ liệu mới trong khối create và trả về kết quả đã chuẩn hóa.
-  async create(createBookingDto: CreateBookingDto) {
-    const { userId, showtimeId } = createBookingDto;
-    const showtimeSeatIds = [...new Set(createBookingDto.showtimeSeatIds)];
+  async create(createBookingDto: CreateBookingDto, userId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const { showtimeId } = createBookingDto;
+      await lockShowtime(tx, showtimeId);
+      const showtimeSeatIds = [...new Set(createBookingDto.showtimeSeatIds)];
 
-    // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
-    if (showtimeSeatIds.length !== createBookingDto.showtimeSeatIds.length) {
-      throw new BadRequestException('Duplicate seats are not allowed');
-    }
+      // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
+      if (showtimeSeatIds.length !== createBookingDto.showtimeSeatIds.length) {
+        throw new BadRequestException('Duplicate seats are not allowed');
+      }
 
-    const [user, showtime] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, role: true },
-      }),
-      this.prisma.showtime.findUnique({
-        where: { id: showtimeId },
-        select: { id: true },
-      }),
-    ]);
+      const [user, showtime] = await Promise.all([
+        tx.user.findUnique({
+          where: { id: userId },
+          select: { id: true, role: true },
+        }),
+        tx.showtime.findUnique({
+          where: { id: showtimeId },
+          select: { id: true },
+        }),
+      ]);
 
-    // Kiểm tra danh tính hoặc quyền sở hữu trước khi thao tác trên dữ liệu.
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+      // Kiểm tra danh tính hoặc quyền sở hữu trước khi thao tác trên dữ liệu.
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
-    // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
-    if (!showtime) {
-      throw new NotFoundException('Showtime not found');
-    }
+      // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
+      if (!showtime) {
+        throw new NotFoundException('Showtime not found');
+      }
 
-    const showtimeSeats = await this.prisma.showtimeSeat.findMany({
-      where: {
-        id: {
-          in: showtimeSeatIds,
+      const showtimeSeats = await tx.showtimeSeat.findMany({
+        where: {
+          id: {
+            in: showtimeSeatIds,
+          },
         },
-      },
-      include: {
-        seat: true,
-      },
-    });
+        include: {
+          seat: true,
+        },
+      });
 
-    // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
-    if (showtimeSeats.length !== showtimeSeatIds.length) {
-      throw new NotFoundException('One or more seats were not found');
-    }
+      // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
+      if (showtimeSeats.length !== showtimeSeatIds.length) {
+        throw new NotFoundException('One or more seats were not found');
+      }
 
-    const wrongShowtimeSeat = showtimeSeats.find(
-      (showtimeSeat) => showtimeSeat.showtimeId !== showtimeId,
-    );
-
-    // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
-    if (wrongShowtimeSeat) {
-      throw new BadRequestException(
-        'One or more seats do not belong to this showtime',
+      const wrongShowtimeSeat = showtimeSeats.find(
+        (showtimeSeat) => showtimeSeat.showtimeId !== showtimeId,
       );
-    }
 
-    const unavailableSeat = showtimeSeats.find(
-      (showtimeSeat) => showtimeSeat.status !== 'AVAILABLE',
-    );
+      // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
+      if (wrongShowtimeSeat) {
+        throw new BadRequestException(
+          'One or more seats do not belong to this showtime',
+        );
+      }
 
-    // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
-    if (unavailableSeat) {
-      throw new ConflictException('One or more seats are not available');
-    }
+      const unavailableSeat = showtimeSeats.find(
+        (showtimeSeat) => showtimeSeat.status !== 'AVAILABLE',
+      );
 
-    await this.validateNoOrphanStandardSeat(showtimeId, showtimeSeats);
+      // Kiểm tra trạng thái và ràng buộc ghế trước khi thay đổi booking.
+      if (unavailableSeat) {
+        throw new ConflictException('One or more seats are not available');
+      }
 
-    const pricedSeats = showtimeSeats.map((showtimeSeat) => ({
-      showtimeSeat,
-      unitPrice: ticketPriceForRole(Number(showtimeSeat.price), user.role),
-    }));
-    const totalAmount = pricedSeats.reduce(
-      (sum, item) => sum + item.unitPrice,
-      0,
-    );
-    const expiresAt = new Date(
-      Date.now() + this.getBookingHoldMinutes() * 60 * 1000,
-    );
+      await this.validateNoOrphanStandardSeat(showtimeId, showtimeSeats);
 
-    await this.seatHoldsService.bindHoldsToUser({
-      showtimeId,
-      showtimeSeatIds,
-      sessionId: createBookingDto.sessionId,
-      userId,
-    });
+      const pricedSeats = showtimeSeats.map((showtimeSeat) => ({
+        showtimeSeat,
+        unitPrice: ticketPriceForRole(Number(showtimeSeat.price), user.role),
+      }));
+      const totalAmount = pricedSeats.reduce(
+        (sum, item) => sum + item.unitPrice,
+        0,
+      );
+      const expiresAt = new Date(
+        Date.now() + this.getBookingHoldMinutes() * 60 * 1000,
+      );
 
-    const booking = await this.prisma.$transaction(async (tx) =>
-      tx.booking.create({
+      await this.seatHoldsService.bindHoldsToUser({
+        showtimeId,
+        showtimeSeatIds,
+        actor: {
+          type: 'USER',
+          userId,
+          guestSessionId: createBookingDto.guestSessionId,
+        },
+        expiresAt,
+      });
+
+      const booking = await tx.booking.create({
         data: {
           userId,
           showtimeId,
@@ -246,29 +294,29 @@ export class BookingsService {
             ],
           },
         },
-      }),
-    );
+      });
 
-    return {
-      id: booking.id,
-      status: booking.status,
-      totalAmount: Number(booking.totalAmount),
-      seatSubtotal: Number(booking.totalAmount),
-      comboSubtotal: 0,
-      accountRole: user.role,
-      ticketDiscountPercent: ticketDiscountPercent(user.role),
-      currency: booking.currency,
-      expiresAt: booking.expiresAt,
-      comboItems: [],
-      items: booking.bookingItems.map((bookingItem) => ({
-        id: bookingItem.id,
-        showtimeSeatId: bookingItem.showtimeSeatId,
-        row: bookingItem.showtimeSeat.seat.row,
-        number: bookingItem.showtimeSeat.seat.number,
-        type: bookingItem.showtimeSeat.seat.type,
-        unitPrice: Number(bookingItem.unitPrice),
-      })),
-    };
+      return {
+        id: booking.id,
+        status: booking.status,
+        totalAmount: Number(booking.totalAmount),
+        seatSubtotal: Number(booking.totalAmount),
+        comboSubtotal: 0,
+        accountRole: user.role,
+        ticketDiscountPercent: ticketDiscountPercent(user.role),
+        currency: booking.currency,
+        expiresAt: booking.expiresAt,
+        comboItems: [],
+        items: booking.bookingItems.map((bookingItem) => ({
+          id: bookingItem.id,
+          showtimeSeatId: bookingItem.showtimeSeatId,
+          row: bookingItem.showtimeSeat.seat.row,
+          number: bookingItem.showtimeSeat.seat.number,
+          type: bookingItem.showtimeSeat.seat.type,
+          unitPrice: Number(bookingItem.unitPrice),
+        })),
+      };
+    });
   }
 
   // Kiểm tra điều kiện nghiệp vụ trong khối validateNoOrphanStandardSeat trước khi tiếp tục.
@@ -358,7 +406,11 @@ export class BookingsService {
   }
 
   // Cập nhật trạng thái hoặc dữ liệu trong khối updateBookingCombos.
-  async updateBookingCombos(bookingId: string, dto: UpdateBookingCombosDto) {
+  async updateBookingCombos(
+    bookingId: string,
+    dto: UpdateBookingCombosDto,
+    userId: string,
+  ) {
     const items = dto.items || [];
     const normalizedItems = items.filter((item) => item.quantity > 0);
     const comboIds = normalizedItems.map((item) => item.comboId);
@@ -376,6 +428,7 @@ export class BookingsService {
     });
     // Chặn luồng hiện tại khi dữ liệu hoặc điều kiện bắt buộc chưa được đáp ứng.
     if (!booking) throw new NotFoundException('Booking not found');
+    this.assertBookingOwner(booking, userId);
     // Rẽ nhánh theo trạng thái hiện tại để chỉ cho phép luồng nghiệp vụ hợp lệ.
     if (booking.status !== 'PENDING') {
       throw new BadRequestException('Only pending bookings can be updated');
@@ -402,6 +455,7 @@ export class BookingsService {
     }, 0);
 
     const updatedBooking = await this.prisma.$transaction(async (tx) => {
+      await this.requirePendingBooking(tx, bookingId, userId);
       // Combo thay đổi làm ảnh chụp ưu đãi cũ hết hiệu lực; khách phải áp lại mã trên tổng tiền mới.
       await tx.bookingPromotion.deleteMany({ where: { bookingId } });
       await tx.payment.updateMany({
@@ -457,11 +511,16 @@ export class BookingsService {
   }
 
   // Áp mã ưu đãi từ PostgreSQL và chốt lại tổng tiền booking trong cùng transaction.
-  async applyPromotion(bookingId: string, dto: ApplyBookingPromotionDto) {
+  async applyPromotion(
+    bookingId: string,
+    dto: ApplyBookingPromotionDto,
+    userId: string,
+  ) {
     const normalizedCode = dto.code.trim().toUpperCase();
-    const now = new Date();
 
     return this.prisma.$transaction(async (tx) => {
+      await this.lockBooking(tx, bookingId);
+      const now = new Date();
       const [booking, promotion] = await Promise.all([
         tx.booking.findUnique({
           where: { id: bookingId },
@@ -474,6 +533,7 @@ export class BookingsService {
       ]);
 
       if (!booking) throw new NotFoundException('Booking not found');
+      this.assertBookingOwner(booking, userId);
       if (booking.status !== 'PENDING') {
         throw new BadRequestException(
           'Chỉ có thể áp mã cho booking đang chờ thanh toán',
@@ -557,7 +617,7 @@ export class BookingsService {
   }
 
   // Thực hiện bước thanh toán trong khối pay với kiểm tra trạng thái an toàn.
-  async pay(bookingId: string) {
+  async pay(bookingId: string, userId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -597,6 +657,7 @@ export class BookingsService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+    this.assertBookingOwner(booking, userId);
 
     const isZeroAmount = Number(booking.totalAmount) === 0;
     const isAdminFreeBooking = booking.user.role === 'ADMIN' && isZeroAmount;
@@ -666,13 +727,19 @@ export class BookingsService {
       (bookingItem) => bookingItem.showtimeSeatId,
     );
 
-    await this.seatHoldsService.verifyBookingHolds({
-      userId: booking.userId,
-      showtimeId: booking.showtimeId,
-      showtimeSeatIds,
-    });
-
     const paidBooking = await this.prisma.$transaction(async (tx) => {
+      await this.requirePendingBooking(
+        tx,
+        bookingId,
+        userId,
+        booking.totalAmount,
+      );
+      await this.seatHoldsService.verifyBookingHolds({
+        userId: booking.userId,
+        showtimeId: booking.showtimeId,
+        showtimeSeatIds,
+      });
+
       const updatedSeats = await tx.showtimeSeat.updateMany({
         where: {
           id: {
@@ -1018,7 +1085,7 @@ export class BookingsService {
   }
 
   // Đọc và lọc dữ liệu cần thiết trong khối findOne.
-  async findOne(bookingId: string) {
+  async findOne(bookingId: string, userId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: this.bookingDetailInclude(),
@@ -1027,12 +1094,13 @@ export class BookingsService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+    this.assertBookingOwner(booking, userId);
 
     return this.mapBookingDetail(booking);
   }
 
   // Kiểm tra điều kiện nghiệp vụ trong khối cancel trước khi tiếp tục.
-  async cancel(bookingId: string) {
+  async cancel(bookingId: string, userId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -1043,6 +1111,7 @@ export class BookingsService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+    this.assertBookingOwner(booking, userId);
 
     if (booking.status !== 'PENDING') {
       throw new BadRequestException('Only pending bookings can be cancelled');
@@ -1052,15 +1121,20 @@ export class BookingsService {
       (bookingItem) => bookingItem.showtimeSeatId,
     );
 
-    const cancelledBooking = await this.prisma.$transaction(async (tx) =>
-      tx.booking.update({
+    const cancelledBooking = await this.prisma.$transaction(async (tx) => {
+      await this.requirePendingBooking(tx, bookingId, userId);
+      await tx.payment.updateMany({
+        where: { bookingId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+      return tx.booking.update({
         where: { id: booking.id },
         data: {
           status: 'CANCELLED',
           expiresAt: null,
         },
-      }),
-    );
+      });
+    });
 
     await this.seatHoldsService.releaseBookingHolds([
       {
@@ -1086,7 +1160,11 @@ export class BookingsService {
   }
 
   // Tạo dữ liệu mới trong khối createVnpayPayment và trả về kết quả đã chuẩn hóa.
-  async createVnpayPayment(bookingId: string, request: Request) {
+  async createVnpayPayment(
+    bookingId: string,
+    request: Request,
+    userId: string,
+  ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -1101,6 +1179,7 @@ export class BookingsService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+    this.assertBookingOwner(booking, userId);
 
     if (booking.status !== 'PENDING') {
       throw new BadRequestException('Only pending bookings can be paid');
@@ -1174,7 +1253,11 @@ export class BookingsService {
   }
 
   // Thực hiện bước thanh toán trong khối onlineDemoPay với kiểm tra trạng thái an toàn.
-  async onlineDemoPay(bookingId: string, provider: OnlineDemoPaymentProvider) {
+  async onlineDemoPay(
+    bookingId: string,
+    provider: OnlineDemoPaymentProvider,
+    userId: string,
+  ) {
     // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
     if (!this.isOnlineDemoProvider(provider)) {
       throw new BadRequestException('Unsupported online payment provider');
@@ -1199,6 +1282,7 @@ export class BookingsService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+    this.assertBookingOwner(booking, userId);
 
     if (booking.status !== 'PENDING') {
       throw new BadRequestException('Only pending bookings can be paid');
@@ -1255,12 +1339,13 @@ export class BookingsService {
   }
 
   // Tạo dữ liệu mới trong khối createSepayPayment và trả về kết quả đã chuẩn hóa.
-  async createSepayPayment(bookingId: string) {
+  async createSepayPayment(bookingId: string, userId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: { bookingItems: { include: { showtimeSeat: true } } },
     });
     if (!booking) throw new NotFoundException('Booking not found');
+    this.assertBookingOwner(booking, userId);
     if (booking.status !== 'PENDING') {
       throw new BadRequestException('Only pending bookings can be paid');
     }
@@ -1278,32 +1363,40 @@ export class BookingsService {
     if (!this.isSepayConfigured(config)) {
       throw new BadRequestException('SePay bank account is not configured');
     }
-    let payment = await this.prisma.payment.findFirst({
-      where: {
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const currentBooking = await this.requirePendingBooking(
+        tx,
         bookingId,
-        provider: SEPAY_PROVIDER,
-        status: 'PENDING',
-        OR: [{ expiredAt: null }, { expiredAt: { gt: new Date() } }],
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
-    if (!payment) {
-      payment = await this.prisma.payment.create({
-        data: {
+        userId,
+      );
+      let payment = await tx.payment.findFirst({
+        where: {
           bookingId,
           provider: SEPAY_PROVIDER,
-          providerRef: this.buildSepayProviderRef(booking.id, config.prefix),
-          amount: booking.totalAmount,
-          currency: 'VND',
           status: 'PENDING',
-          expiredAt: booking.expiresAt,
+          OR: [{ expiredAt: null }, { expiredAt: { gt: new Date() } }],
         },
+        orderBy: { createdAt: 'desc' },
       });
-    }
+      // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
+      if (!payment) {
+        payment = await tx.payment.create({
+          data: {
+            bookingId,
+            provider: SEPAY_PROVIDER,
+            providerRef: this.buildSepayProviderRef(config.prefix),
+            amount: currentBooking.totalAmount,
+            currency: 'VND',
+            status: 'PENDING',
+            expiredAt: currentBooking.expiresAt,
+          },
+        });
+      }
+      return payment;
+    });
     const description = payment.providerRef || payment.id;
     const params = new URLSearchParams({
-      acc: config.bankAccount,
+      acc: config.virtualAccount || config.bankAccount,
       bank: config.bankCode,
       amount: String(Math.round(Number(payment.amount))),
       des: description,
@@ -1318,8 +1411,8 @@ export class BookingsService {
       paymentCode: description,
       amount: Number(payment.amount),
       currency: payment.currency,
-      bankAccount: config.bankAccount,
-      accountNumber: config.bankAccount,
+      bankAccount: config.virtualAccount || config.bankAccount,
+      accountNumber: config.virtualAccount || config.bankAccount,
       accountName: config.accountName,
       bankCode: config.bankCode,
       qrUrl: `https://vietqr.app/img?${params.toString()}`,
@@ -1352,6 +1445,20 @@ export class BookingsService {
     if (!normalized.isIncoming) {
       await this.completeWebhookEvent(event.id, 'IGNORED', 'Outgoing transfer');
       return { success: true, ignored: true, reason: 'OUTGOING_TRANSFER' };
+    }
+
+    // Chỉ nhận tiền vào tài khoản đang cấu hình; callback từ tài khoản cũ không được phát hành vé.
+    if (
+      !config.bankAccount ||
+      normalized.accountNumber !== config.bankAccount ||
+      (config.virtualAccount && normalized.subAccount !== config.virtualAccount)
+    ) {
+      await this.completeWebhookEvent(
+        event.id,
+        'IGNORED',
+        'SePay receiving account does not match configured bank account',
+      );
+      return { success: true, ignored: true, reason: 'ACCOUNT_MISMATCH' };
     }
 
     if (!normalized.providerRef) {
@@ -1415,11 +1522,7 @@ export class BookingsService {
     }
     // Kiểm tra điều kiện thanh toán trước khi cập nhật dữ liệu liên quan.
     if (normalized.amount !== Number(payment.amount)) {
-      await this.markPaymentForReview(
-        payment.id,
-        normalized.transactionId,
-        'SePay transfer amount does not match booking',
-      );
+      await this.markPaymentForReview(payment.id, normalized.transactionId);
       await this.completeWebhookEvent(
         event.id,
         'REVIEW_REQUIRED',
@@ -1428,11 +1531,7 @@ export class BookingsService {
       return { success: true, reviewRequired: true, reason: 'AMOUNT_MISMATCH' };
     }
     if (payment.booking.status !== 'PENDING') {
-      await this.markPaymentForReview(
-        payment.id,
-        normalized.transactionId,
-        'Booking is not pending',
-      );
+      await this.markPaymentForReview(payment.id, normalized.transactionId);
       await this.completeWebhookEvent(
         event.id,
         'REVIEW_REQUIRED',
@@ -1446,11 +1545,7 @@ export class BookingsService {
     }
 
     if (payment.booking.expiresAt && payment.booking.expiresAt < new Date()) {
-      await this.markPaymentForReview(
-        payment.id,
-        normalized.transactionId,
-        'Booking has expired',
-      );
+      await this.markPaymentForReview(payment.id, normalized.transactionId);
       await this.completeWebhookEvent(
         event.id,
         'REVIEW_REQUIRED',
@@ -1459,11 +1554,22 @@ export class BookingsService {
       return { success: true, reviewRequired: true, reason: 'BOOKING_EXPIRED' };
     }
 
-    await this.confirmPaidBookingPayment(
-      payment,
-      payment.providerRef || undefined,
-      normalized.transactionId,
-    );
+    try {
+      await this.confirmPaidBookingPayment(
+        payment,
+        payment.providerRef || undefined,
+        normalized.transactionId,
+      );
+    } catch (error) {
+      if (!(error instanceof ConflictException)) throw error;
+      await this.markPaymentForReview(payment.id, normalized.transactionId);
+      await this.completeWebhookEvent(
+        event.id,
+        'REVIEW_REQUIRED',
+        error.message,
+      );
+      return { success: true, reviewRequired: true, reason: 'BOOKING_CHANGED' };
+    }
     await this.completeWebhookEvent(event.id, 'PROCESSED');
     return { success: true, bookingId: payment.bookingId };
   }
@@ -1599,7 +1705,17 @@ export class BookingsService {
   }
 
   // Đọc và lọc dữ liệu cần thiết trong khối findBookingTickets.
-  async findBookingTickets(bookingId: string) {
+  async findBookingTickets(bookingId: string, userId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    this.assertBookingOwner(booking, userId);
+    return this.loadBookingTickets(bookingId);
+  }
+
+  // Nạp vé sau khi customer đã kiểm tra ownership hoặc staff đã được phân quyền.
+  private async loadBookingTickets(bookingId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       select: { id: true },
@@ -1625,7 +1741,7 @@ export class BookingsService {
   }
 
   // Trả trạng thái thanh toán gọn cho frontend polling SePay mà không cần đọc màn admin.
-  async getPaymentStatus(bookingId: string) {
+  async getPaymentStatus(bookingId: string, userId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -1643,6 +1759,7 @@ export class BookingsService {
     if (!booking) {
       throw new NotFoundException('Booking not found');
     }
+    this.assertBookingOwner(booking, userId);
 
     const payment = booking.payments[0] || null;
     const ticket = booking.tickets[0] || null;
@@ -1661,13 +1778,14 @@ export class BookingsService {
   // Đọc và lọc dữ liệu cần thiết trong khối findBookingByQr.
   async findBookingByQr(bookingQrToken: string) {
     const bookingId = this.parseBookingQrToken(bookingQrToken);
-    return this.findBookingTickets(bookingId);
+    return this.loadBookingTickets(bookingId);
   }
 
   // Kiểm tra điều kiện nghiệp vụ trong khối checkInBookingByQr trước khi tiếp tục.
   async checkInBookingByQr(
     bookingQrToken: string,
     checkInTicketDto: CheckInTicketDto,
+    checkedInBy: string,
   ) {
     const bookingId = this.parseBookingQrToken(bookingQrToken);
     const booking = await this.prisma.booking.findUnique({
@@ -1715,14 +1833,14 @@ export class BookingsService {
       await tx.ticketCheckIn.createMany({
         data: validTicketIds.map((ticketId) => ({
           ticketId,
-          checkedInBy: checkInTicketDto.checkedInBy,
+          checkedInBy,
           notes: checkInTicketDto.notes,
         })),
         skipDuplicates: true,
       });
     });
 
-    const detail = await this.findBookingTickets(bookingId);
+    const detail = await this.loadBookingTickets(bookingId);
     return {
       ...detail,
       checkedInTicketCount: validTicketIds.length,
@@ -1730,7 +1848,11 @@ export class BookingsService {
   }
 
   // Kiểm tra điều kiện nghiệp vụ trong khối checkInTicket trước khi tiếp tục.
-  async checkInTicket(qrToken: string, checkInTicketDto: CheckInTicketDto) {
+  async checkInTicket(
+    qrToken: string,
+    checkInTicketDto: CheckInTicketDto,
+    checkedInBy: string,
+  ) {
     const ticket = await this.findTicketRecordByQr(qrToken);
 
     // Rẽ nhánh theo trạng thái hiện tại để chỉ cho phép luồng nghiệp vụ hợp lệ.
@@ -1745,7 +1867,7 @@ export class BookingsService {
           status: 'USED',
           checkIn: {
             create: {
-              checkedInBy: checkInTicketDto.checkedInBy,
+              checkedInBy,
               notes: checkInTicketDto.notes,
             },
           },
@@ -2134,6 +2256,7 @@ export class BookingsService {
     return {
       enabled: process.env.SEPAY_ENABLED === 'true',
       bankAccount: process.env.SEPAY_BANK_ACCOUNT?.trim() || '',
+      virtualAccount: process.env.SEPAY_VIRTUAL_ACCOUNT?.trim() || '',
       bankCode: process.env.SEPAY_BANK_CODE?.trim() || '',
       accountName: process.env.SEPAY_ACCOUNT_NAME?.trim() || '',
       apiKey: process.env.SEPAY_API_KEY?.trim() || '',
@@ -2154,10 +2277,9 @@ export class BookingsService {
     );
   }
 
-  // Mã chuyển khoản có prefix ổn định để webhook nhận diện đúng booking.
-  private buildSepayProviderRef(bookingId: string, prefix: string) {
-    const suffix = bookingId.replace(/[^a-zA-Z0-9]/g, '').slice(-14);
-    return `${prefix}${suffix}`.toUpperCase();
+  // Mỗi lần tạo payment có mã riêng; không tái dùng QR đã hủy khi giá thay đổi.
+  private buildSepayProviderRef(prefix: string) {
+    return `${prefix}${randomUUID().replace(/-/g, '')}`.toUpperCase();
   }
 
   // Chuẩn hóa payload SePay để chịu được khác biệt nhỏ giữa các cấu hình webhook.
@@ -2198,6 +2320,13 @@ export class BookingsService {
 
     return {
       transactionId,
+      // SePay gửi số tài khoản dạng chuỗi; không ép sang số để giữ nguyên số 0 đầu.
+      accountNumber:
+        typeof payload.accountNumber === 'string'
+          ? payload.accountNumber.trim()
+          : '',
+      subAccount:
+        typeof payload.subAccount === 'string' ? payload.subAccount.trim() : '',
       providerRef,
       amount,
       direction,
@@ -2264,10 +2393,9 @@ export class BookingsService {
   private markPaymentForReview(
     paymentId: string,
     providerTransactionId: string,
-    reason: string,
   ) {
-    return this.prisma.payment.update({
-      where: { id: paymentId },
+    return this.prisma.payment.updateMany({
+      where: { id: paymentId, status: 'PENDING' },
       data: {
         status: 'REVIEW_REQUIRED',
         providerTransactionId,
@@ -2353,13 +2481,44 @@ export class BookingsService {
       (bookingItem) => bookingItem.showtimeSeatId,
     );
 
-    await this.seatHoldsService.verifyBookingHolds({
-      userId: payment.booking.userId,
-      showtimeId: payment.booking.showtimeId,
-      showtimeSeatIds,
-    });
-
     await this.prisma.$transaction(async (tx) => {
+      await this.lockBooking(tx, payment.bookingId);
+      const current = await tx.payment.findUnique({
+        where: { id: payment.id },
+        include: PAYMENT_WITH_BOOKING_INCLUDE,
+      });
+      if (!current) throw new NotFoundException('Payment not found');
+      // Callback lặp lại sau commit không phát hành vé hoặc thu tiền lần hai.
+      if (current.status === 'SUCCESS' && current.booking.status === 'PAID')
+        return;
+      if (
+        current.status !== 'PENDING' ||
+        current.booking.status !== 'PENDING'
+      ) {
+        throw new ConflictException(
+          'Booking hoặc payment không còn chờ thanh toán',
+        );
+      }
+      if (
+        (current.booking.expiresAt &&
+          current.booking.expiresAt <= new Date()) ||
+        (current.expiredAt && current.expiredAt <= new Date())
+      ) {
+        throw new ConflictException('Booking has expired');
+      }
+      if (
+        !new Prisma.Decimal(current.amount).equals(
+          current.booking.totalAmount,
+        ) ||
+        current.currency !== current.booking.currency
+      ) {
+        throw new ConflictException('Số tiền payment không khớp booking');
+      }
+      await this.seatHoldsService.verifyBookingHolds({
+        userId: current.booking.userId,
+        showtimeId: current.booking.showtimeId,
+        showtimeSeatIds,
+      });
       const updatedSeats = await tx.showtimeSeat.updateMany({
         where: {
           id: {
@@ -2394,11 +2553,11 @@ export class BookingsService {
       });
 
       const existingTicketItemIds = new Set(
-        payment.booking.tickets.map((ticket) => ticket.bookingItemId),
+        current.booking.tickets.map((ticket) => ticket.bookingItemId),
       );
 
       await Promise.all(
-        payment.booking.bookingItems
+        current.booking.bookingItems
           .filter((bookingItem) => !existingTicketItemIds.has(bookingItem.id))
           .map((bookingItem) =>
             tx.ticket.create({

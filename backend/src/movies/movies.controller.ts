@@ -1,7 +1,10 @@
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 /**
  * Mục đích: Tiếp nhận yêu cầu HTTP cho miền phim và đánh giá phim và chuyển xử lý sang service.
  */
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { MoviesService } from './movies.service';
 import { CreateMovieReviewDto } from './dto/movie-review.dto';
 
@@ -30,13 +33,28 @@ export class MoviesController {
 
   @Get(':movieId/reviews')
   // Đọc và lọc dữ liệu cần thiết trong khối findReviews.
-  findReviews(@Param('movieId') movieId: string, @Query('userId') userId?: string) {
-    return this.moviesService.findReviews(movieId, userId);
+  findReviews(@Param('movieId') movieId: string) {
+    return this.moviesService.findReviews(movieId);
+  }
+
+  @Get(':movieId/reviews/me')
+  @UseGuards(AuthGuard)
+  // Khả năng đánh giá và đánh giá hiện tại lấy từ phiên đăng nhập.
+  findMyReview(
+    @Param('movieId') movieId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.moviesService.findReviews(movieId, user.id);
   }
 
   @Post(':movieId/reviews')
+  @UseGuards(AuthGuard)
   // Tạo dữ liệu mới trong khối createReview và trả về kết quả đã chuẩn hóa.
-  createReview(@Param('movieId') movieId: string, @Body() dto: CreateMovieReviewDto) {
-    return this.moviesService.createReview(movieId, dto);
+  createReview(
+    @Param('movieId') movieId: string,
+    @Body() dto: CreateMovieReviewDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.moviesService.createReview(movieId, dto, user.id);
   }
 }

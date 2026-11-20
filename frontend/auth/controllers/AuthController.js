@@ -95,7 +95,7 @@ const AuthController = {
   },
 
   // Điều phối sự kiện và phản hồi người dùng trong khối handleForgotPassword.
-  handleForgotPassword(event) {
+  async handleForgotPassword(event) {
     event.preventDefault();
     const form = event.target;
     const email = form.querySelector('#forgot-email') && form.querySelector('#forgot-email').value.trim();
@@ -104,11 +104,40 @@ const AuthController = {
       Toast.error('Vui lòng nhập email hợp lệ');
       return;
     }
-    const result = AuthModel.forgotPassword(email);
+    const result = await AuthModel.forgotPassword(email);
     // Kiểm tra kết quả từ backend và chuyển sang nhánh báo lỗi khi cần.
     if (result.success) {
       Toast.success(result.message);
       Modal.close();
+    } else {
+      Toast.error(result.error);
+    }
+  },
+
+  // Đặt lại mật khẩu bằng token lấy từ liên kết email (#/reset-password?token=...).
+  async handleResetPassword(event) {
+    event.preventDefault();
+    const form = event.target;
+    const token = new URLSearchParams(window.location.hash.split('?')[1] || '').get('token');
+    const password = form.querySelector('#reset-password').value;
+    const confirm = form.querySelector('#reset-password-confirm').value;
+    if (!token) {
+      Toast.error('Liên kết đặt lại mật khẩu không hợp lệ');
+      return;
+    }
+    if (password.length < 6) {
+      Toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+    if (password !== confirm) {
+      Toast.error('Mật khẩu nhập lại không khớp');
+      return;
+    }
+    const result = await AuthModel.resetPassword(token, password);
+    if (result.success) {
+      Toast.success('Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.');
+      Modal.close();
+      Router.navigate('/login');
     } else {
       Toast.error(result.error);
     }

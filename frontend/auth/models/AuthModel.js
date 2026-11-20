@@ -9,7 +9,7 @@ const AuthModel = {
     // Bắt đầu thao tác có thể thất bại để hiển thị phản hồi phù hợp cho người dùng.
     try {
       const data = await API.login({ identifier, password });
-      return { success: true, user: this._mapBackendUser(data.user, data.accessToken) };
+      return { success: true, user: this._mapBackendUser(data.user, data) };
     } catch (error) {
       return { success: false, error: error.message || 'Email hoac mat khau khong dung' };
     }
@@ -19,7 +19,7 @@ const AuthModel = {
   async register(userData) {
     try {
       const data = await API.register(userData);
-      const backendUser = this._mapBackendUser(data.user, data.accessToken);
+      const backendUser = this._mapBackendUser(data.user, data);
       return { success: true, user: backendUser };
     } catch (error) {
       return {
@@ -30,7 +30,7 @@ const AuthModel = {
   },
 
   // Chuẩn hóa dữ liệu đầu vào/đầu ra trong khối _mapBackendUser.
-  _mapBackendUser(user, accessToken) {
+  _mapBackendUser(user, tokens) {
     return {
       id: user.id,
       backendUserId: user.backendUserId || user.id,
@@ -41,12 +41,15 @@ const AuthModel = {
       avatar: null,
       createdAt: user.createdAt || new Date().toISOString(),
       isActive: user.isActive !== false,
-      accessToken: accessToken || null,
+      accessToken: tokens.accessToken || null,
+      refreshToken: tokens.refreshToken || null,
     };
   },
 
   // Thực hiện trách nhiệm riêng của khối logout.
   logout() {
+    // Thu hồi phiên ở backend (không chờ kết quả) rồi xóa trạng thái cục bộ.
+    API.logoutBackend();
     State.clearUser();
   },
 
@@ -66,13 +69,37 @@ const AuthModel = {
     return user && user.role === 'admin';
   },
 
-  // Thực hiện trách nhiệm riêng của khối forgotPassword.
-  forgotPassword(email) {
-    const user = API.mockData.users.find(u => u.email === email);
-    // Kiểm tra trạng thái đăng nhập hoặc vai trò trước khi cho phép thao tác.
-    if (!user) return { success: false, error: 'Email khong ton tai trong he thong' };
-    return { success: true, message: 'Da gui link dat lai mat khau vao email cua ban' };
+  // Gửi yêu cầu đặt lại mật khẩu; backend luôn trả thành công để không lộ email có tồn tại.
+  async forgotPassword(email) {
+    try {
+      await API.forgotPassword(email);
+      return { success: true, message: 'Nếu email tồn tại, liên kết đặt lại mật khẩu đã được gửi.' };
+    } catch (error) {
+      return { success: false, error: error.message || 'Không thể gửi yêu cầu đặt lại mật khẩu' };
+    }
   },
+
+  // Đặt lại mật khẩu bằng token trong email.
+  async resetPassword(token, newPassword) {
+    try {
+      await API.resetPassword(token, newPassword);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || 'Không thể đặt lại mật khẩu' };
+    }
+  },
+
+  // Đổi mật khẩu khi đang đăng nhập; backend thu hồi mọi phiên nên cần đăng nhập lại.
+  async changePassword(currentPassword, newPassword) {
+    try {
+      await API.changePassword(currentPassword, newPassword);
+      State.clearUser();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || 'Không thể đổi mật khẩu' };
+    }
+  },
+
 
   // Cập nhật trạng thái hoặc dữ liệu trong khối resetPassword.
   resetPassword(token, newPassword) {

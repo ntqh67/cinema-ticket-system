@@ -1,3 +1,4 @@
+import { splitName } from '../common/public-user';
 import {
   BadRequestException,
   ConflictException,
@@ -33,7 +34,7 @@ import {
 import { normalizeGenreName } from '../common/genre-map';
 import { formatDateInDaNang } from '../common/danang-date';
 import { MovieStatusService } from '../movies/movie-status.service';
-import { ticketPriceForRole } from '../common/ticket-discount';
+import { lockShowtime } from '../common/showtime-lock';
 import { calculateStaffPay } from '../common/staff-pay';
 import { resolveStaffAttendanceStatus } from '../common/staff-shifts';
 
@@ -420,7 +421,7 @@ export class AdminService {
       throw new ConflictException('Email này đã là tài khoản nhân viên');
     }
 
-    const { firstName, lastName } = this.splitPersonName(dto.name);
+    const { firstName, lastName } = splitName(dto.name);
     const passwordHash = existing?.passwordHash || (await bcrypt.hash(dto.password, 10));
     const staff = existing
       ? await this.prisma.user.update({
@@ -512,14 +513,6 @@ export class AdminService {
       id: user.id,
       role: user.role,
       message: 'Đã thu hồi quyền nhân viên; tài khoản khách hàng vẫn được giữ lại',
-    };
-  }
-
-  private splitPersonName(name: string) {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    return {
-      firstName: parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0],
-      lastName: parts.length > 1 ? parts.at(-1) : null,
     };
   }
 
@@ -941,30 +934,37 @@ export class AdminService {
   ) {
     await this.ensureCinema(cinemaId);
     const seatType = this.parseSeatType(dto.seatType);
-    const price = await this.prisma.cinemaTicketPrice.upsert({
-      where: {
-        cinemaId_seatType: {
+    return this.prisma.$transaction(async (tx) => {
+      const price = await tx.cinemaTicketPrice.upsert({
+        where: {
+          cinemaId_seatType: {
+            cinemaId,
+            seatType,
+          },
+        },
+        update: {
+          price: dto.price,
+          isActive: dto.isActive ?? true,
+        },
+        create: {
           cinemaId,
           seatType,
+          price: dto.price,
+          isActive: dto.isActive ?? true,
         },
-      },
-      update: {
-        price: dto.price,
-        isActive: dto.isActive ?? true,
-      },
-      create: {
-        cinemaId,
-        seatType,
-        price: dto.price,
-        isActive: dto.isActive ?? true,
-      },
+      });
+
+      if (price.isActive) {
+        await this.syncTicketPriceToOpenSales(
+          tx,
+          cinemaId,
+          seatType,
+          price.price,
+        );
+      }
+
+      return price;
     });
-
-    if (price.isActive) {
-      await this.syncTicketPriceToOpenSales(cinemaId, seatType, Number(price.price));
-    }
-
-    return price;
   }
 
   async deactivateCinemaTicketPrice(cinemaId: string, seatType: string) {
@@ -1174,14 +1174,21 @@ export class AdminService {
       }
     }
 
-    await this.prisma.$transaction([
-      this.prisma.seat.deleteMany({ where: { roomId } }),
-      this.prisma.seat.createMany({ data: seats }),
-      this.prisma.room.update({
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockRooms(tx, [roomId]);
+      const showtimeCount = await tx.showtime.count({ where: { roomId } });
+      if (showtimeCount > 0) {
+        throw new ConflictException(
+          'Không thể tạo lại ghế của phòng đã có suất chiếu',
+        );
+      }
+      await tx.seat.deleteMany({ where: { roomId } });
+      await tx.seat.createMany({ data: seats });
+      await tx.room.update({
         where: { id: room.id },
         data: { capacity: seats.length },
-      }),
-    ]);
+      });
+    });
 
     return { roomId, createdSeatCount: seats.length };
   }
@@ -1251,12 +1258,15 @@ export class AdminService {
     });
   }
 
+  // Khóa phòng để kiểm tra lịch và tạo ghế không đua với thao tác tạo lại sơ đồ.
   async createShowtime(dto: CreateShowtimeDto) {
-    await this.validateShowtime(dto);
-    const { priceBySeatType, basePrice } = await this.getRoomPriceMap(
-      dto.roomId,
-    );
     return this.prisma.$transaction(async (tx) => {
+      await this.lockRooms(tx, [dto.roomId]);
+      await this.validateShowtime(dto, undefined, tx);
+      const { priceBySeatType, basePrice } = await this.getRoomPriceMap(
+        dto.roomId,
+        tx,
+      );
       const showtime = await tx.showtime.create({
         data: {
           movieId: dto.movieId,
@@ -1266,36 +1276,86 @@ export class AdminService {
           basePrice,
         },
       });
-      const seats = await tx.seat.findMany({ where: { roomId: dto.roomId } });
-      await tx.showtimeSeat.createMany({
-        data: seats.map((seat) => ({
-          showtimeId: showtime.id,
-          seatId: seat.id,
-          price: priceBySeatType[seat.type],
-          status: 'AVAILABLE',
-        })),
-      });
+      await this.createShowtimeSeats(
+        tx,
+        showtime.id,
+        dto.roomId,
+        priceBySeatType,
+      );
       return showtime;
     });
   }
 
+  // Chỉ sửa suất chưa có booking; đổi phòng phải tái tạo ghế và giá trong cùng transaction.
   async updateShowtime(id: string, dto: UpdateShowtimeDto) {
-    await this.ensureShowtime(id);
-    await this.validateShowtime(dto, id);
-    return this.prisma.showtime.update({
-      where: { id },
-      data: {
-        movieId: dto.movieId,
-        roomId: dto.roomId,
-        startAt: new Date(dto.startAt),
-        endAt: new Date(dto.endAt),
-        basePrice: dto.basePrice,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockRooms(tx, [dto.roomId]);
+      await lockShowtime(tx, id);
+      const showtime = await tx.showtime.findUnique({ where: { id } });
+      if (!showtime) throw new NotFoundException('Showtime not found');
+      if (await tx.booking.count({ where: { showtimeId: id } })) {
+        throw new ConflictException('Không thể sửa suất chiếu đã có booking');
+      }
+      await this.validateShowtime(dto, id, tx);
+      const movingRoom = showtime.roomId !== dto.roomId;
+      const prices = movingRoom
+        ? await this.getRoomPriceMap(dto.roomId, tx)
+        : null;
+      if (prices) {
+        await tx.showtimeSeat.deleteMany({ where: { showtimeId: id } });
+        await this.createShowtimeSeats(
+          tx,
+          id,
+          dto.roomId,
+          prices.priceBySeatType,
+        );
+      }
+      return tx.showtime.update({
+        where: { id },
+        data: {
+          movieId: dto.movieId,
+          roomId: dto.roomId,
+          startAt: new Date(dto.startAt),
+          endAt: new Date(dto.endAt),
+          basePrice: prices?.basePrice ?? dto.basePrice,
+        },
+      });
     });
   }
 
-  deleteShowtime(id: string) {
-    return this.prisma.showtime.delete({ where: { id } });
+  // Không xóa dây chuyền lịch sử đơn hàng và vé của suất đã có booking.
+  async deleteShowtime(id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockShowtime(tx, id);
+      if (await tx.booking.count({ where: { showtimeId: id } })) {
+        throw new ConflictException('Không thể xóa suất chiếu đã có booking');
+      }
+      return tx.showtime.delete({ where: { id } });
+    });
+  }
+
+  // Khóa phòng tại PostgreSQL trước khi thay đổi lịch hoặc cấu trúc ghế.
+  private async lockRooms(tx: Prisma.TransactionClient, roomIds: string[]) {
+    await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "rooms"
+      WHERE "id" IN (${Prisma.join(roomIds)}) ORDER BY "id" FOR UPDATE`);
+  }
+
+  // Tạo cùng một cấu trúc ghế cho suất mới và suất được chuyển phòng.
+  private async createShowtimeSeats(
+    tx: Prisma.TransactionClient,
+    showtimeId: string,
+    roomId: string,
+    priceBySeatType: Record<string, number>,
+  ) {
+    const seats = await tx.seat.findMany({ where: { roomId } });
+    await tx.showtimeSeat.createMany({
+      data: seats.map((seat) => ({
+        showtimeId,
+        seatId: seat.id,
+        price: priceBySeatType[seat.type],
+        status: 'AVAILABLE',
+      })),
+    });
   }
 
   async getRoomAvailableSlots(
@@ -1489,7 +1549,11 @@ export class AdminService {
     };
   }
 
-  private async validateShowtime(dto: CreateShowtimeDto, ignoreId?: string) {
+  private async validateShowtime(
+    dto: CreateShowtimeDto,
+    ignoreId?: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
     const startAt = new Date(dto.startAt);
     const endAt = new Date(dto.endAt);
     if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
@@ -1500,8 +1564,8 @@ export class AdminService {
     }
 
     const [movie, room] = await Promise.all([
-      this.prisma.movie.findUnique({ where: { id: dto.movieId } }),
-      this.prisma.room.findUnique({ where: { id: dto.roomId } }),
+      db.movie.findUnique({ where: { id: dto.movieId } }),
+      db.room.findUnique({ where: { id: dto.roomId } }),
     ]);
     if (!movie) throw new NotFoundException('Movie not found');
     if (!room) throw new NotFoundException('Room not found');
@@ -1509,7 +1573,7 @@ export class AdminService {
       throw new BadRequestException('Movie must be available for scheduling');
     }
 
-    const conflict = await this.prisma.showtime.findFirst({
+    const conflict = await db.showtime.findFirst({
       where: {
         id: ignoreId ? { not: ignoreId } : undefined,
         roomId: dto.roomId,
@@ -1525,8 +1589,11 @@ export class AdminService {
     }
   }
 
-  private async getRoomPriceMap(roomId: string) {
-    const room = await this.prisma.room.findUnique({
+  private async getRoomPriceMap(
+    roomId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
+    const room = await db.room.findUnique({
       where: { id: roomId },
       include: {
         cinema: true,
@@ -1535,7 +1602,7 @@ export class AdminService {
     });
     if (!room) throw new NotFoundException('Room not found');
 
-    const activePrices = await this.prisma.cinemaTicketPrice.findMany({
+    const activePrices = await db.cinemaTicketPrice.findMany({
       where: { cinemaId: room.cinemaId, isActive: true },
     });
     const priceBySeatType = Object.fromEntries(
@@ -1565,73 +1632,20 @@ export class AdminService {
     return value as 'STANDARD' | 'COUPLE';
   }
 
+  // Giá mới chỉ áp dụng cho booking tạo sau; BookingItem/Payment giữ snapshot đã chốt.
   private async syncTicketPriceToOpenSales(
+    tx: Prisma.TransactionClient,
     cinemaId: string,
     seatType: 'STANDARD' | 'COUPLE',
-    price: number,
+    price: Prisma.Decimal,
   ) {
-    const affectedBookings = await this.prisma.booking.findMany({
+    await tx.showtimeSeat.updateMany({
       where: {
-        status: 'PENDING',
+        status: 'AVAILABLE',
         showtime: { room: { cinemaId } },
-        bookingItems: {
-          some: {
-            showtimeSeat: {
-              status: { not: 'BOOKED' },
-              seat: { type: seatType },
-            },
-          },
-        },
+        seat: { type: seatType },
       },
-      select: { id: true, user: { select: { role: true } } },
-    });
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.showtimeSeat.updateMany({
-        where: {
-          status: { not: 'BOOKED' },
-          showtime: { room: { cinemaId } },
-          seat: { type: seatType },
-        },
-        data: { price },
-      });
-
-      for (const booking of affectedBookings) {
-        await tx.bookingItem.updateMany({
-          where: {
-            bookingId: booking.id,
-            showtimeSeat: {
-              status: { not: 'BOOKED' },
-              seat: { type: seatType },
-            },
-          },
-          data: {
-            unitPrice: ticketPriceForRole(price, booking.user.role),
-          },
-        });
-        const detail = await tx.booking.findUnique({
-          where: { id: booking.id },
-          include: {
-            bookingItems: true,
-            comboItems: true,
-          },
-        });
-        if (!detail) continue;
-
-        const seatSubtotal = detail.bookingItems.reduce(
-          (sum, item) => sum + Number(item.unitPrice),
-          0,
-        );
-        const comboSubtotal = detail.comboItems.reduce(
-          (sum, item) => sum + Number(item.unitPrice) * item.quantity,
-          0,
-        );
-
-        await tx.booking.update({
-          where: { id: booking.id },
-          data: { totalAmount: seatSubtotal + comboSubtotal },
-        });
-      }
+      data: { price },
     });
   }
 
@@ -1806,9 +1820,5 @@ export class AdminService {
     return movie;
   }
 
-  private async ensureShowtime(id: string) {
-    const showtime = await this.prisma.showtime.findUnique({ where: { id } });
-    if (!showtime) throw new NotFoundException('Showtime not found');
-    return showtime;
-  }
+
 }
