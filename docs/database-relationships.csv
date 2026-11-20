@@ -1,6 +1,8 @@
 From Table,Relationship,To Table,Meaning
 users,1 - n,bookings,Mot user co nhieu booking
-users,1 - n,auth_sessions,Mot user co nhieu session token
+users,1 - n,auth_sessions,Mot user co nhieu phien dang nhap (family)
+auth_sessions,1 - n,refresh_tokens,Mot phien co nhieu refresh token xoay vong
+users,1 - n,password_reset_tokens,Mot user co nhieu token dat lai mat khau
 users,1 - n,movie_reviews,Mot user co nhieu review phim
 movies,n - n,genres,Phim co nhieu the loai thong qua movie_genres
 movies,1 - n,showtimes,Mot phim co nhieu suat chieu

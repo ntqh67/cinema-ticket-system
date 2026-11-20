@@ -6,15 +6,27 @@ User & Auth,users,firstName,String?,,,Ten
 User & Auth,users,lastName,String?,,,Ho / ten cuoi
 User & Auth,users,role,Role,Index,,Vai tro CUSTOMER / ADMIN / STAFF
 User & Auth,users,isActive,Boolean,,,Trang thai tai khoan
+User & Auth,users,authVersion,Int,Default 0,,Tang khi doi/dat lai mat khau de vo hieu access token
 User & Auth,users,createdAt,DateTime,,,Ngay tao
 User & Auth,users,updatedAt,DateTime,,,Ngay cap nhat
-User & Auth,auth_sessions,id,String,Primary key,,Ma session token
-User & Auth,auth_sessions,tokenHash,String,Unique,,Session token da hash
-User & Auth,auth_sessions,userId,String,Foreign key,users.id,User so huu token
-User & Auth,auth_sessions,expiresAt,DateTime,Index,,Thoi diem het han
-User & Auth,auth_sessions,revokedAt,DateTime?,, ,Thoi diem thu hoi token
+User & Auth,auth_sessions,id,String,Primary key,,Ma phien dang nhap (sid cua JWT)
+User & Auth,auth_sessions,userId,String,Foreign key,users.id,User so huu phien
+User & Auth,auth_sessions,expiresAt,DateTime,Index,,Han tuyet doi cua phien
+User & Auth,auth_sessions,revokedAt,DateTime?,,,Thoi diem thu hoi ca phien
 User & Auth,auth_sessions,createdAt,DateTime,,,Ngay tao
 User & Auth,auth_sessions,lastUsedAt,DateTime?,,,Lan su dung phien gan nhat
+User & Auth,refresh_tokens,id,String,Primary key,,Ma refresh token
+User & Auth,refresh_tokens,sessionId,String,Foreign key,auth_sessions.id,Phien (family) so huu token
+User & Auth,refresh_tokens,tokenHash,String,Unique,,Refresh token da hash SHA-256
+User & Auth,refresh_tokens,expiresAt,DateTime,Index,,Han cua token (bang han phien)
+User & Auth,refresh_tokens,consumedAt,DateTime?,,,Thoi diem token da duoc tieu; dung lai se thu hoi phien
+User & Auth,refresh_tokens,createdAt,DateTime,,,Ngay tao
+User & Auth,password_reset_tokens,id,String,Primary key,,Ma token dat lai mat khau
+User & Auth,password_reset_tokens,userId,String,Foreign key,users.id,User yeu cau dat lai
+User & Auth,password_reset_tokens,tokenHash,String,Unique,,Token da hash SHA-256
+User & Auth,password_reset_tokens,expiresAt,DateTime,Index,,Han token (mac dinh 30 phut)
+User & Auth,password_reset_tokens,consumedAt,DateTime?,,,Thoi diem da dung (chi dung mot lan)
+User & Auth,password_reset_tokens,createdAt,DateTime,,,Ngay tao
 Movie,movies,id,String,Primary key,,Ma phim
 Movie,movies,tmdbId,Int?,Index,,Ma phim tren TMDB
 Movie,movies,title,String,Index,,Ten phim

@@ -44,18 +44,17 @@ Cot quan trong:
 - `passwordHash`: mat khau da hash bang bcrypt.
 - `role`: phan quyen.
 - `isActive`: khoa/mo tai khoan.
+- `authVersion`: tang khi doi/dat lai mat khau de vo hieu moi access token da phat hanh.
 
-#### `auth_sessions`
+#### `auth_sessions`, `refresh_tokens`, `password_reset_tokens`
 
-Auth dung opaque bearer session token; database chi luu SHA-256 hash.
+Auth dung access token JWT 10 phut + refresh token xoay vong; database chi luu SHA-256 hash.
 
-- Quan he User 1 - n AuthSession, bang vat ly `auth_sessions`.
-- Raw token ngau nhien 32 byte chi tra client khi register/login.
-- `revokedAt` thu hoi phien hien tai khi logout; `expiresAt` gioi han 7 ngay.
-- `lastUsedAt` cap nhat toi da moi 5 phut; tai khoan inactive bi tu choi.
-- AuthGuard xac thuc chung; RolesGuard phan quyen tu enum Role.
-- Customer lay danh tinh tu session va chi thao tac booking/ve cua minh.
-- Xem [thiet ke xac thuc hien hanh](auth-redesign.md) (JWT ngan han, refresh xoay vong, doi/quen mat khau); [bao cao refactor Identity](identity-auth-refactor.md) la mo hinh phien cu.
+- `auth_sessions` la "family" (`sid`): mot lan dang nhap = mot phien. `revokedAt` thu hoi ca phien; `expiresAt` la han tuyet doi 7 ngay, khong keo dai khi refresh.
+- `refresh_tokens`: moi lan refresh tieu token cu (`consumedAt`) va cap token moi; dung lai token da tieu thi thu hoi ca phien.
+- `password_reset_tokens`: token dat lai mat khau gui qua email, dung mot lan (`consumedAt`), het han sau 30 phut.
+- Quan he: User 1 - n AuthSession 1 - n RefreshToken; User 1 - n PasswordResetToken.
+- Xem [thiet ke xac thuc hien hanh](auth-redesign.md); [bao cao refactor Identity](identity-auth-refactor.md) la mo hinh phien cu.
 
 ### Movie Catalog
 
@@ -311,6 +310,8 @@ Rule:
 ```text
 User 1 - n Booking
 User 1 - n AuthSession
+AuthSession 1 - n RefreshToken
+User 1 - n PasswordResetToken
 User 1 - n MovieReview
 
 Movie n - n Genre qua MovieGenre
@@ -402,8 +403,7 @@ Schema hien tai da co nen tot:
 
 ### Uu tien cao
 
-1. Bo sung rate limiting cho login/register khi trien khai.
-2. Theo doi va don dep AuthSession het han theo chinh sach luu tru.
+1. Rate limiting cho login/register/refresh va job don token het han da co (moi phut, toi da 500 dong moi bang).
 3. Them idempotency cho payment callback.
 4. Them unique/index cho `payments.providerRef` neu providerRef duoc dung de lookup callback.
 5. Them constraint/rule kiem tra rating trong khoang 1-5 hoac 1-10.
