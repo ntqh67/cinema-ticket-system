@@ -1,3 +1,4 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
@@ -24,6 +25,8 @@ import { ApplyBookingPromotionDto } from './dto/apply-booking-promotion.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingCombosDto } from './dto/update-booking-combos.dto';
 
+@ApiTags('bookings')
+@ApiBearerAuth()
 @Controller('bookings')
 // Điều phối HTTP và chuyển danh tính phiên sang nghiệp vụ đúng miền.
 export class BookingsController {

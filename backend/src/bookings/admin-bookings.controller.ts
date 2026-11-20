@@ -1,3 +1,4 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -5,6 +6,8 @@ import { Role } from '@prisma/client';
 import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 
+@ApiTags('admin-bookings')
+@ApiBearerAuth()
 @Controller('admin/bookings')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles(Role.ADMIN)

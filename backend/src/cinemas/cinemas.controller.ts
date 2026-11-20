@@ -1,9 +1,12 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 /**
  * Mục đích: Tiếp nhận yêu cầu đọc catalog rạp công khai và chuyển cho service.
  */
 import { Controller, Get, Param } from '@nestjs/common';
 import { CinemasService } from './cinemas.service';
 
+@ApiTags('cinemas')
+@ApiBearerAuth()
 @Controller('cinemas')
 // Lớp CinemasController chỉ công khai thao tác đọc, không chứa quyền ghi quản trị.
 export class CinemasController {

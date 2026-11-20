@@ -29,7 +29,10 @@ Object.assign(process.env, {
 
 const prisma = new PrismaService();
 const redis = new RedisService();
-const holds = new SeatHoldsService(prisma, redis);
+// Test tích hợp không cần kênh thời gian thực nên dùng gateway giả.
+const holds = new SeatHoldsService(prisma, redis, {
+  publishSeatsChanged: () => undefined,
+} as never);
 const bookings = new BookingsService(prisma, holds);
 const admin = new AdminService(prisma, new MovieStatusService(prisma));
 const seats = new SeatsService(prisma, holds);

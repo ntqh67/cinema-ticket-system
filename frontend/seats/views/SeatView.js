@@ -114,12 +114,7 @@ const SeatView = {
                 </div>
 
                 <div class="seat-grid" id="seat-grid" style="--seat-columns:${maxPosition}">
-                  ${rows.map((row) => `
-                    <div class="seat-row">
-                      <span class="seat-row-label">${row.label}</span>
-                      ${row.seats.map((seat) => this._seatHtml(showtime, seat)).join('')}
-                      <span class="seat-row-label">${row.label}</span>
-                    </div>`).join('')}
+                  ${this._gridRowsHtml(showtime, rows)}
                 </div>
               </div>
             </div>
@@ -166,6 +161,9 @@ const SeatView = {
         </div>
       </div>
     </div>`;
+
+    // Nhận cập nhật tức thời khi người khác giữ/nhả/đặt ghế của suất chiếu này.
+    Realtime.watchShowtime(showtimeId, () => this.refreshGrid());
   },
 
   // Dựng phần giao diện tương ứng trong khối _seatHtml.
@@ -184,6 +182,24 @@ const SeatView = {
       title="Ghế ${seat.id} - ${label}"
       ${isUnavailable ? 'disabled' : ''}
     >${seat.col}</button>`;
+  },
+
+  // Dựng các hàng ghế; dùng chung cho lần render đầu và lần làm mới theo thời gian thực.
+  _gridRowsHtml(showtime, rows) {
+    return rows.map((row) => `
+      <div class="seat-row">
+        <span class="seat-row-label">${row.label}</span>
+        ${row.seats.map((seat) => this._seatHtml(showtime, seat)).join('')}
+        <span class="seat-row-label">${row.label}</span>
+      </div>`).join('');
+  },
+
+  // Cập nhật riêng lưới ghế và phần tóm tắt, không dựng lại cả trang.
+  async refreshGrid() {
+    const grid = document.getElementById('seat-grid');
+    if (!grid || !(await SeatController.refreshSeats())) return;
+    grid.innerHTML = this._gridRowsHtml(SeatController.currentShowtime, SeatController.currentRows);
+    this._updateSummary();
   },
 
   // Thực hiện trách nhiệm riêng của khối _maxPosition.

@@ -1,7 +1,15 @@
 /**
  * Mục đích: Tiếp nhận yêu cầu HTTP cho miền giữ ghế tạm thời và chuyển xử lý sang service.
  */
-import { Body, Controller, Delete, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,8 +29,14 @@ export class SeatHoldsController {
 
   @Post()
   // User đến từ AuthSession; DTO chỉ cung cấp ghế và bằng chứng guest.
-  hold(@Body() dto: CreateSeatHoldDto, @CurrentUser() user?: AuthenticatedUser) {
-    return this.seatHoldsService.hold(dto, resolveHoldActor(user, dto.guestSessionId));
+  hold(
+    @Body() dto: CreateSeatHoldDto,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.seatHoldsService.hold(
+      dto,
+      resolveHoldActor(user, dto.guestSessionId),
+    );
   }
 
   @Delete(':showtimeSeatId')
@@ -32,6 +46,9 @@ export class SeatHoldsController {
     @Query() query: GuestSessionDto,
     @CurrentUser() user?: AuthenticatedUser,
   ) {
-    return this.seatHoldsService.release(showtimeSeatId, resolveHoldActor(user, query.guestSessionId));
+    return this.seatHoldsService.release(
+      showtimeSeatId,
+      resolveHoldActor(user, query.guestSessionId),
+    );
   }
 }

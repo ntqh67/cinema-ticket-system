@@ -342,6 +342,54 @@ describe('BookingsService SePay payment flow', () => {
     });
   });
 
+  // Webhook SePay có thể gửi lại nhiều lần; vé chỉ được phát hành đúng một lần.
+  it('treats a retried webhook with a known transaction id as a duplicate', async () => {
+    const { service, prisma } = createService();
+    prisma.paymentWebhookEvent.create.mockResolvedValue({ id: 'event-dup' });
+    prisma.paymentWebhookEvent.update.mockResolvedValue({});
+    prisma.payment.findUnique.mockResolvedValue({ id: 'payment-1' });
+    const confirm = jest.spyOn(service as any, 'confirmPaidBookingPayment');
+
+    const result = await service.handleSepayWebhook('Apikey test-key', {
+      id: 'txn-1',
+      accountNumber: '123456789',
+      transferType: 'in',
+      transferAmount: 120000,
+      content: 'Thanh toan CRTABC123456789',
+    });
+
+    expect(result).toEqual({ success: true, duplicate: true });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(prisma.payment.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('does not confirm again when the payment already succeeded', async () => {
+    const { service, prisma } = createService();
+    prisma.paymentWebhookEvent.create.mockResolvedValue({ id: 'event-done' });
+    prisma.paymentWebhookEvent.update.mockResolvedValue({});
+    prisma.payment.findUnique.mockResolvedValue(null);
+    prisma.payment.findFirst.mockResolvedValue({
+      id: 'payment-1',
+      bookingId: pendingBooking.id,
+      providerRef: 'CRTABC123456789',
+      amount: 120000,
+      status: 'SUCCESS',
+      booking: { ...pendingBooking, status: 'PAID' },
+    });
+    const confirm = jest.spyOn(service as any, 'confirmPaidBookingPayment');
+
+    const result = await service.handleSepayWebhook('Apikey test-key', {
+      id: 'txn-2',
+      accountNumber: '123456789',
+      transferType: 'in',
+      transferAmount: 120000,
+      content: 'Thanh toan CRTABC123456789',
+    });
+
+    expect(result).toEqual({ success: true, duplicate: true });
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
   it('ignores a cancelled SePay payment after the booking amount changes', async () => {
     const { service, prisma } = createService();
     prisma.paymentWebhookEvent.create.mockResolvedValue({ id: 'event-old-qr' });

@@ -1,6 +1,6 @@
-version: '3.9'
-
-# Khởi chạy hai dịch vụ hạ tầng cục bộ: PostgreSQL là nguồn dữ liệu chính và Redis chỉ giữ ghế tạm thời.
+# Chạy toàn bộ hệ thống: docker compose up --build
+# Chỉ chạy hạ tầng để dev: docker compose up -d postgres redis
+# PostgreSQL là nguồn dữ liệu chính; Redis chỉ giữ ghế tạm thời.
 services:
   # Cơ sở dữ liệu bền vững chứa phim, rạp, suất chiếu, booking, thanh toán và vé.
   postgres:
@@ -14,6 +14,11 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d cinema_ticket_system']
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   # Redis lưu khóa giữ ghế có TTL; ghế chỉ chuyển BOOKED trong PostgreSQL sau khi thanh toán thành công.
   redis:
@@ -23,6 +28,42 @@ services:
       - '6379:6379'
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # API NestJS; tự áp migration khi khởi động. Bí mật đọc từ .env (xem .env.example).
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cinema_ticket_system?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Đặt JWT_ACCESS_SECRET (>= 32 ký tự) trong .env}
+      FRONTEND_URL: http://localhost:5173
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - '3000:3000'
+
+  # Giao diện tĩnh. Cổng 5173 nằm trong danh sách origin CORS cho phép của backend.
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '5173:80'
 
 # Volume giúp dữ liệu PostgreSQL không mất khi container được tạo lại.
 volumes:

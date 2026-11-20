@@ -1,3 +1,4 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
@@ -8,6 +9,8 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 
 @UseGuards(AuthGuard)
+@ApiTags('my-tickets')
+@ApiBearerAuth()
 @Controller('users')
 // Lớp TicketsController nhận thao tác từ HTTP hoặc giao diện và chuyển chúng tới lớp nghiệp vụ phù hợp.
 export class TicketsController {

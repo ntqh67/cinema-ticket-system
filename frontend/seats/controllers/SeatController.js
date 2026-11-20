@@ -39,6 +39,28 @@ const SeatController = {
     State.set('selectedSeats', [...this.selectedSeats]);
   },
 
+  // Tải lại sơ đồ ghế khi có người khác giữ/nhả/đặt ghế; ghế do mình giữ vẫn được giữ chọn.
+  async refreshSeats() {
+    if (!this.currentShowtime) return false;
+    try {
+      const data = await SeatModel.getByShowtime(this.currentShowtime.id);
+      this.currentRows = data.rows;
+      this.selectedSeats = data.rows.flatMap((row) => row.seats)
+        .filter((seat) => seat.heldByMe)
+        .map((seat) => ({
+          id: seat.id,
+          showtimeSeatId: seat.showtimeSeatId,
+          type: seat.type,
+          price: Number(seat.price),
+        }));
+      State.set('selectedSeats', [...this.selectedSeats]);
+      return true;
+    } catch (error) {
+      // Lỗi tạm thời khi làm mới không được phá giao diện đang hiển thị.
+      return false;
+    }
+  },
+
   // Cập nhật trạng thái hoặc dữ liệu trong khối toggleSeat.
   async toggleSeat(seatId, type, isBooked, showtimeSeatId, price) {
     // Đánh giá điều kiện hiện tại để cập nhật giao diện và trạng thái đúng nhánh.

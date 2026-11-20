@@ -1,3 +1,4 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 /**
  * Mục đích: Tiếp nhận HTTP cho miền xác thực và chuyển xử lý sang AuthService.
  * Các endpoint nhạy cảm có rate limit riêng (429 kèm Retry-After).
@@ -33,6 +34,8 @@ import type {
 const LOGIN_LIMIT = { default: { limit: 10, ttl: 60_000 } };
 const SENSITIVE_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 
+@ApiTags('auth')
+@ApiBearerAuth()
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
 export class AuthController {

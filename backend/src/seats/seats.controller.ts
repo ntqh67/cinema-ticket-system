@@ -2,7 +2,7 @@
  * Mục đích: Tiếp nhận yêu cầu HTTP cho miền sơ đồ và trạng thái ghế và chuyển xử lý sang service.
  */
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { OptionalAuthGuard } from '../auth/guards/optional-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
@@ -10,8 +10,9 @@ import { GuestSessionDto } from '../seat-holds/dto/guest-session.dto';
 import { resolveHoldActor } from '../seat-holds/hold-actor';
 import { SeatsService } from './seats.service';
 
-@Controller('showtimes')
+@ApiTags('showtimes')
 @ApiBearerAuth()
+@Controller('showtimes')
 @UseGuards(OptionalAuthGuard)
 // Lớp SeatsController nhận thao tác từ HTTP hoặc giao diện và chuyển chúng tới lớp nghiệp vụ phù hợp.
 export class SeatsController {
@@ -24,6 +25,9 @@ export class SeatsController {
     @Query() query: GuestSessionDto,
     @CurrentUser() user?: AuthenticatedUser,
   ) {
-    return this.seatsService.findByShowtime(showtimeId, resolveHoldActor(user, query.guestSessionId));
+    return this.seatsService.findByShowtime(
+      showtimeId,
+      resolveHoldActor(user, query.guestSessionId),
+    );
   }
 }

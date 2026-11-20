@@ -4,6 +4,7 @@
 import { ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { SeatEventsGateway } from '../realtime/seat-events.gateway';
 import { SeatHoldsService } from './seat-holds.service';
 
 describe('SeatHoldsService', () => {
@@ -23,7 +24,12 @@ describe('SeatHoldsService', () => {
     del,
   } as unknown as RedisService;
 
-  const service = new SeatHoldsService(prisma, redis);
+  const publishSeatsChanged = jest.fn();
+  const seatEvents = {
+    publishSeatsChanged,
+  } as unknown as SeatEventsGateway;
+
+  const service = new SeatHoldsService(prisma, redis, seatEvents);
   const dto = {
     showtimeId: 'showtime-1',
     showtimeSeatId: 'showtime-seat-1',
@@ -47,6 +53,7 @@ describe('SeatHoldsService', () => {
     const result = await service.hold(dto, { type: 'USER', userId: 'user-1' });
 
     expect(result.held).toBe(true);
+    expect(publishSeatsChanged).toHaveBeenCalledWith(dto.showtimeId);
     expect(result.ttlSeconds).toBe(300);
     expect(evalRedis).toHaveBeenCalledTimes(1);
     expect(evalRedis.mock.calls[0][1]).toEqual([
@@ -55,6 +62,34 @@ describe('SeatHoldsService', () => {
   });
 
   // Thực hiện trách nhiệm riêng của khối it.
+  // Chỉ phát sự kiện khi sơ đồ ghế thật sự thay đổi, tránh làm client tải lại vô ích.
+  it('does not publish a seat event when the hold is rejected', async () => {
+    findUnique.mockResolvedValue({
+      id: dto.showtimeSeatId,
+      showtimeId: dto.showtimeId,
+      status: 'AVAILABLE',
+    });
+    evalRedis.mockResolvedValue(0);
+
+    await expect(
+      service.hold(dto, { type: 'USER', userId: 'user-1' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(publishSeatsChanged).not.toHaveBeenCalled();
+  });
+
+  it('publishes a seat event for each showtime whose booking holds were released', async () => {
+    evalRedis.mockResolvedValueOnce(2).mockResolvedValueOnce(0);
+
+    const released = await service.releaseBookingHolds([
+      { showtimeId: 'showtime-1', showtimeSeatIds: ['a', 'b'], userId: 'u' },
+      { showtimeId: 'showtime-2', showtimeSeatIds: ['c'], userId: 'u' },
+    ]);
+
+    expect(released).toBe(2);
+    expect(publishSeatsChanged).toHaveBeenCalledTimes(1);
+    expect(publishSeatsChanged).toHaveBeenCalledWith('showtime-1');
+  });
+
   it('rejects a seat held by another owner', async () => {
     findUnique.mockResolvedValue({
       id: dto.showtimeSeatId,
@@ -63,7 +98,9 @@ describe('SeatHoldsService', () => {
     });
     evalRedis.mockResolvedValue(0);
 
-    await expect(service.hold(dto, { type: 'USER', userId: 'user-1' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.hold(dto, { type: 'USER', userId: 'user-1' }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   // Thực hiện trách nhiệm riêng của khối it.
@@ -74,7 +111,9 @@ describe('SeatHoldsService', () => {
       status: 'BOOKED',
     });
 
-    await expect(service.hold(dto, { type: 'USER', userId: 'user-1' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.hold(dto, { type: 'USER', userId: 'user-1' }),
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(evalRedis).not.toHaveBeenCalled();
   });
 
@@ -85,7 +124,11 @@ describe('SeatHoldsService', () => {
     await service.bindHoldsToUser({
       showtimeId: dto.showtimeId,
       showtimeSeatIds: ['seat-1', 'seat-2'],
-      actor: { type: 'USER', userId: 'user-1', guestSessionId: dto.guestSessionId },
+      actor: {
+        type: 'USER',
+        userId: 'user-1',
+        guestSessionId: dto.guestSessionId,
+      },
     });
 
     expect(evalRedis).toHaveBeenCalledTimes(1);

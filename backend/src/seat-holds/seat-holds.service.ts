@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SeatEventsGateway } from '../realtime/seat-events.gateway';
 import { RedisService } from '../redis/redis.service';
 import { CreateSeatHoldDto } from './dto/create-seat-hold.dto';
 import {
@@ -94,6 +95,7 @@ export class SeatHoldsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly seatEvents: SeatEventsGateway,
   ) {}
 
   // Áp dụng quy tắc ghế và quyền sở hữu giữ ghế trong khối hold.
@@ -140,6 +142,7 @@ export class SeatHoldsService {
       );
     }
 
+    this.seatEvents.publishSeatsChanged(dto.showtimeId);
     return { held: true, expiresAt, ttlSeconds: HOLD_SECONDS };
   }
 
@@ -164,6 +167,7 @@ export class SeatHoldsService {
     if (released === -1) {
       throw new ConflictException('Cannot release another customer hold');
     }
+    if (released === 1) this.seatEvents.publishSeatsChanged(seat.showtimeId);
     return { released: released === 1 };
   }
 
@@ -252,7 +256,11 @@ export class SeatHoldsService {
         owner.userId,
       ]);
       // Kiểm tra kết quả thao tác và chuyển sang nhánh lỗi khi cần.
-      if (typeof result === 'number') released += result;
+      if (typeof result === 'number') {
+        released += result;
+        // Nhả ghế theo booking xảy ra cả khi thanh toán xong lẫn khi hủy/hết hạn.
+        if (result > 0) this.seatEvents.publishSeatsChanged(owner.showtimeId);
+      }
     }
     return released;
   }

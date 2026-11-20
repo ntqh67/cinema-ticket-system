@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+.git
+.env
+.env.*
+!.env.example
+frontend
+docs
+combo
+combo.zip
+database
+**/*.log
+backend/src/src.und

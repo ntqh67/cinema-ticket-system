@@ -1,3 +1,4 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
@@ -6,6 +7,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
 @UseGuards(AuthGuard)
+@ApiTags('users')
+@ApiBearerAuth()
 @Controller('users')
 // Điều phối HTTP và chuyển danh tính phiên sang nghiệp vụ đúng miền.
 export class UsersController {

@@ -1,9 +1,12 @@
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 /**
  * Mục đích: Tiếp nhận yêu cầu HTTP cho miền kiểm tra tình trạng hệ thống và chuyển xử lý sang service.
  */
 import { Controller, Get } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+@ApiTags('health')
+@ApiBearerAuth()
 @Controller('health')
 // Lớp HealthController nhận thao tác từ HTTP hoặc giao diện và chuyển chúng tới lớp nghiệp vụ phù hợp.
 export class HealthController {
