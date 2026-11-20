@@ -29,3 +29,6 @@ coverage/
 # Local Prisma database
 prisma/dev.db
 prisma/dev.db-journal
+
+# Dữ liệu công cụ phân tích mã nguồn (Understand)
+backend/src/src.und/

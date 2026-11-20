@@ -55,7 +55,7 @@ Auth dung opaque bearer session token; database chi luu SHA-256 hash.
 - `lastUsedAt` cap nhat toi da moi 5 phut; tai khoan inactive bi tu choi.
 - AuthGuard xac thuc chung; RolesGuard phan quyen tu enum Role.
 - Customer lay danh tinh tu session va chi thao tac booking/ve cua minh.
-- Xem [bao cao refactor Identity](identity-auth-refactor.md) de biet API va migration.
+- Xem [thiet ke xac thuc hien hanh](auth-redesign.md) (JWT ngan han, refresh xoay vong, doi/quen mat khau); [bao cao refactor Identity](identity-auth-refactor.md) la mo hinh phien cu.
 
 ### Movie Catalog
 

@@ -26,16 +26,6 @@ const UserModel = {
     }
   },
 
-  changePassword(id, currentPassword, newPassword) {
-    const user = API.mockData.users.find(u => u.id === id);
-    if (!user) return { success: false, error: 'Không tìm thấy người dùng' };
-    if (user.password !== currentPassword) return { success: false, error: 'Mật khẩu hiện tại không đúng' };
-    if (newPassword.length < 6) return { success: false, error: 'Mật khẩu mới phải có ít nhất 6 ký tự' };
-    user.password = newPassword;
-    API._save('users');
-    return { success: true, message: 'Đổi mật khẩu thành công' };
-  },
-
   getUserBookings(userId) {
     return [];
   },

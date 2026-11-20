@@ -1,3 +1,4 @@
+
 # 1. Problems Found
 
 - `RefreshToken` thực chất lưu opaque bearer session; tên model/table gây hiểu nhầm. Đã có bcrypt, token ngẫu nhiên và SHA-256 từ trước, không có lỗi lưu raw token được phát hiện.
@@ -134,8 +135,6 @@ Migration: `prisma/migrations/20260908000000_rename_auth_sessions/migration.sql`
 | [backend/src/users/users.module.ts](../backend/src/users/users.module.ts) | Import/export AuthModule, wire controllers | Dependency injection đúng |
 | [backend/src/users/users.service.ts](../backend/src/users/users.service.ts) | Dùng mapper chung, xử lý đúng lỗi P2025 | Hồ sơ an toàn và lỗi đúng nghĩa |
 | [backend/test/auth.e2e-spec.ts](../backend/test/auth.e2e-spec.ts) | Thêm/cập nhật regression tests | Xác minh auth, ownership, migration |
-| [backend/test/verify-auth-migration.py](../backend/test/verify-auth-migration.py) | Thêm/cập nhật regression tests | Xác minh auth, ownership, migration |
-| [backend/test/verify-auth-session.cjs](../backend/test/verify-auth-session.cjs) | Thêm/cập nhật regression tests | Xác minh auth, ownership, migration |
 | [docs/database-design.md](../docs/database-design.md) | Đồng bộ mô tả session/ERD | Không giữ tài liệu auth sai nghĩa |
 | [docs/database-relationships.csv](../docs/database-relationships.csv) | Đồng bộ mô tả session/ERD | Không giữ tài liệu auth sai nghĩa |
 | [docs/database-schema-excel.csv](../docs/database-schema-excel.csv) | Đồng bộ mô tả session/ERD | Không giữ tài liệu auth sai nghĩa |
@@ -235,8 +234,6 @@ npx prisma generate
 npm --prefix backend run build
 npm --prefix backend run test -- --runInBand
 npm --prefix backend run test:e2e -- --runInBand
-# Database test riêng; script tạo schema ngẫu nhiên và tự dọn, không đọc .env ứng dụng.
-AUTH_MIGRATION_TEST_URL='postgresql://USER@HOST:PORT/TEST_DB' python3 backend/test/verify-auth-migration.py
 git diff --check
 ```
 

@@ -44,6 +44,24 @@ const UserView = {
                 </div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Lưu Thay Đổi</button>
               </form>
+              <h3 style="margin:32px 0 16px;">Đổi Mật Khẩu</h3>
+              <form onsubmit="UserController.handleChangePassword(event)">
+                <div class="admin-form-grid">
+                  <div class="form-group">
+                    <label class="form-label">Mật khẩu hiện tại</label>
+                    <input type="password" class="form-control" id="pwd-current" autocomplete="current-password" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Mật khẩu mới</label>
+                    <input type="password" class="form-control" id="pwd-new" minlength="6" autocomplete="new-password" required />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Nhập lại mật khẩu mới</label>
+                    <input type="password" class="form-control" id="pwd-confirm" minlength="6" autocomplete="new-password" required />
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> Đổi Mật Khẩu</button>
+              </form>
             </div>
           </div>
         </div>

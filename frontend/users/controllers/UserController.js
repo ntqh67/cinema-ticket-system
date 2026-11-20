@@ -20,22 +20,26 @@ const UserController = {
     else Toast.error(result.error);
   },
 
-  handleChangePassword(event) {
+  // Đổi mật khẩu qua backend; thành công thì mọi phiên bị thu hồi nên phải đăng nhập lại.
+  async handleChangePassword(event) {
     event.preventDefault();
     if (!AuthController.checkAuth()) return;
     const form = event.target;
-    const user = State.get('currentUser');
     const current = form.querySelector('#pwd-current').value;
     const newPwd = form.querySelector('#pwd-new').value;
     const confirm = form.querySelector('#pwd-confirm').value;
-    if (newPwd !== confirm) {
-      Toast.error('Mat khau xac nhan khong khop');
+    if (newPwd.length < 6) {
+      Toast.error('Mật khẩu mới phải có ít nhất 6 ký tự');
       return;
     }
-    const result = UserModel.changePassword(user.id, current, newPwd);
+    if (newPwd !== confirm) {
+      Toast.error('Mật khẩu xác nhận không khớp');
+      return;
+    }
+    const result = await AuthModel.changePassword(current, newPwd);
     if (result.success) {
-      Toast.success(result.message);
-      form.reset();
+      Toast.success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
+      Router.navigate('/login');
     } else {
       Toast.error(result.error);
     }
